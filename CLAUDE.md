@@ -146,6 +146,18 @@ so:
 - The **drift is caught by tests**: `tests/pdf.spec.ts` downloads the real PDF,
   extracts its text layer with pdf.js, and asserts the content matches the preview.
 
+**Text assertions cannot see layout.** Twice in one session a document nobody would
+send passed every text test: once the payment footer ran straight through the table
+rows, once an experimental pagination engine turned a two-page invoice into five
+half-empty ones. Both times all twelve text tests were green.
+`tests/pdf-layout.spec.ts` therefore asserts *positions* via `extractPdfLayout`:
+nothing outside the margins, the payment line inside the bottom band with content
+staying above it, pages filled before a new one starts, the table header above its
+rows, and a sane page count. They were validated by deliberately breaking the footer
+and confirming they go red while the text tests stay green. Prefer geometry over image
+baselines here — font rasterisation differs between machines, so pixel baselines get
+re-approved until they mean nothing, while coordinates do not.
+
 **Any change to what the document says must be made in both `InvoicePreview.tsx` and
 `InvoiceDocument.tsx`.** Fixing one alone is how these two drift apart.
 
