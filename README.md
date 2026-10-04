@@ -6,6 +6,8 @@ Facturen is een razendsnelle, privacy-vriendelijke web-applicatie voor het gener
 
 Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er is geen server, dus alles wat je invult blijft in je eigen browser.
 
+> *In English: a client-side invoice and quotation generator for the Dutch market — Dutch VAT rates (21/9/0%), small-business exemption (KOR), KvK and VAT numbers, and selectable-text PDF export. No backend, no accounts; everything stays in the browser. The interface and the rest of this README are in Dutch, because its users are.*
+
 ## ✨ Features
 
 - **Facturen & Offertes**: Schakel eenvoudig tussen het maken van een factuur of een offerte.

@@ -11,6 +11,38 @@ test('draagt de naam Facturen', async ({ page }) => {
     await expect(page.locator('header h1')).toHaveText('Facturen & Offertes');
 });
 
+/**
+ * Een gedeelde link hoort een kaart te tonen in plaats van een kale URL. Dat
+ * valt pas op als iemand hem deelt, dus controleren we het hier.
+ */
+test.describe('deelgegevens', () => {
+    const meta = (page: import('@playwright/test').Page, selector: string) =>
+        page.locator(selector).getAttribute('content');
+
+    test('heeft een titel en omschrijving voor sociale media', async ({ page }) => {
+        expect(await meta(page, 'meta[property="og:title"]')).toContain('Facturen');
+        expect(await meta(page, 'meta[property="og:description"]')).toContain('KOR');
+        expect(await meta(page, 'meta[name="twitter:card"]')).toBe('summary_large_image');
+    });
+
+    /** Het basispad stond ooit zowel in metadataBase als in de route: /facturen/facturen/. */
+    test('verwijst naar een afbeelding die ook echt bestaat', async ({ page }) => {
+        const src = await meta(page, 'meta[property="og:image"]');
+        expect(src).toBeTruthy();
+        expect(src!).not.toMatch(/(\/[^/]+)\1\//);  // geen verdubbeld pad
+
+        const response = await page.request.get(src!);
+        expect(response.status()).toBe(200);
+    });
+
+    test('biedt een manifest voor op het beginscherm', async ({ page }) => {
+        const href = await page.locator('link[rel="manifest"]').getAttribute('href');
+        const manifest = await (await page.request.get(href!)).json();
+        expect(manifest.name).toBe('Facturen & Offertes');
+        expect(manifest.icons.length).toBeGreaterThan(0);
+    });
+});
+
 /** Het aantal regels dat een element in beslag neemt. */
 const lineCount = (page: import('@playwright/test').Page, selector: string) =>
     page.locator(selector).evaluate((el) => {
