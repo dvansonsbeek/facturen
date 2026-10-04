@@ -1,6 +1,10 @@
 # Facturen 🚀
 
+**➡️ Direct gebruiken: [dvansonsbeek.github.io/facturen](https://dvansonsbeek.github.io/facturen/)**
+
 Facturen is een razendsnelle, privacy-vriendelijke web-applicatie voor het genereren van professionele facturen en offertes, specifiek ontworpen voor de Nederlandse markt.
+
+Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er is geen server, dus alles wat je invult blijft in je eigen browser.
 
 ## ✨ Features
 
@@ -36,6 +40,8 @@ Facturen is een razendsnelle, privacy-vriendelijke web-applicatie voor het gener
 - **Tests**: [Playwright](https://playwright.dev/)
 
 ## 🚀 Aan de slag
+
+De gepubliceerde versie staat op **[dvansonsbeek.github.io/facturen](https://dvansonsbeek.github.io/facturen/)**; elke push naar `main` publiceert hem opnieuw, mits de tests slagen. Hieronder staat hoe je hem lokaal draait.
 
 ### Installatie
 
