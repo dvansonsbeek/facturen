@@ -13,8 +13,11 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Facturen & Offertes**: Schakel eenvoudig tussen het maken van een factuur of een offerte.
 - **Nederlandse btw**: Tarieven van 21%, 9% en 0%, plus ondersteuning voor de kleineondernemersregeling (KOR). Staat de vrijstelling aan, dan laat de app alle btw-tarieven en -bedragen weg en voegt de vermelding toe (art. 25 Wet OB 1968).
 - **Bedrijfsgegevens**: Velden voor btw-identificatienummer en KvK-nummer. Ze verschijnen alleen op het document als je ze invult.
+- **Regels met een eenheid**: Reken per **uur**, per **stuk**, per **dag**, per **km** of helemaal zonder eenheid voor een vast bedrag. Je mag ook je eigen eenheid typen.
+- **Doorlopende nummering**: De app onthoudt waar je gebleven was. **Volgende factuur** hoogt het nummer op en maakt het document leeg; het jaartal rolt vanzelf mee.
+- **Offerte omzetten**: Een geaccepteerde offerte wordt met één klik een factuur, met klant en regels en een verwijzing naar het offertenummer.
 - **Live Preview**: Bekijk direct hoe je document eruit ziet terwijl je typt.
-- **PDF Export**: Download je document als een echte PDF op A4-formaat, met selecteerbare en doorzoekbare tekst.
+- **PDF Export**: Download je document als een echte PDF op A4-formaat, met selecteerbare en doorzoekbare tekst. Bij meerdere pagina's staan de betaalinstructies onderaan elke pagina en wordt er genummerd ("pagina 1 van 2").
 - **Logo Support**: Upload je eigen bedrijfslogo voor een professionele uitstraling op al je documenten.
 - **Gegevens Onthouden**: Je bedrijfs- en betaalgegevens worden bewaard in je eigen browser, op dit apparaat. Je vult ze één keer in; met **Wissen** haal je ze er weer uit.
 - **Klantenboek**: Bewaar je klanten en kies ze de volgende keer uit een lijst. De velden klappen dan dicht; met **Bewerken** open je ze weer. Wat je aanpast verandert de bewaarde klant pas als je **Opslaan** gebruikt.
@@ -37,7 +40,7 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router) met React 19
 - **Styling**: Vanilla CSS met een gepersonaliseerd Premium Design System.
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **PDF Generatie**: [@react-pdf/renderer](https://react-pdf.org/)
+- **PDF Generatie**: [@react-pdf/renderer](https://react-pdf.org/), met [pdf-lib](https://pdf-lib.js.org/) voor de paginanummering
 - **Type Safety**: TypeScript
 - **Tests**: [Playwright](https://playwright.dev/)
 
@@ -49,7 +52,7 @@ De gepubliceerde versie staat op **[dvansonsbeek.github.io/facturen](https://dva
 
 1. Clone de repository:
    ```bash
-   git clone <repository-url> facturen
+   git clone https://github.com/dvansonsbeek/facturen.git
    cd facturen
    ```
 
@@ -77,12 +80,15 @@ npm test
 
 ## 📝 Gebruik
 
-1. **Bedrijfsgegevens**: Vul je eigen gegevens in bij de sectie "Mijn Bedrijfsgegevens", inclusief je btw-identificatienummer en KvK-nummer.
-2. **Bespaar Tijd**: Klik op de **Export** knop om je gegevens op te slaan als een `.json` bestand. Bij een volgend bezoek kun je dit bestand simpelweg **Importeren**.
-3. **Opstellen**: Voeg items toe, geef ze een naam en een uitgebreide beschrijving. Pas aantallen en prijzen aan.
+1. **Bedrijfsgegevens**: Vul je eigen gegevens in bij "Mijn Bedrijfsgegevens", inclusief je btw-identificatienummer en KvK-nummer, en je rekeningnummer bij "Mijn Betaalgegevens". Dat hoeft maar één keer: de app onthoudt ze. Klap de secties daarna in.
+2. **Klant**: Kies een klant uit de lijst, of laat hem op "Nieuwe klant" staan en typ de gegevens. Met **Opslaan** komt hij in je klantenboek en kun je hem de volgende keer zo kiezen.
+3. **Opstellen**: Voeg regels toe met een naam, een omschrijving, een aantal en eventueel een eenheid (uur, stuk, dag). Kies per regel het btw-tarief.
 4. **BTW**: Schakel de KOR-modus in als je bent vrijgesteld van btw. De app laat dan alle btw-tarieven en -bedragen weg en voegt de vermelding van de vrijstelling toe.
 5. **Afronden**: Vul eventueel betalingsvoorwaarden en opmerkingen in; die komen onderaan het document te staan.
 6. **Downloaden**: Zodra je tevreden bent met het live voorbeeld, klik je op **Download PDF**.
+7. **Volgende**: Klik op **Volgende factuur** om het nummer op te hogen en met een leeg document verder te gaan. Je klant blijft staan, want die factureer je vaker.
+
+Werk je op meerdere apparaten? Gebruik **Export** en **Import** om je bedrijfsgegevens, klantenboek en nummering mee te nemen.
 
 ## 📄 Licentie
 

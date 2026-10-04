@@ -27,7 +27,11 @@ This repo is a fork of [eraycode/factuurr](https://github.com/eraycode/factuurr)
 ```
 app/                 layout + page shell (server components, 2-space indent)
 components/
-  InvoiceForm.tsx    all form state and layout (~530 lines, the big one)
+  InvoiceForm.tsx    the container: all form state, handlers and composition
+  form/              presentational sections, props in, callbacks out
+    CompanyDetails.tsx   Mijn Bedrijfsgegevens (foldout)
+    PaymentDetails.tsx   Mijn Betaalgegevens (foldout, invoice only)
+    ClientDetails.tsx    client fields plus the customer book
   InvoicePreview.tsx the on-screen HTML preview
   InvoiceDocument.tsx the PDF document (@react-pdf/renderer)
   ItemRow.tsx        one line item
@@ -38,14 +42,16 @@ lib/
   clients.ts         the saved customer book, persisted
   numbering.ts       the running invoice/quotation numbers, persisted
   foldouts.ts        which sections the user collapsed, persisted
+  image.ts           downscales an uploaded logo so it fits in localStorage
+  page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
 types/index.ts       Invoice, Quotation, Sender, Client, LineItem
 tests/               Playwright end-to-end specs
 ```
 
-`Quotation extends Omit<Invoice, 'invoiceNumber' | 'dueDate'>`. The two are held as
-**separate `useState` drafts** in `InvoiceForm` (`InvoiceDraft` / `QuotationDraft`,
-which omit everything that lives in settings), and `handleToggleType` copies the
-shared per-document fields when you switch tabs.
+`Quotation extends Omit<Invoice, 'invoiceNumber'>` and adds `quotationNumber` and
+`validUntil`. The two are held as **separate `useState` drafts** in `InvoiceForm`
+(`InvoiceDraft` / `QuotationDraft`, which omit everything living in the stores), and
+`handleToggleType` copies the shared per-document fields when you switch tabs.
 
 ## State lives in three places, deliberately
 
@@ -205,22 +211,27 @@ Run the suite before and after any refactor. It exists precisely because
 
 ## Known gaps and deliberate decisions
 
-- `InvoiceForm.tsx` still mixes state, defaults and layout. Three `isQuotation`
-  branches remain and are **legitimate** (`updateDocument` itself, plus
-  `setDocumentNumber` and `setExpiryDate`, where the two document types genuinely use
-  different field names). Everything else goes through `updateDocument` /
-  `updateSender` / `updateClient` / `updateItems`. The natural next step is extracting
-  `SenderFields`, `ClientFields`, `DocumentMeta` and `PaymentFields` components.
-- `sender.country` has no input and is hardcoded `"Nederland"`.
-- Settings import (`importSettings`) does no validation — any JSON replaces the sender
-  object wholesale.
+- `InvoiceForm.tsx` is ~640 lines: roughly 430 of state and handlers, 210 of
+  composition. The company, payment and client sections were extracted to
+  `components/form/`; *Algemene Informatie*, Items and the action buttons were left
+  in place because pulling out another ~50 lines behind a props interface buys little.
+  Only **one** `isQuotation` branch remains, inside `updateDocument` itself, and it is
+  load-bearing: every field handler goes through `updateDocument` / `updateSender` /
+  `updateClient` / `updateItems`. The handlers are genuinely interdependent
+  (`handleConvertToInvoice` touches both drafts, the numbering store and the tab
+  state), so splitting them into hooks would likely cost more clarity than it buys.
+- Settings import (`importSettings`) only checks that the file parses to an object —
+  any shape beyond that is written straight into the settings store.
 - `npm audit` reports a handful of high-severity issues in the ESLint toolchain
   (brace-expansion, micromatch and friends). They are dev-only, build-time ReDoS/DoS
   issues that never reach the browser, and npm's only proposed "fix" is downgrading
   `eslint-config-next` to 14.x — **do not do that.**
 - ESLint 10 and TypeScript 7 are allowed by peer ranges but untested here. Both are
   majors; upgrade deliberately, not incidentally.
-- Two lint warnings remain, both pre-existing `<img>` hints from `@next/next`.
+- One lint warning remains: the `<img>` hint in `InvoicePreview`. `next/image` cannot
+  help there — the logo is a browser data URL and image optimisation is off under
+  static export — so the same hint in `CompanyDetails` carries an explicit disable
+  with that reason.
 
 ## AGENTS.md is generated
 
