@@ -24,7 +24,9 @@ import {
 } from "@/lib/numbering";
 import ItemRow from "./ItemRow";
 import InvoicePreview from "./InvoicePreview";
-import InvoiceDocument from "./InvoiceDocument";
+// InvoiceDocument wordt bewust niet hierboven geïmporteerd: dat bestand hangt
+// aan @react-pdf/renderer, en een gewone import trekt die hele bibliotheek de
+// eerste paginalading in. Hij wordt pas opgehaald bij Download PDF.
 
 /**
  * Een document zonder de gegevens die in de instellingen staan. Daardoor kan
@@ -309,9 +311,18 @@ export default function InvoiceForm() {
 
     const sanitizeFilename = (name: string) => name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
-    // react-pdf is fors; dynamisch laden houdt het uit de eerste bundel.
+    /**
+     * react-pdf is fors (ruim een megabyte). Zowel de bibliotheek als het
+     * document dat eraan hangt worden daarom pas hier opgehaald. Alleen
+     * import("@react-pdf/renderer") is niet genoeg: zolang InvoiceDocument
+     * bovenaan wordt geïmporteerd, zit de bibliotheek alsnog in de eerste
+     * paginalading.
+     */
     const handleDownloadPDF = async () => {
-        const { pdf } = await import("@react-pdf/renderer");
+        const [{ pdf }, { default: InvoiceDocument }] = await Promise.all([
+            import("@react-pdf/renderer"),
+            import("./InvoiceDocument"),
+        ]);
         const gerenderd = await pdf(
             <InvoiceDocument data={currentData} isQuotation={isQuotation} />
         ).toBlob();

@@ -43,6 +43,27 @@ test.describe('deelgegevens', () => {
     });
 });
 
+/**
+ * react-pdf is ruim een megabyte en wordt alleen gebruikt als iemand op
+ * Download PDF klikt. Het stond toch in de eerste paginalading, omdat
+ * InvoiceDocument bovenaan werd geïmporteerd: een dynamische import van de
+ * bibliotheek zelf helpt dan niets. Deze grens slaat aan als dat terugkomt.
+ */
+test('de pagina laadt niet meer javascript dan nodig', async ({ page }) => {
+    let geladen = 0;
+    page.on('response', async (response) => {
+        if (!response.url().endsWith('.js')) return;
+        const lengte = response.headers()['content-length'];
+        if (lengte) geladen += Number(lengte);
+    });
+
+    await page.goto('/', { waitUntil: 'networkidle' });
+
+    const kilobytes = Math.round(geladen / 1024);
+    // Nu ongeveer 600 KB; met react-pdf erbij was het ruim 1800 KB.
+    expect(kilobytes, `${kilobytes} KB bij het openen van de pagina`).toBeLessThan(900);
+});
+
 /** Het aantal regels dat een element in beslag neemt. */
 const lineCount = (page: import('@playwright/test').Page, selector: string) =>
     page.locator(selector).evaluate((el) => {
