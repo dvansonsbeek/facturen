@@ -438,6 +438,24 @@ textarea:focus {
   --border: #e2e8f0;
 }
 
+/* De kleine grijze knopjes bij een sectie: Export, Import, Wissen, Opslaan,
+   Bewerken, Verwijderen. Stond zes keer als identieke inline-stijl in het
+   formulier. */
+.premium-btn.compact {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  background: var(--secondary);
+  gap: 0.4rem;
+}
+
+/* Een knop die niets doet zolang er niets in te vullen valt. */
+.premium-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
 /* Inklapbare sectie. De gegevens die eenmalig worden ingevuld staan hierin,
    zodat ze niet elke keer de halve kolom in beslag nemen. */
 .foldout {
@@ -490,6 +508,11 @@ textarea:focus {
 
 .label-group label.premium-btn,
 .form-section label.premium-btn {
+  /* Ook display hoort hierbij: '.form-section label' zet display:block en is
+     specifieker dan '.premium-btn', waardoor de Import-knop geen flexrij meer
+     was en de spatie tussen pictogram en tekst zichtbaar werd. */
+  display: inline-flex;
+  align-items: center;
   text-transform: none;
   letter-spacing: normal;
   margin-bottom: 0;

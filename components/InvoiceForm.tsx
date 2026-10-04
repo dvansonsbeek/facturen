@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
-import { Plus, Download, FileText, Briefcase, Upload, Moon, Sun, Trash2, Pencil } from "lucide-react";
+import { Plus, Download, FileText, Briefcase, Upload, Moon, Sun, Trash2 } from "lucide-react";
 import { Invoice, Quotation, LineItem, Sender, Client } from "@/types";
-import { generateId, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { generateId } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
 import {
     subscribeSettings, readSettings, readServerSettings, writeSettings, clearSettings,
@@ -23,6 +23,9 @@ import {
     clearNumbering, nextNumber,
 } from "@/lib/numbering";
 import ItemRow from "./ItemRow";
+import CompanyDetails from "./form/CompanyDetails";
+import PaymentDetails from "./form/PaymentDetails";
+import ClientDetails from "./form/ClientDetails";
 import InvoicePreview from "./InvoicePreview";
 // InvoiceDocument wordt bewust niet hierboven geïmporteerd: dat bestand hangt
 // aan @react-pdf/renderer, en een gewone import trekt die hele bibliotheek de
@@ -466,14 +469,14 @@ export default function InvoiceForm() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                             <h3 style={{ margin: 0 }}>Mijn gegevens</h3>
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                <button className="premium-btn" onClick={exportSettings} style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'var(--secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }} title="Mijn gegevens exporteren">
+                                <button className="premium-btn compact" onClick={exportSettings} title="Mijn gegevens exporteren">
                                     <Download size={14} /> <span>Export</span>
                                 </button>
-                                <label className="premium-btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'var(--secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }} title="Mijn gegevens importeren">
+                                <label className="premium-btn compact" style={{ cursor: 'pointer' }} title="Mijn gegevens importeren">
                                     <Upload size={14} /> <span>Import</span>
                                     <input type="file" accept=".json" onChange={importSettings} style={{ display: 'none' }} />
                                 </label>
-                                <button className="premium-btn" onClick={handleClearSettings} style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'var(--secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }} title="Opgeslagen gegevens uit deze browser verwijderen">
+                                <button className="premium-btn compact" onClick={handleClearSettings} title="Opgeslagen gegevens uit deze browser verwijderen">
                                     <Trash2 size={14} /> <span>Wissen</span>
                                 </button>
                             </div>
@@ -484,256 +487,36 @@ export default function InvoiceForm() {
                         </p>
                     </div>
 
-                    <details
-                        className="foldout"
+                    <CompanyDetails
+                        sender={currentData.sender}
+                        onChange={updateSender}
+                        onLogoChange={handleLogoUpload}
+                        logoWarning={logoWaarschuwing}
                         open={foldouts.bedrijfsgegevens}
-                        onToggle={(e) => writeFoldout('bedrijfsgegevens', e.currentTarget.open)}
-                    >
-                        <summary><h3>Mijn Bedrijfsgegevens</h3></summary>
-                        <div className="foldout-body" style={{ display: 'grid', gap: '1.5rem' }}>
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', border: '2px dashed var(--border)', borderRadius: 'var(--radius)' }}>
-                                <div style={{ flex: 1 }}>
-                                    <label htmlFor="bedrijf-logo" style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>Logo Uploaden</label>
-                                    <input id="bedrijf-logo" type="file" accept="image/*" onChange={handleLogoUpload} style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem' }} />
-                                    {logoWaarschuwing && (
-                                        <p role="status" style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--error)' }}>
-                                            {logoWaarschuwing}
-                                        </p>
-                                    )}
-                                </div>
-                                {currentData.sender.logoUrl && (
-                                    <img src={currentData.sender.logoUrl} alt="Logo" style={{ height: '50px', maxWidth: '100px', objectFit: 'contain' }} />
-                                )}
-                            </div>
-                            <div>
-                                <label htmlFor="bedrijf-naam">Bedrijfsnaam</label>
-                                <input
-                                    id="bedrijf-naam"
-                                    placeholder="Mijn Bedrijf BV"
-                                    value={currentData.sender.name}
-                                    onChange={(e) => updateSender({ name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="bedrijf-adres">Adresregel 1</label>
-                                <input
-                                    id="bedrijf-adres"
-                                    placeholder="Straatnaam 1"
-                                    value={currentData.sender.address}
-                                    onChange={(e) => updateSender({ address: e.target.value })}
-                                />
-                            </div>
-                            <div className="mobile-grid-1-tablet-2" style={{ display: 'grid', gap: '1.5rem' }}>
-                                <div>
-                                    <label htmlFor="bedrijf-postcode">Postcode</label>
-                                    <input
-                                        id="bedrijf-postcode"
-                                        placeholder="1234 AB"
-                                        value={currentData.sender.zip}
-                                        onChange={(e) => updateSender({ zip: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="bedrijf-stad">Stad</label>
-                                    <input
-                                        id="bedrijf-stad"
-                                        placeholder="Amsterdam"
-                                        value={currentData.sender.city}
-                                        onChange={(e) => updateSender({ city: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label htmlFor="bedrijf-land">Land</label>
-                                <input
-                                    id="bedrijf-land"
-                                    placeholder="Nederland"
-                                    value={currentData.sender.country}
-                                    onChange={(e) => updateSender({ country: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="bedrijf-email">E-mail Adres</label>
-                                <input
-                                    id="bedrijf-email"
-                                    placeholder="info@mijnbedrijf.nl"
-                                    value={currentData.sender.email}
-                                    onChange={(e) => updateSender({ email: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="bedrijf-btw">BTW-nummer</label>
-                                <input
-                                    id="bedrijf-btw"
-                                    placeholder="NL123456789B01"
-                                    value={currentData.sender.vatNumber}
-                                    onChange={(e) => updateSender({ vatNumber: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="bedrijf-kvk">KvK-nummer</label>
-                                <input
-                                    id="bedrijf-kvk"
-                                    placeholder="12345678"
-                                    value={currentData.sender.kvkNumber || ''}
-                                    onChange={(e) => updateSender({ kvkNumber: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                    </details>
+                        onToggle={(open) => writeFoldout('bedrijfsgegevens', open)}
+                    />
 
                     {!isQuotation && (
-                        <details
-                            className="foldout"
+                        <PaymentDetails
+                            settings={settings}
+                            onChange={updateSettings}
                             open={foldouts.betaalgegevens}
-                            onToggle={(e) => writeFoldout('betaalgegevens', e.currentTarget.open)}
-                        >
-                            <summary><h3>Mijn Betaalgegevens</h3></summary>
-                            <div className="foldout-body" style={{ display: 'grid', gap: '1.5rem' }}>
-                                <div>
-                                    <label htmlFor="iban">IBAN Nummer</label>
-                                    <input
-                                        id="iban"
-                                        placeholder={IBAN_PLACEHOLDER}
-                                        value={settings.bankAccount}
-                                        onChange={(e) => updateSettings({ bankAccount: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="bic">BIC Code (optioneel)</label>
-                                    <input
-                                        id="bic"
-                                        placeholder="XXXXXXXX"
-                                        value={settings.bic}
-                                        onChange={(e) => updateSettings({ bic: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="betalingsvoorwaarden">Betalingsvoorwaarden</label>
-                                    <input
-                                        id="betalingsvoorwaarden"
-                                        placeholder="Binnen 14 dagen na factuurdatum."
-                                        value={settings.paymentConditions}
-                                        onChange={(e) => updateSettings({ paymentConditions: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                        </details>
+                            onToggle={(open) => writeFoldout('betaalgegevens', open)}
+                        />
                     )}
 
-                    <div style={{ marginBottom: '2rem' }}>
-                        <h3 style={{ marginBottom: '1rem' }}>Klantgegevens</h3>
-                        <div style={{ display: 'grid', gap: '1.5rem' }}>
-                            {/* Het klantenboek. Kiezen vult de velden hieronder; die
-                                blijven vrij bewerkbaar voor dit ene document. Pas
-                                Opslaan verandert wat er bewaard is. */}
-                            <div style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'grid', gap: '0.75rem' }}>
-                                <div>
-                                    <label htmlFor="klantKiezen">Klant</label>
-                                    <select
-                                        id="klantKiezen"
-                                        value={selectedClientId}
-                                        onChange={(e) => selectSavedClient(e.target.value)}
-                                        style={{ width: '100%' }}
-                                    >
-                                        <option value="">— Nieuwe klant —</option>
-                                        {savedClients.map(client => (
-                                            <option key={client.id} value={client.id}>{client.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                    {clientFieldsVisible ? (
-                                        <button
-                                            className="premium-btn"
-                                            onClick={handleSaveClient}
-                                            disabled={!currentData.client.name.trim()}
-                                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'var(--secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', opacity: currentData.client.name.trim() ? 1 : 0.5, cursor: currentData.client.name.trim() ? 'pointer' : 'not-allowed' }}
-                                            title="Deze klant in je klantenboek bewaren"
-                                        >
-                                            <Plus size={14} /> <span>{matchingSavedClient ? 'Bijwerken' : 'Opslaan'}</span>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            className="premium-btn"
-                                            onClick={() => setIsEditingClient(true)}
-                                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'var(--secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-                                            title="De gegevens van deze klant aanpassen"
-                                        >
-                                            <Pencil size={14} /> <span>Bewerken</span>
-                                        </button>
-                                    )}
-                                    <button
-                                        className="premium-btn"
-                                        onClick={handleDeleteClient}
-                                        disabled={!selectedClientId}
-                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', background: 'var(--secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', opacity: selectedClientId ? 1 : 0.5, cursor: selectedClientId ? 'pointer' : 'not-allowed' }}
-                                        title="Deze klant uit je klantenboek verwijderen"
-                                    >
-                                        <Trash2 size={14} /> <span>Verwijderen</span>
-                                    </button>
-                                </div>
-                            </div>
-                            {clientFieldsVisible && (<>
-                            <div>
-                                <label htmlFor="klant-naam">Klantnaam / Bedrijfsnaam</label>
-                                <input
-                                    id="klant-naam"
-                                    placeholder="Naam van de klant"
-                                    value={currentData.client.name}
-                                    onChange={(e) => updateClient({ name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="klant-adres">Adres</label>
-                                <input
-                                    id="klant-adres"
-                                    placeholder="Straatnaam 123"
-                                    value={currentData.client.address}
-                                    onChange={(e) => updateClient({ address: e.target.value })}
-                                />
-                            </div>
-                            <div className="mobile-grid-1-tablet-2" style={{ display: 'grid', gap: '1.5rem' }}>
-                                <div>
-                                    <label htmlFor="klant-postcode">Postcode</label>
-                                    <input
-                                        id="klant-postcode"
-                                        placeholder="1234 AB"
-                                        value={currentData.client.zip}
-                                        onChange={(e) => updateClient({ zip: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="klant-stad">Stad</label>
-                                    <input
-                                        id="klant-stad"
-                                        placeholder="Amsterdam"
-                                        value={currentData.client.city}
-                                        onChange={(e) => updateClient({ city: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label htmlFor="klant-land">Land (optioneel)</label>
-                                <input
-                                    id="klant-land"
-                                    placeholder="Alleen invullen bij buitenlandse klanten"
-                                    value={currentData.client.country}
-                                    onChange={(e) => updateClient({ country: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="klant-btw">BTW-nummer Klant (optioneel)</label>
-                                <input
-                                    id="klant-btw"
-                                    placeholder="NL123456789B01"
-                                    value={currentData.client.vatNumber || ''}
-                                    onChange={(e) => updateClient({ vatNumber: e.target.value })}
-                                />
-                            </div>
-                            </>)}
-                        </div>
-                    </div>
+                    <ClientDetails
+                        client={currentData.client}
+                        onChange={updateClient}
+                        savedClients={savedClients}
+                        selectedClientId={selectedClientId}
+                        onSelect={selectSavedClient}
+                        onSave={handleSaveClient}
+                        onDelete={handleDeleteClient}
+                        onEdit={() => setIsEditingClient(true)}
+                        fieldsVisible={clientFieldsVisible}
+                        nameIsKnown={!!matchingSavedClient}
+                    />
 
                     <div style={{ marginBottom: '2rem' }}>
                         <h3 style={{ marginBottom: '1rem' }}>Algemene Informatie</h3>
