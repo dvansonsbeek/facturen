@@ -145,6 +145,40 @@ test('de omschrijving vraagt om goederen of diensten', async ({ page }) => {
     );
 });
 
+test.describe('offerte omzetten naar factuur', () => {
+    test('neemt klant en regels mee en verwijst naar het offertenummer', async ({ page }) => {
+        const app = ui(page);
+        await app.tab('Offerte').click();
+        const offerteNummer = await app.documentNumber.inputValue();
+        await app.clientName.fill('Jansen Bouw BV');
+        await app.itemName(0).fill('Advies');
+        await app.itemPrice(0).fill('500');
+
+        await app.convertToInvoice.click();
+
+        // We staan nu op de factuur.
+        await expect(app.preview.locator('h1')).toHaveText('FACTUUR');
+        await expect(app.clientName).toHaveValue('Jansen Bouw BV');
+        await expect(app.itemPrice(0)).toHaveValue('500');
+        expect(await previewText(page)).toContain(`Conform offerte ${offerteNummer}.`);
+    });
+
+    test('laat de offertetekst niet op de factuur staan', async ({ page }) => {
+        const app = ui(page);
+        await app.tab('Offerte').click();
+        await app.convertToInvoice.click();
+
+        expect(await previewText(page)).not.toContain('Deze offerte is 30 dagen geldig.');
+    });
+
+    test('de knop staat alleen op een offerte', async ({ page }) => {
+        const app = ui(page);
+        await expect(app.convertToInvoice).toHaveCount(0);
+        await app.tab('Offerte').click();
+        await expect(app.convertToInvoice).toBeVisible();
+    });
+});
+
 test.describe('de kop boven de klantgegevens', () => {
     test('een factuur factureert aan', async ({ page }) => {
         const text = await previewText(page);

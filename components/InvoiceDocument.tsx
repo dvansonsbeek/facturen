@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
     footerLine: { marginBottom: 5 },
     label: { fontFamily: 'Helvetica-Bold' },
 
+    /** Paginanummering, rechtsonder op elke pagina. */
     /** Vaste voettekst, onderaan elke pagina. */
     pageFooter: {
         position: 'absolute',
@@ -261,7 +262,16 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
 
                 {/* fixed herhaalt dit blok onderaan elke pagina, zodat wie
                     betaalt het rekeningnummer bij de hand heeft ook als de
-                    regels over meerdere pagina's lopen. */}
+                    regels over meerdere pagina's lopen.
+
+                    Paginanummering ("pagina 1 van 2") ontbreekt bewust: het
+                    gebruikelijke <Text fixed render={...} /> wordt in
+                    @react-pdf/renderer 4.9.0 niet aangeroepen, en het
+                    alternatief (Page.layout) zet de hele PDF op een
+                    experimentele pagineermotor die van deze factuur van twee
+                    pagina's er vijf maakte, met een verkeerd paginatotaal.
+                    Te duur voor een nummering; opnieuw proberen bij een
+                    volgende versie van react-pdf. */}
                 {!isQuotation && (
                     <View style={styles.pageFooter} fixed>
                         <Text>

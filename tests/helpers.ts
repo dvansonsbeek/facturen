@@ -65,6 +65,7 @@ export const ui = (page: Page) => ({
 
     downloadPdf: page.getByRole('button', { name: /Download PDF/i }),
     nextDocument: page.getByRole('button', { name: /Volgende (factuur|offerte)/ }),
+    convertToInvoice: page.getByRole('button', { name: /Omzetten naar factuur/ }),
 });
 
 /**

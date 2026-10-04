@@ -7,8 +7,9 @@ import { generateId, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
 import {
     subscribeSettings, readSettings, readServerSettings, writeSettings, clearSettings,
-    type CompanySettings,
+    didLastWriteFail, type CompanySettings,
 } from "@/lib/settings";
+import { downscaleImage } from "@/lib/image";
 import {
     subscribeFoldouts, readFoldouts, readServerFoldouts, writeFoldout,
 } from "@/lib/foldouts";
@@ -131,6 +132,7 @@ export default function InvoiceForm() {
     // niet bij het boek, dus die bewaren we niet.
     const [selectedClientId, setSelectedClientId] = useState('');
     const [isEditingClient, setIsEditingClient] = useState(false);
+    const [logoWaarschuwing, setLogoWaarschuwing] = useState<string | null>(null);
 
     // Bij een bewaarde klant zijn de velden ingeklapt: je ziet hem al staan in
     // het voorbeeld. Ze gaan open voor een nieuwe klant, of via Bewerken.
@@ -233,6 +235,33 @@ export default function InvoiceForm() {
         setIsQuotation(nextIsQuotation);
     };
 
+    /**
+     * Een geaccepteerde offerte wordt een factuur.
+     *
+     * Wisselen van tabblad neemt klant en regels al mee, maar laat de
+     * offertetekst staan ("Deze offerte is 30 dagen geldig") en legt geen
+     * verband tussen de twee stukken. Deze knop doet dat wel: hij verwijst in
+     * de opmerkingen naar het offertenummer, wat gebruikelijk is en het voor de
+     * ontvanger en je eigen administratie narekenbaar maakt.
+     */
+    const handleConvertToInvoice = () => {
+        const offerteNummer = numbering.offerte;
+        const heeftFactuurWerk = invoice.items.length > 1 || invoice.items.some(i => i.unitPrice > 0);
+        if (heeftFactuurWerk && !window.confirm(
+            'De regels die nu op de factuur staan worden vervangen door die van deze offerte. Doorgaan?',
+        )) return;
+
+        setInvoice(prev => ({
+            ...prev,
+            client: { ...quotation.client },
+            items: quotation.items.map(item => ({ ...item })),
+            isVatExempt: quotation.isVatExempt,
+            notes: `Conform offerte ${offerteNummer}.`,
+            date: getInitialDates().date,
+        }));
+        setIsQuotation(false);
+    };
+
     const addItem = () =>
         updateItems(items => [
             ...items,
@@ -252,12 +281,28 @@ export default function InvoiceForm() {
     // btw berekend en vermeld wordt, zodat de tarieven terugkomen bij uitzetten.
     const toggleVatExemption = (enabled: boolean) => updateDocument({ isVatExempt: enabled });
 
-    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    /**
+     * Een logo wordt als data-URL in localStorage bewaard, en die opslag is
+     * krap (ongeveer 5 MB). Een foto van een telefoon past daar niet in. We
+     * verkleinen hem daarom eerst; lukt bewaren alsnog niet, dan zeggen we dat,
+     * want anders lijkt het gelukt tot de volgende herlaadbeurt.
+     */
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => updateSender({ logoUrl: reader.result as string });
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        setLogoWaarschuwing(null);
+        try {
+            const logoUrl = await downscaleImage(file, 480);
+            updateSender({ logoUrl });
+            if (didLastWriteFail()) {
+                setLogoWaarschuwing(
+                    'Dit logo is te groot om te onthouden. Het staat wel op je document, '
+                    + 'maar is na het herladen van de pagina weg. Probeer een kleiner bestand.',
+                );
+            }
+        } catch {
+            setLogoWaarschuwing('Dit bestand kon niet als afbeelding worden gelezen.');
         }
     };
 
@@ -385,6 +430,8 @@ export default function InvoiceForm() {
                         <button
                             className="premium-btn"
                             onClick={toggleTheme}
+                            aria-label={theme === 'light' ? 'Overschakelen naar donkere modus' : 'Overschakelen naar lichte modus'}
+                            title={theme === 'light' ? 'Donkere modus' : 'Lichte modus'}
                             style={{
                                 padding: '0.75rem',
                                 background: 'var(--card-bg)',
@@ -429,24 +476,31 @@ export default function InvoiceForm() {
                         <div className="foldout-body" style={{ display: 'grid', gap: '1.5rem' }}>
                             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', border: '2px dashed var(--border)', borderRadius: 'var(--radius)' }}>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>Logo Uploaden</label>
-                                    <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem' }} />
+                                    <label htmlFor="bedrijf-logo" style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>Logo Uploaden</label>
+                                    <input id="bedrijf-logo" type="file" accept="image/*" onChange={handleLogoUpload} style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem' }} />
+                                    {logoWaarschuwing && (
+                                        <p role="status" style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--error)' }}>
+                                            {logoWaarschuwing}
+                                        </p>
+                                    )}
                                 </div>
                                 {currentData.sender.logoUrl && (
                                     <img src={currentData.sender.logoUrl} alt="Logo" style={{ height: '50px', maxWidth: '100px', objectFit: 'contain' }} />
                                 )}
                             </div>
                             <div>
-                                <label>Bedrijfsnaam</label>
+                                <label htmlFor="bedrijf-naam">Bedrijfsnaam</label>
                                 <input
+                                    id="bedrijf-naam"
                                     placeholder="Mijn Bedrijf BV"
                                     value={currentData.sender.name}
                                     onChange={(e) => updateSender({ name: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label>Adresregel 1</label>
+                                <label htmlFor="bedrijf-adres">Adresregel 1</label>
                                 <input
+                                    id="bedrijf-adres"
                                     placeholder="Straatnaam 1"
                                     value={currentData.sender.address}
                                     onChange={(e) => updateSender({ address: e.target.value })}
@@ -454,16 +508,18 @@ export default function InvoiceForm() {
                             </div>
                             <div className="mobile-grid-1-tablet-2" style={{ display: 'grid', gap: '1.5rem' }}>
                                 <div>
-                                    <label>Postcode</label>
+                                    <label htmlFor="bedrijf-postcode">Postcode</label>
                                     <input
+                                        id="bedrijf-postcode"
                                         placeholder="1234 AB"
                                         value={currentData.sender.zip}
                                         onChange={(e) => updateSender({ zip: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label>Stad</label>
+                                    <label htmlFor="bedrijf-stad">Stad</label>
                                     <input
+                                        id="bedrijf-stad"
                                         placeholder="Amsterdam"
                                         value={currentData.sender.city}
                                         onChange={(e) => updateSender({ city: e.target.value })}
@@ -471,24 +527,36 @@ export default function InvoiceForm() {
                                 </div>
                             </div>
                             <div>
-                                <label>E-mail Adres</label>
+                                <label htmlFor="bedrijf-land">Land</label>
                                 <input
+                                    id="bedrijf-land"
+                                    placeholder="Nederland"
+                                    value={currentData.sender.country}
+                                    onChange={(e) => updateSender({ country: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="bedrijf-email">E-mail Adres</label>
+                                <input
+                                    id="bedrijf-email"
                                     placeholder="info@mijnbedrijf.nl"
                                     value={currentData.sender.email}
                                     onChange={(e) => updateSender({ email: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label>BTW-nummer</label>
+                                <label htmlFor="bedrijf-btw">BTW-nummer</label>
                                 <input
+                                    id="bedrijf-btw"
                                     placeholder="NL123456789B01"
                                     value={currentData.sender.vatNumber}
                                     onChange={(e) => updateSender({ vatNumber: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label>KvK-nummer</label>
+                                <label htmlFor="bedrijf-kvk">KvK-nummer</label>
                                 <input
+                                    id="bedrijf-kvk"
                                     placeholder="12345678"
                                     value={currentData.sender.kvkNumber || ''}
                                     onChange={(e) => updateSender({ kvkNumber: e.target.value })}
@@ -506,24 +574,27 @@ export default function InvoiceForm() {
                             <summary><h3>Mijn Betaalgegevens</h3></summary>
                             <div className="foldout-body" style={{ display: 'grid', gap: '1.5rem' }}>
                                 <div>
-                                    <label>IBAN Nummer</label>
+                                    <label htmlFor="iban">IBAN Nummer</label>
                                     <input
+                                        id="iban"
                                         placeholder={IBAN_PLACEHOLDER}
                                         value={settings.bankAccount}
                                         onChange={(e) => updateSettings({ bankAccount: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label>BIC Code (optioneel)</label>
+                                    <label htmlFor="bic">BIC Code (optioneel)</label>
                                     <input
+                                        id="bic"
                                         placeholder="XXXXXXXX"
                                         value={settings.bic}
                                         onChange={(e) => updateSettings({ bic: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label>Betalingsvoorwaarden</label>
+                                    <label htmlFor="betalingsvoorwaarden">Betalingsvoorwaarden</label>
                                     <input
+                                        id="betalingsvoorwaarden"
                                         placeholder="Binnen 14 dagen na factuurdatum."
                                         value={settings.paymentConditions}
                                         onChange={(e) => updateSettings({ paymentConditions: e.target.value })}
@@ -588,16 +659,18 @@ export default function InvoiceForm() {
                             </div>
                             {clientFieldsVisible && (<>
                             <div>
-                                <label>Klantnaam / Bedrijfsnaam</label>
+                                <label htmlFor="klant-naam">Klantnaam / Bedrijfsnaam</label>
                                 <input
+                                    id="klant-naam"
                                     placeholder="Naam van de klant"
                                     value={currentData.client.name}
                                     onChange={(e) => updateClient({ name: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label>Adres</label>
+                                <label htmlFor="klant-adres">Adres</label>
                                 <input
+                                    id="klant-adres"
                                     placeholder="Straatnaam 123"
                                     value={currentData.client.address}
                                     onChange={(e) => updateClient({ address: e.target.value })}
@@ -605,16 +678,18 @@ export default function InvoiceForm() {
                             </div>
                             <div className="mobile-grid-1-tablet-2" style={{ display: 'grid', gap: '1.5rem' }}>
                                 <div>
-                                    <label>Postcode</label>
+                                    <label htmlFor="klant-postcode">Postcode</label>
                                     <input
+                                        id="klant-postcode"
                                         placeholder="1234 AB"
                                         value={currentData.client.zip}
                                         onChange={(e) => updateClient({ zip: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label>Stad</label>
+                                    <label htmlFor="klant-stad">Stad</label>
                                     <input
+                                        id="klant-stad"
                                         placeholder="Amsterdam"
                                         value={currentData.client.city}
                                         onChange={(e) => updateClient({ city: e.target.value })}
@@ -622,16 +697,18 @@ export default function InvoiceForm() {
                                 </div>
                             </div>
                             <div>
-                                <label>Land (optioneel)</label>
+                                <label htmlFor="klant-land">Land (optioneel)</label>
                                 <input
+                                    id="klant-land"
                                     placeholder="Alleen invullen bij buitenlandse klanten"
                                     value={currentData.client.country}
                                     onChange={(e) => updateClient({ country: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label>BTW-nummer Klant (optioneel)</label>
+                                <label htmlFor="klant-btw">BTW-nummer Klant (optioneel)</label>
                                 <input
+                                    id="klant-btw"
                                     placeholder="NL123456789B01"
                                     value={currentData.client.vatNumber || ''}
                                     onChange={(e) => updateClient({ vatNumber: e.target.value })}
@@ -646,8 +723,9 @@ export default function InvoiceForm() {
                         <div style={{ display: 'grid', gap: '1rem' }}>
                             <div className="field-row">
                                 <div className="label-group">
-                                    <label>{isQuotation ? 'Offertenummer' : 'Factuurnummer'}</label>
+                                    <label htmlFor="documentnummer">{isQuotation ? 'Offertenummer' : 'Factuurnummer'}</label>
                                     <input
+                                        id="documentnummer"
                                         className="invoice-number-input"
                                         value={documentNumber}
                                         onChange={(e) => setDocumentNumber(e.target.value)}
@@ -655,8 +733,9 @@ export default function InvoiceForm() {
                                     />
                                 </div>
                                 <div className="label-group">
-                                    <label>Datum</label>
+                                    <label htmlFor="datum">Datum</label>
                                     <input
+                                        id="datum"
                                         type="date"
                                         value={currentData.date}
                                         onChange={(e) => updateDocument({ date: e.target.value })}
@@ -665,8 +744,9 @@ export default function InvoiceForm() {
                                 </div>
                                 {isQuotation && (
                                     <div className="label-group">
-                                        <label className="label-wrap">Geldig tot</label>
+                                        <label className="label-wrap" htmlFor="geldig-tot">Geldig tot</label>
                                         <input
+                                            id="geldig-tot"
                                             type="date"
                                             value={quotation.validUntil}
                                             onChange={(e) => setValidUntil(e.target.value)}
@@ -706,8 +786,11 @@ export default function InvoiceForm() {
                     </div>
 
                     <div style={{ marginBottom: '2rem' }}>
-                        <h3 style={{ marginBottom: '1rem' }}>Opmerkingen</h3>
+                        <h3 style={{ marginBottom: '1rem' }}>
+                            <label htmlFor="opmerkingen">Opmerkingen</label>
+                        </h3>
                         <textarea
+                            id="opmerkingen"
                             placeholder="Extra tekst onderaan het document (optioneel)"
                             value={currentData.notes || ''}
                             onChange={(e) => updateDocument({ notes: e.target.value })}
@@ -727,6 +810,16 @@ export default function InvoiceForm() {
                         >
                             <Plus size={20} /> {isQuotation ? 'Volgende offerte' : 'Volgende factuur'}
                         </button>
+                        {isQuotation && (
+                            <button
+                                className="premium-btn"
+                                onClick={handleConvertToInvoice}
+                                style={{ flex: '1 1 220px', padding: '1rem', background: 'var(--secondary)' }}
+                                title="Maak van deze offerte een factuur, met een verwijzing naar het offertenummer"
+                            >
+                                <FileText size={20} /> Omzetten naar factuur
+                            </button>
+                        )}
                     </div>
                 </div>
 

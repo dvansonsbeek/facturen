@@ -1,0 +1,39 @@
+name: Controle
+
+# Pushes naar main worden al gecontroleerd door de publicatie-workflow, die
+# niets publiceert als de tests rood staan. Deze draait op pull requests, zodat
+# een voorstel ook getoetst wordt vóórdat het op main komt.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  controleren:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecontrole
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - run: npx playwright install --with-deps chromium
+      - name: Tests
+        run: npm test
+
+      # Ook de publicatiebuild, want die faalt op dingen die `next dev` niet
+      # laat zien: een statische export is een ander pad dan de dev-server.
+      - name: Publicatiebuild
+        run: npm run build
+        env:
+          PAGES_BASE_PATH: /facturen

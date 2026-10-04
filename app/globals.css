@@ -304,6 +304,9 @@ h4 {
   }
 }
 
+/* Specifieker dan '.form-section label', want deze labels staan daarbinnen en
+   zouden anders de grotere opmaak van een formulierlabel overnemen. */
+.form-section .row-label,
 .row-label {
   display: block;
   font-size: 0.75rem;
