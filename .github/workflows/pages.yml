@@ -35,7 +35,11 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm test
 
+      # Alleen de gepubliceerde build staat onder /facturen; lokaal en in de
+      # tests draait de app op de root.
       - run: npm run build
+        env:
+          PAGES_BASE_PATH: /facturen
 
       # _next begint met een liggend streepje en zou door Jekyll worden
       # overgeslagen. Deze actie draait geen Jekyll, maar het kost niets.
