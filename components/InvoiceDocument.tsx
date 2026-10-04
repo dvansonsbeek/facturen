@@ -264,14 +264,8 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                     betaalt het rekeningnummer bij de hand heeft ook als de
                     regels over meerdere pagina's lopen.
 
-                    Paginanummering ("pagina 1 van 2") ontbreekt bewust: het
-                    gebruikelijke <Text fixed render={...} /> wordt in
-                    @react-pdf/renderer 4.9.0 niet aangeroepen, en het
-                    alternatief (Page.layout) zet de hele PDF op een
-                    experimentele pagineermotor die van deze factuur van twee
-                    pagina's er vijf maakte, met een verkeerd paginatotaal.
-                    Te duur voor een nummering; opnieuw proberen bij een
-                    volgende versie van react-pdf. */}
+                    De paginanummering staat hier niet: die wordt achteraf op de
+                    afgeronde PDF gestempeld, zie lib/page-numbers.ts. */}
                 {!isQuotation && (
                     <View style={styles.pageFooter} fixed>
                         <Text>

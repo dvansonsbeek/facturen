@@ -103,6 +103,41 @@ test.describe('betaalinstructies onderaan elke pagina', () => {
         }
     });
 
+    test('nummert de paginas van een document van meerdere paginas', async ({ page }) => {
+        const app = ui(page);
+        for (let i = 0; i < 24; i++) await app.addItem.click();
+
+        const { pages } = await downloadPdf(page);
+        expect(pages.length).toBeGreaterThan(1);
+        pages.forEach((text, index) => {
+            expect(text, `pagina ${index + 1}`).toContain(
+                `pagina ${index + 1} van ${pages.length}`,
+            );
+        });
+    });
+
+    test('nummert een document van een pagina niet', async ({ page }) => {
+        const { pages, text } = await downloadPdf(page);
+        expect(pages).toHaveLength(1);
+        expect(text).not.toContain('pagina 1 van 1');
+    });
+
+    /** Stempelen opent en bewaart de PDF opnieuw; dat mag niets kapotmaken. */
+    test('het stempelen laat de rest van het document intact', async ({ page }) => {
+        const app = ui(page);
+        await app.companyName.fill('Sonsbeek Advies BV');
+        await app.iban.fill('NL91ABNA0417164300');
+        await app.itemName(0).fill('Advies');
+        await app.itemPrice(0).fill('100');
+        for (let i = 0; i < 24; i++) await app.addItem.click();
+
+        const { text } = await downloadPdf(page);
+        expect(text).toContain('SONSBEEK ADVIES BV');
+        expect(text).toContain('Advies');
+        expect(text).toContain('NL91 ABNA 0417 1643 00');
+        expect(text).toContain('BTW (21%)');
+    });
+
     test('een offerte krijgt geen betaalinstructies', async ({ page }) => {
         const app = ui(page);
         await app.tab('Offerte').click();

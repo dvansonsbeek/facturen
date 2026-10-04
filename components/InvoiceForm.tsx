@@ -10,6 +10,7 @@ import {
     didLastWriteFail, type CompanySettings,
 } from "@/lib/settings";
 import { downscaleImage } from "@/lib/image";
+import { stampPageNumbers } from "@/lib/page-numbers";
 import {
     subscribeFoldouts, readFoldouts, readServerFoldouts, writeFoldout,
 } from "@/lib/foldouts";
@@ -311,9 +312,14 @@ export default function InvoiceForm() {
     // react-pdf is fors; dynamisch laden houdt het uit de eerste bundel.
     const handleDownloadPDF = async () => {
         const { pdf } = await import("@react-pdf/renderer");
-        const blob = await pdf(
+        const gerenderd = await pdf(
             <InvoiceDocument data={currentData} isQuotation={isQuotation} />
         ).toBlob();
+
+        // Pas na het renderen weten we hoeveel pagina's het zijn geworden, dus
+        // de nummering wordt er daarna op gestempeld. Zie lib/page-numbers.ts.
+        const genummerd = await stampPageNumbers(await gerenderd.arrayBuffer());
+        const blob = new Blob([genummerd as BlobPart], { type: 'application/pdf' });
 
         const baseName = isQuotation ? 'Offerte' : 'Factuur';
         const number = documentNumber;

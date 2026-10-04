@@ -146,6 +146,13 @@ so:
 - The **drift is caught by tests**: `tests/pdf.spec.ts` downloads the real PDF,
   extracts its text layer with pdf.js, and asserts the content matches the preview.
 
+**Page numbers are stamped on afterwards** (`lib/page-numbers.ts`, pdf-lib), not drawn
+by react-pdf. Its `<Text fixed render={...} />` is never invoked in 4.9.0 — verified
+with an unstyled diagnostic element — and `Page.layout`, the documented alternative,
+switches the document to an experimental pagination engine that turned a two-page
+invoice into five with a wrong total. Stamping leaves the verified layout untouched.
+Revisit only if react-pdf fixes `render`; 4.9.0 is the latest as of October 2026.
+
 **Text assertions cannot see layout.** Twice in one session a document nobody would
 send passed every text test: once the payment footer ran straight through the table
 rows, once an experimental pagination engine turned a two-page invoice into five
