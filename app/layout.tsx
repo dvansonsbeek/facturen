@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Factuurr - Belgische Factuur & Offerte Generator",
-  description: "Eenvoudig en snel professionele facturen en offertes maken voor de Belgische markt.",
+  title: "Facturen - Factuur- en offertegenerator volgens Nederlandse regels",
+  description: "Eenvoudig en snel professionele facturen en offertes maken voor de Nederlandse markt.",
 };
 
 export default function RootLayout({

@@ -1,0 +1,15 @@
+{
+  // Use the project's own TypeScript (devDependency ^5) rather than the copy
+  // bundled with VS Code, so the editor and `npm run build` agree. Resolves
+  // once `npm install` has run.
+  "typescript.tsdk": "node_modules/typescript/lib",
+
+  // ESLint fixes on save; formatting is left alone (no Prettier in this project).
+  "editor.formatOnSave": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  "javascript.preferences.importModuleSpecifier": "project-relative",
+  "typescript.preferences.importModuleSpecifier": "project-relative"
+}

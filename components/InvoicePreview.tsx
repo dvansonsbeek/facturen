@@ -1,22 +1,21 @@
 "use client";
 
-import { forwardRef } from "react";
 import { Invoice, Quotation } from "@/types";
-import { formatCurrency, calculateSubtotal, calculateVat, calculateTotal } from "@/lib/utils";
+import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 
 interface InvoicePreviewProps {
     data: Invoice | Quotation;
     isQuotation?: boolean;
 }
 
-const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, isQuotation }, ref) => {
-    const subtotal = calculateSubtotal(data.items);
-    const vatTotals = calculateVat(data.items);
-    const total = calculateTotal(data.items);
+export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProps) {
+    const isVatExempt = data.isVatExempt;
+    const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
+    const bankAccount = (data as Invoice).bankAccount;
+    const bankAccountDisplay = bankAccount ? formatIban(bankAccount) : IBAN_PLACEHOLDER;
 
     return (
         <div
-            ref={ref}
             className="invoice-preview"
             style={{
                 padding: '3rem',
@@ -46,29 +45,28 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, 
                         {isQuotation ? 'OFFERTE' : 'FACTUUR'}
                     </h1>
                     <p style={{ fontWeight: 600 }}># {isQuotation ? (data as Quotation).quotationNumber : (data as Invoice).invoiceNumber}</p>
-                    <p>Datum: {data.date}</p>
-                    {isQuotation ? (
-                        <p>Geldig tot: {(data as Quotation).validUntil}</p>
-                    ) : (
-                        <p>Vervaldatum: {(data as Invoice).dueDate}</p>
-                    )}
+                    <p>Datum: {formatDate(data.date)}</p>
+                    {isQuotation && <p>Geldig tot: {formatDate((data as Quotation).validUntil)}</p>}
                 </div>
                 <div style={{ textAlign: 'right', flex: 1 }}>
                     <h2 style={{ fontSize: '1.25rem', color: 'var(--foreground)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>{data.sender.name}</h2>
                     <p>{data.sender.address}</p>
                     <p>{data.sender.zip} {data.sender.city}</p>
                     <p>{data.sender.country}</p>
-                    <p>{data.sender.vatNumber}</p>
+                    {data.sender.vatNumber && <p>BTW: {data.sender.vatNumber}</p>}
+                    {data.sender.kvkNumber && <p>KvK: {data.sender.kvkNumber}</p>}
                     <p>Email: {data.sender.email}</p>
                 </div>
             </div>
 
             <div style={{ marginBottom: '3rem' }}>
-                <h3 style={{ textTransform: 'uppercase', fontSize: '0.9rem', color: 'var(--secondary)', marginBottom: '0.5rem' }}>Factureren aan:</h3>
+                <h3 style={{ textTransform: 'uppercase', fontSize: '0.9rem', color: 'var(--secondary)', marginBottom: '0.5rem' }}>
+                    {isQuotation ? 'Offerte voor:' : 'Factureren aan:'}
+                </h3>
                 <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{data.client.name}</p>
-                <p>{data.client.address}</p>
-                <p>{data.client.zip} {data.client.city}</p>
-                <p>{data.client.country}</p>
+                {data.client.address && <p>{data.client.address}</p>}
+                {(data.client.zip || data.client.city) && <p>{data.client.zip} {data.client.city}</p>}
+                {data.client.country && <p>{data.client.country}</p>}
                 {data.client.vatNumber && <p>BTW: {data.client.vatNumber}</p>}
             </div>
 
@@ -77,8 +75,8 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, 
                     <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
                         <th style={{ padding: '0.75rem 0' }}>Beschrijving</th>
                         <th style={{ padding: '0.75rem 0', textAlign: 'center' }}>Aantal</th>
-                        <th style={{ padding: '0.75rem 0', textAlign: 'right' }}>Stukprijs</th>
-                        <th style={{ padding: '0.75rem 0', textAlign: 'center' }}>BTW</th>
+                        <th style={{ padding: '0.75rem 0', textAlign: 'right' }}>Prijs</th>
+                        {!isVatExempt && <th style={{ padding: '0.75rem 0', textAlign: 'center' }}>BTW</th>}
                         <th style={{ padding: '0.75rem 0', textAlign: 'right' }}>Totaal</th>
                     </tr>
                 </thead>
@@ -89,10 +87,12 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, 
                                 <div style={{ fontWeight: 600 }}>{item.name || 'Geen naam'}</div>
                                 {item.description && <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>{item.description}</div>}
                             </td>
-                            <td style={{ padding: '1rem 0', textAlign: 'center' }}>{item.quantity}</td>
+                            <td style={{ padding: '1rem 0', textAlign: 'center' }}>
+                                {item.quantity}{item.unit ? ` ${item.unit}` : ''}
+                            </td>
                             <td style={{ padding: '1rem 0', textAlign: 'right' }}>{formatCurrency(item.unitPrice)}</td>
-                            <td style={{ padding: '1rem 0', textAlign: 'center' }}>{item.vatRate}%</td>
-                            <td style={{ padding: '1rem 0', textAlign: 'right' }}>{formatCurrency(item.quantity * item.unitPrice)}</td>
+                            {!isVatExempt && <td style={{ padding: '1rem 0', textAlign: 'center' }}>{item.vatRate}%</td>}
+                            <td style={{ padding: '1rem 0', textAlign: 'right' }}>{formatCurrency(lineTotal(item))}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -100,10 +100,12 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, 
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '3rem' }}>
                 <div style={{ width: '250px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span>Subtotaal:</span>
-                        <span>{formatCurrency(subtotal)}</span>
-                    </div>
+                    {!isVatExempt && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span>Subtotaal:</span>
+                            <span>{formatCurrency(subtotal)}</span>
+                        </div>
+                    )}
                     {Object.entries(vatTotals).map(([rate, amount]) => (
                         <div key={rate} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--secondary)' }}>
                             <span>BTW ({rate}%):</span>
@@ -117,9 +119,9 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, 
                 </div>
             </div>
 
-            {data.isVatExempt && (
+            {isVatExempt && (
                 <div style={{ marginBottom: '2rem', fontStyle: 'italic', fontSize: '0.9rem', color: 'var(--secondary)' }}>
-                    Bijzondere vrijstellingsregeling kleine ondernemingen - Vrijgesteld van btw.
+                    Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).
                 </div>
             )}
 
@@ -131,7 +133,13 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, 
                     )}
                     {!isQuotation && (
                         <div style={{ marginTop: '1rem', color: 'var(--secondary)' }}>
-                            <p>Betaalinstructies: Gelieve het totaalbedrag over te maken naar <strong>{(data as Invoice).bankAccount || 'BE XX XXXX XXXX XXXX'}</strong></p>
+                            <p>
+                                Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar
+                                rekeningnummer <strong>{bankAccountDisplay}</strong> ten name van{' '}
+                                <strong>{data.sender.name}</strong>. Vermeld hierbij a.u.b. het
+                                factuurnummer: <strong>{(data as Invoice).invoiceNumber}</strong>.
+                                Hartelijk dank voor uw vertrouwen!
+                            </p>
                             {(data as Invoice).bic && <p>BIC: {(data as Invoice).bic}</p>}
                         </div>
                     )}
@@ -139,8 +147,4 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>(({ data, 
             )}
         </div>
     );
-});
-
-InvoicePreview.displayName = "InvoicePreview";
-
-export default InvoicePreview;
+}

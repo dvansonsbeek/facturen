@@ -196,6 +196,21 @@ h4 {
   grid-template-columns: 1fr;
 }
 
+/* Een rij bij elkaar horende velden. auto-fit laat het aantal kolommen volgen uit
+   hoeveel velden er staan en hoeveel ruimte er is: een factuur heeft nummer en
+   datum, een offerte daar "geldig tot" naast, en op een smal scherm zakken ze
+   onder elkaar zonder dat we een breekpunt hoeven te kiezen. */
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.field-row .label-group {
+  margin-bottom: 0;
+}
+
 .date-grid {
   grid-template-columns: 1fr 1fr;
 }
@@ -398,6 +413,83 @@ textarea:focus {
   /* Force white text */
   box-shadow: var(--shadow);
   white-space: nowrap;
+}
+
+/* De Import-knop is een <label> (die een verborgen file-input omsluit) en staat
+   binnen .form-section, dus pakt hij de opmaak van een formulierlabel mee:
+   hoofdletters, extra letterafstand en een ondermarge. Die ondermarge maakt hem
+   in een flexrij met align-items:stretch ook 8px lager dan de Export-knop.
+   Deze selector is specifieker dan '.form-section label' en wint dus; een losse
+   '.premium-btn' zou dat niet doen. */
+/* Het voorbeeld is papier, geen interface: het blijft wit met donkere inkt, ook
+   in donkere modus. Daarom krijgen de kleurvariabelen hier hun papierwaarden
+   terug. Zonder dit werd --foreground in het donker bijna wit, en daarmee was
+   de bedrijfsnaam onleesbaar op het witte vel; de randen van de tabel werden
+   zwaar en de grijstinten te licht. Eén regel hier dekt ook variabelen die
+   later in het voorbeeld worden gebruikt. */
+.invoice-preview {
+  --foreground: #0f172a;
+  --primary: #2563eb;
+  --secondary: #64748b;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+
+/* Inklapbare sectie. De gegevens die eenmalig worden ingevuld staan hierin,
+   zodat ze niet elke keer de halve kolom in beslag nemen. */
+.foldout {
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.foldout > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  border-radius: var(--radius);
+}
+
+/* De standaarddriehoek weg; we tekenen er zelf een die meedraait. */
+.foldout > summary::-webkit-details-marker {
+  display: none;
+}
+
+.foldout > summary::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 6px solid var(--secondary);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform 0.2s ease;
+}
+
+.foldout[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.foldout > summary:hover {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.foldout > summary h3 {
+  margin: 0;
+}
+
+.foldout-body {
+  padding: 0 1rem 1.25rem;
+}
+
+.label-group label.premium-btn,
+.form-section label.premium-btn {
+  text-transform: none;
+  letter-spacing: normal;
+  margin-bottom: 0;
 }
 
 .premium-btn span {

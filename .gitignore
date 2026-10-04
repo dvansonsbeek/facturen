@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# editor: deel de projectinstellingen, negeer de rest (werkruimtes, launch.json)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

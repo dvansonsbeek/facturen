@@ -28,7 +28,7 @@ export default function ItemRow({ item, onUpdate, onRemove, isVatExempt }: ItemR
         <div>
           <span className="row-label">Beschrijving</span>
           <textarea
-            placeholder="Extra details (optioneel)"
+            placeholder="Omschrijving goederen/ diensten"
             value={item.description}
             onChange={(e) => onUpdate(item.id, { description: e.target.value })}
             style={{ width: '100%', minHeight: '60px', resize: 'vertical' }}
@@ -36,7 +36,7 @@ export default function ItemRow({ item, onUpdate, onRemove, isVatExempt }: ItemR
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', width: '100%' }} className="mobile-split">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', width: '100%' }} className="mobile-split">
         <div>
           <span className="row-label">Aantal</span>
           <input
@@ -45,6 +45,18 @@ export default function ItemRow({ item, onUpdate, onRemove, isVatExempt }: ItemR
             value={item.quantity}
             min="1"
             onChange={(e) => onUpdate(item.id, { quantity: parseFloat(e.target.value) || 0 })}
+            style={{ width: '100%' }}
+          />
+        </div>
+        <div>
+          <span className="row-label">Eenheid</span>
+          {/* Vrij veld met suggesties: een vaste lijst zou dag, km of maand missen. */}
+          <input
+            type="text"
+            list="eenheden"
+            placeholder="uur, stuk…"
+            value={item.unit || ''}
+            onChange={(e) => onUpdate(item.id, { unit: e.target.value })}
             style={{ width: '100%' }}
           />
         </div>
@@ -70,8 +82,7 @@ export default function ItemRow({ item, onUpdate, onRemove, isVatExempt }: ItemR
           disabled={isVatExempt}
         >
           <option value={21}>21% BTW</option>
-          <option value={12}>12% BTW</option>
-          <option value={6}>6% BTW</option>
+          <option value={9}>9% BTW</option>
           <option value={0}>0% BTW</option>
         </select>
       </div>
