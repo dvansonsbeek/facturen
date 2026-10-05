@@ -29,6 +29,21 @@ jobs:
 
       - run: npm ci
 
+      # Voor de officiële SI-UBL-validator: dat is een XSLT 2.0-stylesheet en
+      # die heeft Saxon nodig. Alleen hier, nooit in de app zelf.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Saxon en de validator zijn samen zes megabyte en staan niet in de repo.
+      # Gecachet op hun vaste versie, zodat ze één keer binnenkomen en een
+      # haperende download hierna niet de publicatie ophoudt.
+      - uses: actions/cache@v4
+        with:
+          path: .validatie-cache
+          key: validatie-saxon10.9-siubl2026-05-21
+
       # De tests draaien tegen de echte app en zijn de reden dat deze fork
       # durfde te veranderen wat hij veranderd heeft; een rode suite hoort
       # niet gepubliceerd te worden.
@@ -55,6 +70,14 @@ jobs:
       # versleutelen en opruimen. Vindt wat alleen in de volgorde zit.
       - name: UAT-reis op de publicatiebuild
         run: npm run test:uat
+        env:
+          PAGES_BASE_PATH: /facturen
+
+      # De e-factuur door de Schematron van de Nederlandse Peppolautoriteit.
+      # Onafhankelijk van onze eigen tests: die zijn door dezelfde hand
+      # geschreven als lib/ubl.ts en kunnen alleen bevestigen wat daar al stond.
+      - name: E-factuur tegen SI-UBL 2.0
+        run: npm run check:efactuur
         env:
           PAGES_BASE_PATH: /facturen
 

@@ -38,7 +38,7 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Onthouden is per browser en per apparaat.** Je bedrijfsgegevens en je bewaarde documenten staan in de opslag van deze browser: je laptop en je telefoon delen ze niet, en het wissen van je browsergegevens haalt ze weg. Op een gedeelde computer blijven ze achter tot je op **Wissen** klikt. Gebruik Export als reservekopie — het is de enige kopie die je hebt.
 - **Btw wordt per tarief berekend en op centen afgerond**, zodat de getoonde btw-regels altijd optellen tot het getoonde totaal.
 - **Het voorbeeld, de PDF en de e-factuur zijn drie weergaven.** Het scherm is HTML, de PDF wordt apart opgebouwd, de e-factuur is XML. De btw-opstelling delen ze alle drie, en de end-to-end tests vergelijken de bedragen met elkaar, zodat ze niet ongemerkt uit elkaar lopen.
-- **De e-factuur is niet door de officiële validator gehaald.** De tests lezen de XML in en toetsen de regels die er het makkelijkst misgaan — verplichte velden, optellende totalen, en vrijgesteld (`E`) tegenover nultarief (`Z`). De Schematron van SI-UBL draaien vraagt gereedschap dat niet in een app zonder server past. Haal er bij je eerste echte e-factuur één keer een door een validator.
+- **De e-factuur gaat door de officiële validator.** Bij elke commit worden drie varianten — twee btw-tarieven, vrijgesteld en nultarief — door de Schematron van de Nederlandse Peppolautoriteit gehaald (SI-UBL 2.0); die toetst 86 regels. Eén ding kan die validator níet zien: of een factuur vrijgesteld is (`E`) of onder het nultarief valt (`Z`). Beide zijn geldige UBL, en welke van de twee klopt is een vraag over de Wet OB. Dat deel blijft dus door de eigen tests gedekt.
 
 ## 🛠️ Technologie
 
@@ -101,8 +101,18 @@ de test en verdwijnt ermee.
 UAT_BASE_URL=https://dvansonsbeek.github.io/facturen/ npm run test:uat
 ```
 
-Alle drie draaien bij elke commit: de suites en de UAT-reis op de build vóór
-publicatie, en de reis daarna nog eens op de site zelf.
+En de e-factuur gaat door de officiële validator van de Nederlandse
+Peppolautoriteit. Dat is een XSLT 2.0-stylesheet, dus hiervoor is een JRE nodig
+(`apt install default-jre`); de validator en Saxon worden op een vaste versie
+opgehaald en staan niet in de repo.
+
+```bash
+npm run build && npm run check:efactuur
+```
+
+Dat draait allemaal bij elke commit: de suites, de UAT-reis en de
+e-factuurcontrole op de build vóór publicatie, en de reis daarna nog eens op de
+site zelf.
 
 ## 📝 Gebruik
 

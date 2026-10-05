@@ -21,6 +21,17 @@ jobs:
 
       - run: npm ci
 
+      # Voor de officiële SI-UBL-validator; zie scripts/controleer-efactuur.mjs.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/cache@v4
+        with:
+          path: .validatie-cache
+          key: validatie-saxon10.9-siubl2026-05-21
+
       - name: Typecontrole
         run: npx tsc --noEmit
 
@@ -45,5 +56,10 @@ jobs:
 
       - name: UAT-reis op de publicatiebuild
         run: npm run test:uat
+        env:
+          PAGES_BASE_PATH: /facturen
+
+      - name: E-factuur tegen SI-UBL 2.0
+        run: npm run check:efactuur
         env:
           PAGES_BASE_PATH: /facturen

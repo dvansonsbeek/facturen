@@ -304,12 +304,30 @@ nobody knows every unit — so `unitCode()` maps what it knows and falls back to
 ("one"). An invented word must not make the file invalid; the line description carries
 the real meaning.
 
-**What the tests do not do: run the official SI-UBL Schematron.** That needs an XSLT
-engine this app has no place for. `tests/ubl.spec.ts` parses the XML with `DOMParser`
-(so well-formedness is part of every assertion) and checks the rules that actually slip
-here: required elements, totals that add up, per-rate grouping, escaping, and the
-`E`/`Z` distinction. Before relying on this in anger, put one generated file through a
-real validator once — that is a gap worth knowing about, not one the test suite closes.
+**The official Schematron runs too, and it is not the same thing as our own tests.**
+`npm run check:efactuur` (`scripts/controleer-efactuur.mjs`) drives the built app,
+downloads three invoices — two rates, KOR, zero-rated — and puts each through the
+Nederlandse Peppolautoriteit's compiled SI-UBL 2.0 stylesheet with Saxon-HE. It fires
+**86 rules** on a normal invoice. Both artefacts are permissively licensed (the
+validation repo is MIT, Stichting Simplerinvoicing; Saxon-HE is MPL-2.0), pinned to an
+exact version, fetched on use into `.validatie-cache/` rather than vendored, and cached
+in CI. It needs a JRE, which is why both workflows set up Java.
+
+Why both layers exist, and why neither replaces the other:
+
+- `lib/ubl.ts` and `tests/ubl.spec.ts` were written by the same hand, so those tests can
+  only confirm what that hand already believed. The Schematron is an independent oracle,
+  and it earned that immediately: `BR-NL-1` (supplier KvK or OIN) and `BR-NL-2` (buyer
+  reference or order reference) turn out to be hard NLCIUS requirements, not the
+  judgement calls they were written as.
+- **The Schematron cannot see the `E`/`Z` distinction.** Both are valid UBL; whether
+  *this* invoice is exempt rather than zero-rated is a question about the Wet OB that no
+  schema can answer. Verified by feeding it a KOR invoice written as `Z` — it passes.
+  That is precisely the mistake this app exists not to make, so it stays guarded by
+  `tests/ubl.spec.ts`, which was in turn validated by flipping `taxCategory()`.
+
+The script's own teeth were checked by removing `BuyerReference` from `lib/ubl.ts` and
+confirming it exits 1 naming `BR-NL-2` on all three invoices.
 
 ## Two renderers, one document
 
@@ -368,7 +386,12 @@ npm test                          # the suites, against `next dev`
 npm run build && npm run test:uat # the UAT journey, against the published build
 PAGES_BASE_PATH=/facturen npm run build && PAGES_BASE_PATH=/facturen npm run test:uat
 UAT_BASE_URL=https://dvansonsbeek.github.io/facturen/ npm run test:uat
+
+npm run check:efactuur            # the e-factuur through the official SI-UBL validator
 ```
+
+`check:efactuur` needs a JRE (`apt install default-jre`); it says so and exits rather
+than quietly skipping. It also needs `out/`, so build first.
 
 Playwright starts its own dev server and reuses one already on :3000.
 

@@ -53,3 +53,8 @@ next-env.d.ts
 
 # statische export
 /out/
+
+# De opgehaalde SI-UBL-validator en Saxon (zie scripts/controleer-efactuur.mjs).
+# Zes megabyte aan jar en stylesheet hoort niet in deze repo; het script haalt
+# ze op een vaste versie op en bewaart ze hier.
+/.validatie-cache/
