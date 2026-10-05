@@ -41,6 +41,12 @@ jobs:
         env:
           PAGES_BASE_PATH: /facturen
 
+      # De gepubliceerde versie draait onder een strenger beveiligingsbeleid dan
+      # de ontwikkelserver, dus een fout daarin merk je niet in de testsuite.
+      # Deze controle opent de echte build en kijkt of de PDF het nog doet en er
+      # niets naar buiten gaat.
+      - run: npm run check:publicatie
+
       # _next begint met een liggend streepje en zou door Jekyll worden
       # overgeslagen. Deze actie draait geen Jekyll, maar het kost niets.
       - run: touch out/.nojekyll

@@ -1,5 +1,18 @@
 import type { Metadata } from "next";
+import { Inter, Outfit } from "next/font/google";
+import { beleidVoorOmgeving } from "@/lib/csp";
 import "./globals.css";
+
+/**
+ * next/font haalt deze lettertypes tijdens het bouwen op en zet ze bij de rest
+ * van de site. Daardoor doet de pagina geen verzoek meer aan fonts.googleapis.com
+ * bij het openen — dat stuurde het IP-adres van elke bezoeker naar Google,
+ * terwijl de app belooft dat er niets naar buiten gaat.
+ */
+// Geen weight-lijst: dit zijn variabele lettertypes, die dekken het hele bereik
+// in één bestand. Een expliciete lijst weigert de bundelaar bovendien.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
 
 /**
  * metadataBase maakt de verwijzingen naar de deelafbeelding absoluut; zonder
@@ -48,7 +61,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="nl">
+    <html lang="nl" className={`${inter.variable} ${outfit.variable}`}>
+      <head>
+        {/* Zie lib/csp.ts voor wat dit beleid doet en waarom het tijdens
+            ontwikkelen losser staat dan in de gepubliceerde versie. */}
+        <meta httpEquiv="Content-Security-Policy" content={beleidVoorOmgeving()} />
+      </head>
       <body>
         {children}
       </body>
