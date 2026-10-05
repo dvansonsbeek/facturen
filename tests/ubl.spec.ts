@@ -229,7 +229,7 @@ test.describe('kleineondernemersregeling', () => {
      */
     test('schrijft categorie E weg, niet Z', async ({ page }) => {
         const app = await vulVolledigeFactuur(page);
-        await app.korToggle.check();
+        await app.vatScheme.selectOption('kor');
 
         const uit = await ontleed(page, (await haalUbl(page)).xml);
         if ('fout' in uit) throw new Error(uit.fout);
@@ -243,7 +243,7 @@ test.describe('kleineondernemersregeling', () => {
 
     test('noemt de reden van de vrijstelling', async ({ page }) => {
         const app = await vulVolledigeFactuur(page);
-        await app.korToggle.check();
+        await app.vatScheme.selectOption('kor');
 
         const uit = await ontleed(page, (await haalUbl(page)).xml);
         if ('fout' in uit) throw new Error(uit.fout);
@@ -252,7 +252,7 @@ test.describe('kleineondernemersregeling', () => {
 
     test('rekent geen btw en laat het totaal gelijk zijn aan de grondslag', async ({ page }) => {
         const app = await vulVolledigeFactuur(page);
-        await app.korToggle.check();
+        await app.vatScheme.selectOption('kor');
 
         const uit = await ontleed(page, (await haalUbl(page)).xml);
         if ('fout' in uit) throw new Error(uit.fout);
@@ -267,8 +267,8 @@ test.describe('kleineondernemersregeling', () => {
 
     test('laat het tarief van de regel ongemoeid na uitzetten', async ({ page }) => {
         const app = await vulVolledigeFactuur(page);
-        await app.korToggle.check();
-        await app.korToggle.uncheck();
+        await app.vatScheme.selectOption('kor');
+        await app.vatScheme.selectOption('normaal');
 
         const uit = await ontleed(page, (await haalUbl(page)).xml);
         if ('fout' in uit) throw new Error(uit.fout);
@@ -278,7 +278,7 @@ test.describe('kleineondernemersregeling', () => {
 });
 
 test('het nultarief blijft Z', async ({ page }) => {
-    // Export en intracommunautaire levering: wél een tarief, namelijk nul.
+    // Een regel op 0% binnen het gewone regime: wél een tarief, namelijk nul.
     const app = await vulVolledigeFactuur(page);
     await app.itemVatRate().selectOption('0');
 
@@ -287,6 +287,158 @@ test('het nultarief blijft Z', async ({ page }) => {
     expect(uit.regels[0].categorie).toBe('Z');
     expect(uit.groepen[0].categorie).toBe('Z');
     expect(uit.groepen[0].reden, 'het nultarief is geen vrijstelling').toBeNull();
+});
+
+test.describe('0% heeft een reden, en elke reden een eigen categorie', () => {
+    /**
+     * De kern van deze groep. 0% is in UBL niet één ding: verlegd is AE, een
+     * intracommunautaire levering is K, uitvoer is G en alleen een echt
+     * nultarief is Z. Alles als Z wegschrijven — wat deze app eerst deed —
+     * vertelt het grootboek van de ontvanger iets anders dan wat er gebeurd is,
+     * en de officiële validator merkt dat niet omdat Z op zichzelf geldig is.
+     */
+    const GEVALLEN = [
+        { regime: 'verlegd', categorie: 'AE', zin: 'Btw verlegd' },
+        { regime: 'icp', categorie: 'K', zin: 'Intracommunautaire levering' },
+        { regime: 'export', categorie: 'G', zin: 'Uitvoer buiten de EU' },
+        { regime: 'nultarief', categorie: 'Z', zin: '0% btw' },
+    ] as const;
+
+    for (const { regime, categorie, zin } of GEVALLEN) {
+        test(`${regime} wordt categorie ${categorie}`, async ({ page }) => {
+            const app = await vulVolledigeFactuur(page);
+            if (regime === 'icp') await app.clientCountry.fill('Duitsland');
+            if (regime === 'export') await app.clientCountry.fill('Zwitserland');
+            // Verlegging en icp kunnen niet zonder het btw-nummer van de klant.
+            if (regime === 'verlegd' || regime === 'icp') {
+                await app.clientVat.fill('NL987654321B01');
+            }
+            await app.vatScheme.selectOption(regime);
+
+            // De vermelding hoort ook op het papier te staan; anders is de
+            // factuur onvolledig, los van de e-factuur.
+            await expect(app.preview).toContainText(zin);
+
+            const uit = await ontleed(page, (await haalUbl(page)).xml);
+            if ('fout' in uit) throw new Error(uit.fout);
+            expect(uit.groepen).toHaveLength(1);
+            expect(uit.groepen[0].categorie).toBe(categorie);
+            expect(uit.regels[0].categorie).toBe(categorie);
+            expect(uit.btwTotaal).toBe('0.00');
+            expect(uit.teBetalen).toBe(uit.exclusief);
+        });
+    }
+
+    /** BR-Z-10: bij het nultarief mág er juist geen reden staan. */
+    test('het nultarief krijgt geen vrijstellingsreden mee', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.vatScheme.selectOption('nultarief');
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.groepen[0].reden).toBeNull();
+        // Op het papier staat de zin wél: dat is een ander veld.
+        await expect(app.preview).toContainText('0% btw');
+    });
+
+    test('verlegd en icp zetten het btw-nummer van de klant op het document', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientVat.fill('NL987654321B01');
+        await app.vatScheme.selectOption('verlegd');
+
+        // Zonder dat nummer kan de afnemer de btw niet aangeven.
+        await expect(app.preview).toContainText('Btw-nummer afnemer: NL987654321B01');
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.groepen[0].reden).toContain('NL987654321B01');
+    });
+
+    test('verlegd weigert te exporteren zonder btw-nummer van de klant', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientVat.fill('');
+        await app.vatScheme.selectOption('verlegd');
+
+        await app.downloadUbl.click();
+        await expect(app.status.filter({ hasText: 'btw-nummer van je klant' })).toBeVisible();
+    });
+
+    /**
+     * Een intracommunautaire levering naar Nederland bestaat niet, en naar
+     * buiten de EU is het uitvoer. Geen schema dat dit ziet: het is een feit
+     * over de transactie, niet over het bestand.
+     */
+    test('icp weigert een Nederlandse klant', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientVat.fill('NL987654321B01');
+        await app.vatScheme.selectOption('icp');
+
+        await app.downloadUbl.click();
+        await expect(app.status.filter({ hasText: 'niet naar Nederland' })).toBeVisible();
+    });
+
+    test('icp weigert een klant buiten de EU', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('Zwitserland');
+        await app.clientVat.fill('CHE123456789');
+        await app.vatScheme.selectOption('icp');
+
+        await app.downloadUbl.click();
+        await expect(app.status.filter({ hasText: 'zit niet in de EU' })).toBeVisible();
+    });
+
+    test('icp noemt leverdatum en bestemmingsland', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('Duitsland');
+        await app.clientVat.fill('NL987654321B01');
+        await app.vatScheme.selectOption('icp');
+        await app.deliveryDate.fill('2026-09-30');
+
+        // BR-IC-11 wil de leverdatum, BR-IC-12 het bestemmingsland.
+        const { xml } = await haalUbl(page);
+        expect(xml).toContain('<cbc:ActualDeliveryDate>2026-09-30</cbc:ActualDeliveryDate>');
+        expect(xml).toContain('<cbc:IdentificationCode>DE</cbc:IdentificationCode>');
+    });
+
+    test('zonder leverdatum neemt icp de factuurdatum', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('België');
+        await app.clientVat.fill('BE0123456789');
+        await app.vatScheme.selectOption('icp');
+
+        const { xml } = await haalUbl(page);
+        const datum = await page.locator('#datum').inputValue();
+        expect(xml).toContain(`<cbc:ActualDeliveryDate>${datum}</cbc:ActualDeliveryDate>`);
+        expect(xml).toContain('<cbc:IdentificationCode>BE</cbc:IdentificationCode>');
+    });
+});
+
+test.describe('landcodes', () => {
+    test('een Nederlandse landnaam wordt de juiste code, niet NL voor alles', async ({ page }) => {
+        // Hier zat een echte fout: alles wat geen twee letters was en niet
+        // "Nederland" heette, kreeg NL mee. Een Belgische klant stond dus als
+        // Nederlands in de e-factuur, op elke factuur.
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('Duitsland');
+
+        const { xml } = await haalUbl(page);
+        expect(xml).toContain('<cbc:IdentificationCode>DE</cbc:IdentificationCode>');
+    });
+
+    test('een onbekend land wordt niet geraden maar geweigerd', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('Verweggistan');
+
+        await app.downloadUbl.click();
+        await expect(app.status.filter({ hasText: 'landcode' })).toBeVisible();
+    });
+
+    test('een tweeletterige code mag je zelf invullen', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('pt');
+
+        const { xml } = await haalUbl(page);
+        expect(xml).toContain('<cbc:IdentificationCode>PT</cbc:IdentificationCode>');
+    });
 });
 
 test.describe('de klant als Peppol-adres', () => {

@@ -37,7 +37,12 @@ export const ui = (page: Page) => ({
 
     // Algemene Informatie
     documentNumber: page.locator('input.invoice-number-input'),
-    korToggle: page.locator('#vatExempt'),
+    /**
+     * De btw-behandeling van het document. Was een KOR-vinkje; het is nu een
+     * keuzelijst, omdat 0% vier verschillende redenen kan hebben die elk een
+     * eigen vermelding en een eigen UBL-categorie krijgen.
+     */
+    vatScheme: page.locator('#btwRegime'),
 
     // Klantgegevens
     clientName: page.locator('input[placeholder="Naam van de klant"]'),
@@ -73,6 +78,8 @@ export const ui = (page: Page) => ({
 
     // Algemene Informatie, alleen bij een factuur: nodig voor de e-factuur.
     buyerReference: page.locator('#klantreferentie'),
+    /** Alleen zichtbaar bij een intracommunautaire levering. */
+    deliveryDate: page.locator('#leverdatum'),
 
     downloadPdf: page.getByRole('button', { name: /Download PDF/i }),
     downloadUbl: page.getByRole('button', { name: /E-factuur \(UBL\)/ }),
@@ -119,7 +126,14 @@ export const ui = (page: Page) => ({
     archiveDialogClose: page.locator('dialog.archief-venster').getByRole('button', { name: 'Sluiten' }),
     /** Het voorbeeld binnen dat venster, los van het live voorbeeld ernaast. */
     archiveDialogPreview: page.locator('dialog.archief-venster .invoice-preview'),
-    status: page.locator('p[role="status"]'),
+    /**
+     * De melding onder het formulier (bewaren, dupliceren, e-factuur).
+     *
+     * Op klasse en niet op role="status": het logo, de beveiligingssectie en de
+     * btw-behandeling hebben die rol ook, en dan wijst "de melding" naar meer
+     * dan één element.
+     */
+    status: page.locator('p.form-melding'),
 
     // Beveiliging en privacy
     securitySummary: page.locator('details.foldout summary', { hasText: 'Beveiliging en privacy' }),

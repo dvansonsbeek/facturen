@@ -67,8 +67,11 @@ const haalOp = async ({ url, bestand }) => {
 };
 
 /**
- * Drie facturen, want ze raken verschillende regels: twee tarieven naast
- * elkaar, een vrijstelling, en het nultarief.
+ * Eén factuur per btw-behandeling, want elk regime raakt zijn eigen regels:
+ * BR-S-* bij gewone tarieven, BR-E-* bij een vrijstelling, BR-AE-* bij
+ * verlegging, BR-IC-* bij een intracommunautaire levering, BR-G-* bij uitvoer
+ * en BR-Z-* bij het nultarief. Juist die regels eisen soms extra gegevens, en
+ * dat is niet iets om zelf te verzinnen.
  */
 const GEVALLEN = {
     normaal: async (page) => {
@@ -78,12 +81,19 @@ const GEVALLEN = {
         await page.locator('input[placeholder="Eenheidsprijs"]').nth(1).fill('24.95');
         await page.locator('.item-row select').nth(1).selectOption('9');
     },
-    kor: async (page) => {
-        await page.locator('#vatExempt').check();
+    kor: (page) => page.locator('#btwRegime').selectOption('kor'),
+    verlegd: (page) => page.locator('#btwRegime').selectOption('verlegd'),
+    icp: async (page) => {
+        // Een intracommunautaire levering gaat naar een ánder EU-land; met een
+        // Nederlandse klant weigert de app de export, en terecht.
+        await page.locator('input[placeholder="Alleen invullen bij buitenlandse klanten"]').fill('Duitsland');
+        await page.locator('#btwRegime').selectOption('icp');
     },
-    nultarief: async (page) => {
-        await page.locator('.item-row select').first().selectOption('0');
+    export: async (page) => {
+        await page.locator('input[placeholder="Alleen invullen bij buitenlandse klanten"]').fill('Zwitserland');
+        await page.locator('#btwRegime').selectOption('export');
     },
+    nultarief: (page) => page.locator('#btwRegime').selectOption('nultarief'),
 };
 
 const maakFactuur = async (browser, naam, extra) => {
@@ -113,10 +123,23 @@ const maakFactuur = async (browser, naam, extra) => {
 
     await extra(page);
 
-    const [download] = await Promise.all([
-        page.waitForEvent('download', { timeout: 30_000 }),
-        page.getByRole('button', { name: /E-factuur \(UBL\)/ }).click(),
-    ]);
+    let download;
+    try {
+        [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 30_000 }),
+            page.getByRole('button', { name: /E-factuur \(UBL\)/ }).click(),
+        ]);
+    } catch {
+        // Geen bestand betekent bijna altijd dat de app de export weigert omdat
+        // er iets ontbreekt. Die melding is het antwoord, niet een time-out.
+        const melding = await page.locator('p[role="status"]').first()
+            .innerText().catch(() => '');
+        await page.close();
+        throw new Error(
+            `${naam}: geen e-factuur gedownload${melding ? ` — de app zegt: ${melding.trim()}` : ''}`,
+        );
+    }
+
     const pad = `${CACHE}${naam}.xml`;
     await download.saveAs(pad);
     await page.close();
@@ -201,4 +224,6 @@ if (problemen.length > 0) {
     for (const p of problemen) console.error(`  - ${p}`);
     process.exit(1);
 }
-console.log('  alle drie de varianten voldoen aan SI-UBL 2.0 (NLCIUS).');
+console.log(
+    `  alle ${Object.keys(GEVALLEN).length} btw-behandelingen voldoen aan SI-UBL 2.0 (NLCIUS).`,
+);

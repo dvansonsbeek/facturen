@@ -195,7 +195,7 @@ test('de hele reis: twee klanten factureren, opruimen en versleutelen', async ({
     });
 
     await test.step('de kleineondernemersregeling laat de btw weg', async () => {
-        await app.korToggle.check();
+        await app.vatScheme.selectOption('kor');
 
         // Geen btw-kolom in de regeltabel. Let op: "BTW" op zichzelf staat wél
         // op het document, want je eigen btw-nummer hoort erop. Het gaat om de
@@ -209,7 +209,7 @@ test('de hele reis: twee klanten factureren, opruimen en versleutelen', async ({
         expect(tekst, 'vrijgesteld is niet hetzelfde als het nultarief').not.toContain('€ 420,00');
         expect(tekst).toContain('art. 25 Wet OB 1968');
 
-        await app.korToggle.uncheck();
+        await app.vatScheme.selectOption('normaal');
         await expect(app.preview).toContainText('€ 2.420,00');
     });
 

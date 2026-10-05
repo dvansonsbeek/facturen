@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { Plus, Download, FileText, FileCode, Briefcase, Upload, Moon, Sun, Trash2, Save } from "lucide-react";
-import { Invoice, Quotation, LineItem, Sender, Client } from "@/types";
+import { Invoice, Quotation, LineItem, Sender, Client, VatScheme } from "@/types";
+import { schemeOf, VAT_SCHEMES, VAT_SCHEME_ORDER } from "@/lib/vat-schemes";
 import { generateId } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
 import {
@@ -308,9 +309,9 @@ export default function InvoiceForm() {
         }
     };
 
-    // Het tarief per regel blijft staan: de vrijstelling bepaalt alleen of er
-    // btw berekend en vermeld wordt, zodat de tarieven terugkomen bij uitzetten.
-    const toggleVatExemption = (enabled: boolean) => updateDocument({ isVatExempt: enabled });
+    // Het tarief per regel blijft staan: het regime bepaalt alleen of er btw
+    // berekend en vermeld wordt, zodat de tarieven terugkomen als je terugzet.
+    const vatScheme = schemeOf(currentData);
 
     /**
      * Een logo wordt als data-URL in localStorage bewaard, en die opslag is
@@ -790,17 +791,51 @@ export default function InvoiceForm() {
                                     />
                                 </div>
                             )}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', background: 'rgba(37, 99, 235, 0.05)', borderRadius: 'var(--radius)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
-                                <input
-                                    type="checkbox"
-                                    id="vatExempt"
-                                    checked={currentData.isVatExempt}
-                                    onChange={(e) => toggleVatExemption(e.target.checked)}
-                                    style={{ width: 'auto', cursor: 'pointer' }}
-                                />
-                                <label htmlFor="vatExempt" style={{ margin: 0, cursor: 'pointer', color: 'var(--primary)' }}>
-                                    Kleineondernemersregeling (KOR) - vrijgesteld van btw
+                            {/* Eén keuze en geen losse vinkjes: deze regimes sluiten
+                                elkaar uit, en 0% zonder reden erbij is op papier
+                                onvolledig en in de e-factuur verkeerd. */}
+                            <div style={{ padding: '1rem', background: 'rgba(37, 99, 235, 0.05)', borderRadius: 'var(--radius)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
+                                <label htmlFor="btwRegime" style={{ color: 'var(--primary)' }}>
+                                    Btw-behandeling
                                 </label>
+                                <select
+                                    id="btwRegime"
+                                    value={vatScheme}
+                                    onChange={(e) => updateDocument({ vatScheme: e.target.value as VatScheme })}
+                                    style={{ width: '100%' }}
+                                >
+                                    {VAT_SCHEME_ORDER.map((naam) => (
+                                        <option key={naam} value={naam}>{VAT_SCHEMES[naam].label}</option>
+                                    ))}
+                                </select>
+                                <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                    {VAT_SCHEMES[vatScheme].hint}
+                                </p>
+                                {/* Zonder dat nummer kan je klant de btw niet aangeven,
+                                    dus dan is de factuur niet af. */}
+                                {VAT_SCHEMES[vatScheme].requiresClientVat
+                                    && !currentData.client.vatNumber?.trim() && (
+                                    <p role="status" style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--error)' }}>
+                                        Vul het btw-nummer van je klant in bij Klantgegevens: bij deze
+                                        behandeling hoort dat op de factuur te staan.
+                                    </p>
+                                )}
+                                {/* Alleen hier: de e-factuur van een intracommunautaire
+                                    levering moet de leverdatum noemen (BR-IC-11). */}
+                                {!isQuotation && vatScheme === 'icp' && (
+                                    <div className="label-group" style={{ marginTop: '0.75rem' }}>
+                                        <label className="label-wrap" htmlFor="leverdatum">
+                                            Leverdatum (leeg = de factuurdatum)
+                                        </label>
+                                        <input
+                                            id="leverdatum"
+                                            type="date"
+                                            value={invoice.deliveryDate || ''}
+                                            onChange={(e) => updateDocument({ deliveryDate: e.target.value })}
+                                            style={{ width: '100%' }}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -834,7 +869,10 @@ export default function InvoiceForm() {
                     </div>
 
                     {bewaarMelding && (
-                        <p role="status" style={{ marginTop: '2rem', marginBottom: 0, fontSize: '0.85rem', color: 'var(--primary)' }}>
+                        /* Eigen klasse: er staan meer role="status"-meldingen op de
+                           pagina (het logo, de beveiliging, de btw-behandeling), en
+                           de tests moeten déze kunnen aanwijzen. */
+                        <p className="form-melding" role="status" style={{ marginTop: '2rem', marginBottom: 0, fontSize: '0.85rem', color: 'var(--primary)' }}>
                             {bewaarMelding}
                         </p>
                     )}

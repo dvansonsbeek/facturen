@@ -1,6 +1,7 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { Invoice, Quotation } from "@/types";
 import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 
 const COLORS = {
     primary: '#2563eb',
@@ -128,13 +129,16 @@ interface InvoiceDocumentProps {
 /**
  * De PDF-versie van het document.
  *
- * Deze deelt de btw-opstelling met het scherm via summariseDocument, zodat de
- * KOR-regel maar op een plek staat. De opmaak staat hier wel apart; de
- * end-to-end tests vergelijken de tekst van de PDF met die van het voorbeeld
- * zodat de twee niet uit elkaar kunnen lopen.
+ * Deze deelt de btw-opstelling met het scherm via summariseDocument en het
+ * btw-regime via lib/vat-schemes.ts, zodat die regels maar op één plek staan.
+ * De opmaak staat hier wel apart; de end-to-end tests vergelijken de tekst van
+ * de PDF met die van het voorbeeld zodat de twee niet uit elkaar kunnen lopen.
  */
 export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentProps) {
-    const isVatExempt = data.isVatExempt;
+    const scheme = schemeOf(data);
+    const isVatExempt = !chargesVat(scheme);
+    const statement = statementFor(scheme);
+    const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const invoice = data as Invoice;
     const quotation = data as Quotation;
@@ -237,9 +241,9 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                     </View>
                 </View>
 
-                {isVatExempt && (
+                {statement && (
                     <Text style={styles.exemption}>
-                        Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).
+                        {statement}{clientVatLine ? ` ${clientVatLine}` : ''}
                     </Text>
                 )}
 

@@ -2,6 +2,7 @@ import { Invoice, Quotation } from "@/types";
 import { summariseDocument } from "@/lib/utils";
 import { isVersleuteld, ontsleutel, versleutel, type Versleuteld } from "@/lib/crypto";
 import { DOCUMENTEN, metWinkel, opslagWerkt } from "@/lib/idb";
+import { chargesVat, schemeOf } from "@/lib/vat-schemes";
 import { doeMee, huidigeSleutel, zorgDatKluisGeladenIs } from "@/lib/vault";
 
 /**
@@ -157,7 +158,7 @@ export const bewaarDocument = async (
     soort: DocumentSoort,
 ): Promise<BewaardDocument | null> => {
     const nummer = 'invoiceNumber' in stuk ? stuk.invoiceNumber : stuk.quotationNumber;
-    const { total } = summariseDocument(stuk.items, stuk.isVatExempt);
+    const { total } = summariseDocument(stuk.items, !chargesVat(schemeOf(stuk)));
 
     const record: BewaardDocument = {
         // Een toevalsgetal en niet iets met het nummer erin: bij versleuteling

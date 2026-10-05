@@ -161,7 +161,7 @@ test.describe('de PDF en het voorbeeld lopen niet uit elkaar', () => {
     test('laat onder de KOR alle btw weg, net als het voorbeeld', async ({ page }) => {
         const app = ui(page);
         await app.itemPrice().fill('100');
-        await app.korToggle.check();
+        await app.vatScheme.selectOption('kor');
 
         const { text } = await downloadPdf(page);
         expect(text).toContain(

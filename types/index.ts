@@ -1,3 +1,10 @@
+/**
+ * De btw-behandeling van een document. Wat elk regime betekent, welke
+ * vermelding erbij hoort en welke UBL-categorie het krijgt, staat in
+ * lib/vat-schemes.ts; hier alleen de namen, zodat types de bladmodule blijft.
+ */
+export type VatScheme = 'normaal' | 'kor' | 'verlegd' | 'icp' | 'export' | 'nultarief';
+
 export interface Client {
   name: string;
   address: string;
@@ -48,7 +55,20 @@ export interface Invoice {
   sender: Sender;
   client: Client;
   items: LineItem[];
-  isVatExempt: boolean;
+  /**
+   * De btw-behandeling van dit document; zie lib/vat-schemes.ts. Bepaalt of er
+   * btw gerekend wordt, welke vermelding op het document hoort en welke
+   * UBL-categorie de e-factuur krijgt.
+   */
+  vatScheme?: VatScheme;
+  /**
+   * Alleen nog voor documenten van vóór `vatScheme`: waar betekende het KOR.
+   *
+   * Bewaarde documenten staan vast en worden nooit herschreven, dus dit veld
+   * blijft bestaan zolang er records uit die tijd liggen. Lees het niet
+   * rechtstreeks — `schemeOf()` doet dat, en dan heb je maar één bron.
+   */
+  isVatExempt?: boolean;
   notes?: string;
   paymentConditions?: string;
   bankAccount?: string;
@@ -62,6 +82,15 @@ export interface Invoice {
    * een mens de factuur, en daar hoort dit soort verwerkingsinformatie niet.
    */
   buyerReference?: string;
+  /**
+   * Wanneer er geleverd is, als dat niet de factuurdatum is.
+   *
+   * Alleen van belang bij een intracommunautaire levering: BR-IC-11 wil die
+   * datum (of een factuurperiode) in de e-factuur. Staat hij leeg, dan neemt
+   * de e-factuur de factuurdatum. Het veld staat daarom ook alleen in het
+   * formulier als dat regime gekozen is.
+   */
+  deliveryDate?: string;
 }
 
 /**

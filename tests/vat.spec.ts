@@ -83,7 +83,7 @@ test.describe('kleineondernemersregeling', () => {
     test('laat alle btw-tarieven en -bedragen weg', async ({ page }) => {
         const app = ui(page);
         await app.itemPrice().fill('100');
-        await app.korToggle.check();
+        await app.vatScheme.selectOption('kor');
 
         // Geen btw-kolom in de regeltabel.
         expect(await previewHeaders(page)).toEqual([
@@ -99,7 +99,7 @@ test.describe('kleineondernemersregeling', () => {
     });
 
     test('vermeldt de vrijstelling op het document', async ({ page }) => {
-        await ui(page).korToggle.check();
+        await ui(page).vatScheme.selectOption('kor');
         expect(await previewText(page)).toContain(
             'Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).',
         );
@@ -108,7 +108,7 @@ test.describe('kleineondernemersregeling', () => {
     test('toont het 0%-tarief niet: vrijgesteld is niet hetzelfde als nultarief', async ({ page }) => {
         const app = ui(page);
         await app.itemPrice().fill('100');
-        await app.korToggle.check();
+        await app.vatScheme.selectOption('kor');
 
         const text = await previewText(page);
         expect(text).not.toContain('0%');
@@ -117,8 +117,8 @@ test.describe('kleineondernemersregeling', () => {
 
     test('behoudt het tarief van de regel na uit- en weer aanzetten', async ({ page }) => {
         const app = ui(page);
-        await app.korToggle.check();
-        await app.korToggle.uncheck();
+        await app.vatScheme.selectOption('kor');
+        await app.vatScheme.selectOption('normaal');
 
         await expect(app.itemVatRate()).toHaveValue('21');
         expect(await previewText(page)).toContain('BTW (21%):');

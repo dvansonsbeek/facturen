@@ -43,6 +43,8 @@ components/
   ItemRow.tsx        one line item
 lib/
   utils.ts           formatting (currency, date, IBAN) + all VAT arithmetic
+  vat-schemes.ts     the VAT regime: statement on paper + UBL category
+  countries.ts       country names to ISO codes, and who is in the EU
   theme.ts           light/dark store read via useSyncExternalStore
   settings.ts        company + payment details, persisted in localStorage
   clients.ts         the saved customer book, persisted
@@ -121,9 +123,52 @@ rows, and no subtotal** (a subtotal identical to the total is noise) — just a 
 the exemption sentence. Rendering `BTW (0%): € 0,00` on a KOR invoice is a compliance
 bug, not a cosmetic one.
 
-`isVatExempt` governs **display only**. It must never overwrite each line's `vatRate`:
-an earlier version zeroed every rate on toggle, which destroyed the data permanently
-when you toggled back off.
+The regime governs **display only**. It must never overwrite each line's `vatRate`: an
+earlier version zeroed every rate on toggle, which destroyed the data permanently when
+you toggled back off.
+
+**0% is not one thing either.** `lib/vat-schemes.ts` holds the document's regime —
+`normaal`, `kor`, `verlegd`, `icp`, `export`, `nultarief` — because a Dutch invoice at 0%
+has four legitimate reasons and each needs a different statement on paper *and* a
+different UBL category:
+
+| Regime | Statement on paper | UBL | Needs client VAT no. |
+|---|---|---|---|
+| `kor` | KOR exemption, art. 25 Wet OB | `E` | no |
+| `verlegd` | btw verlegd, verleggingsregeling | `AE` | **yes** |
+| `icp` | intracommunautaire levering | `K` | **yes** |
+| `export` | uitvoer buiten de EU | `G` | no |
+| `nultarief` | 0% btw | `Z` | no |
+
+This replaced a plain `isVatExempt` boolean plus a bare 0% rate, which said *nothing*
+about why there was no VAT — incomplete on paper and wrong in the XML. The regime is
+**per document, not per line**, because these follow from who the client is and where
+they are, not from what you sold; a half-intracommunautaire invoice does not exist.
+
+`schemeOf()` is the only place that reads the legacy `isVatExempt`, so archived documents
+from before the regime existed keep working without ever being rewritten. Everything else
+asks `schemeOf()`.
+
+Every non-`normaal` regime looks **identical** on the document — lines excluding VAT, no
+VAT amounts, total equal to the subtotal, plus the statement. That is why
+`summariseDocument` did not need to change: only the sentence and the category differ.
+
+Three traps found by the official validator, not by reasoning:
+
+- **`BR-Z-10` forbids an exemption reason on category `Z`.** The statement on paper and
+  the UBL `TaxExemptionReason` are *different fields*; `ublExemptionReason` says which
+  regimes may emit one.
+- **`BR-IC-11` and `BR-IC-12`** require an actual delivery date and a deliver-to country
+  for `icp`, hence `Invoice.deliveryDate` (shown only for that regime, defaulting to the
+  invoice date) and `cac:Delivery`.
+- **`cac:Delivery` must sit between `AccountingCustomerParty` and `PaymentMeans`.** UBL is
+  a fixed sequence and Schematron does not check order — that is the XSD's job, and we
+  have no XSD validator. Order was verified by extracting the sequence from
+  `UBL-Invoice-2.1.xsd` and confirming ours ascends monotonically.
+
+**One rule no validator can check:** `icp` to a Dutch client is a domestic supply, and to
+a non-EU client it is export. `ontbrekendeVelden` refuses both, because it is a fact about
+the transaction rather than about the file — the same blind spot as `E` versus `Z`.
 
 **Rounding.** `lib/utils.ts` rounds at every step via `roundToCents` (half away from
 zero). VAT is summed per rate over the whole base and rounded once per rate, the way a
@@ -281,11 +326,15 @@ browser. This app produces the file; it does not send it over Peppol.
 reason — an e-factuur quoting different amounts than the PDF sent alongside it is worse
 than no e-factuur. Never compute VAT here.
 
-**"Vrijgesteld is niet 0%" appears here as category `E` versus `Z`.** `E` means no VAT
-applies; `Z` means VAT applies at zero percent (export, intra-EU). KOR is an exemption,
-so `E`, with a `TaxExemptionReason`. Writing a KOR invoice as `Z` tells the buyer's
-ledger something different from what the paper invoice says. `taxCategory()` is the one
-place that decides, and the test for it was validated by flipping it to `Z`.
+**The category comes from the document's regime**, not from a boolean — see *0% is not
+one thing either* above. `taxCategory()` is the one place that decides, and only falls
+back to the per-line rate (`S` above zero, `Z` at zero) for `normaal`. Its test was
+validated by flipping KOR to `Z`.
+
+**Country codes are resolved, never guessed** (`lib/countries.ts`). An earlier version
+mapped anything that was not "Nederland" or already a two-letter code to `NL`, so a
+Belgian client was labelled Dutch on *every* invoice. Unknown input now makes
+`ontbrekendeVelden` refuse rather than emit a plausible lie.
 
 **Two fields exist only for this** and deliberately do not appear on the PDF, because
 paper is read by a person and processing metadata does not belong there:

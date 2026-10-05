@@ -2,6 +2,7 @@
 
 import { Invoice, Quotation } from "@/types";
 import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 
 interface InvoicePreviewProps {
     data: Invoice | Quotation;
@@ -9,7 +10,12 @@ interface InvoicePreviewProps {
 }
 
 export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProps) {
-    const isVatExempt = data.isVatExempt;
+    // Alle regimes behalve het gewone laten de btw weg; alleen de vermelding
+    // eronder verschilt. Zie lib/vat-schemes.ts.
+    const scheme = schemeOf(data);
+    const isVatExempt = !chargesVat(scheme);
+    const statement = statementFor(scheme);
+    const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const bankAccount = (data as Invoice).bankAccount;
     const bankAccountDisplay = bankAccount ? formatIban(bankAccount) : IBAN_PLACEHOLDER;
@@ -119,9 +125,12 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                 </div>
             </div>
 
-            {isVatExempt && (
+            {statement && (
                 <div style={{ marginBottom: '2rem', fontStyle: 'italic', fontSize: '0.9rem', color: 'var(--secondary)' }}>
-                    Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).
+                    {statement}
+                    {/* Bij verlegging en een intracommunautaire levering moet het
+                        btw-nummer van de afnemer erbij: daarmee geeft hij de btw aan. */}
+                    {clientVatLine && <> {clientVatLine}</>}
                 </div>
             )}
 

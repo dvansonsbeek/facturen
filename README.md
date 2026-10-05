@@ -6,12 +6,12 @@ Facturen is een razendsnelle, privacy-vriendelijke web-applicatie voor het gener
 
 Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er is geen server, dus alles wat je invult blijft in je eigen browser.
 
-> *In English: a client-side invoice and quotation generator for the Dutch market — Dutch VAT rates (21/9/0%), small-business exemption (KOR), KvK and VAT numbers, and selectable-text PDF export. No backend, no accounts; everything stays in the browser. The interface and the rest of this README are in Dutch, because its users are.*
+> *In English: a client-side invoice and quotation generator for the Dutch market — Dutch VAT rates (21/9/0%), the six Dutch VAT treatments (standard, small-business exemption, reverse charge, intra-EU supply, export, zero rate), KvK and VAT numbers, selectable-text PDF export, and e-invoicing as UBL/NLCIUS validated against the official Schematron. No backend, no accounts; everything stays in the browser. The interface and the rest of this README are in Dutch, because its users are.*
 
 ## ✨ Features
 
 - **Facturen & Offertes**: Schakel eenvoudig tussen het maken van een factuur of een offerte.
-- **Nederlandse btw**: Tarieven van 21%, 9% en 0%, plus ondersteuning voor de kleineondernemersregeling (KOR). Staat de vrijstelling aan, dan laat de app alle btw-tarieven en -bedragen weg en voegt de vermelding toe (art. 25 Wet OB 1968).
+- **Nederlandse btw**: Tarieven van 21%, 9% en 0%, plus zes btw-behandelingen: normaal, de kleineondernemersregeling (KOR), btw verlegd, intracommunautaire levering, uitvoer buiten de EU en een nultarief om een andere reden. Bij elk daarvan laat de app de btw-bedragen weg en zet hij de juiste vermelding op het document — *0% zonder reden erbij is geen complete factuur* — en krijgt de e-factuur de bijbehorende UBL-categorie (`E`, `AE`, `K`, `G` of `Z`).
 - **Bedrijfsgegevens**: Velden voor btw-identificatienummer en KvK-nummer. Ze verschijnen alleen op het document als je ze invult.
 - **Regels met een eenheid**: Reken per **uur**, per **stuk**, per **dag**, per **km** of helemaal zonder eenheid voor een vast bedrag. Je mag ook je eigen eenheid typen.
 - **Doorlopende nummering**: De app onthoudt waar je gebleven was. **Volgende factuur** hoogt het nummer op en maakt het document leeg; het jaartal rolt vanzelf mee.
@@ -119,7 +119,7 @@ site zelf.
 1. **Bedrijfsgegevens**: Vul je eigen gegevens in bij "Mijn Bedrijfsgegevens", inclusief je btw-identificatienummer en KvK-nummer, en je rekeningnummer bij "Mijn Betaalgegevens". Dat hoeft maar één keer: de app onthoudt ze. Klap de secties daarna in.
 2. **Klant**: Kies een klant uit de lijst, of laat hem op "Nieuwe klant" staan en typ de gegevens. Met **Opslaan** komt hij in je klantenboek en kun je hem de volgende keer zo kiezen.
 3. **Opstellen**: Voeg regels toe met een naam, een omschrijving, een aantal en eventueel een eenheid (uur, stuk, dag). Kies per regel het btw-tarief.
-4. **BTW**: Schakel de KOR-modus in als je bent vrijgesteld van btw. De app laat dan alle btw-tarieven en -bedragen weg en voegt de vermelding van de vrijstelling toe.
+4. **BTW**: Kies bij **Btw-behandeling** wat er geldt: normaal, de kleineondernemersregeling, btw verlegd, een intracommunautaire levering, uitvoer buiten de EU of een nultarief om een andere reden. Bij alles behalve normaal laat de app de btw-bedragen weg en zet hij de vermelding die erbij hoort op het document — want 0% zonder reden erbij is geen complete factuur.
 5. **Afronden**: Vul eventueel betalingsvoorwaarden en opmerkingen in; die komen onderaan het document te staan.
 6. **Downloaden**: Zodra je tevreden bent met het live voorbeeld, klik je op **Download PDF**.
 7. **Volgende**: Klik op **Volgende factuur** om het nummer op te hogen en met een leeg document verder te gaan. Je klant blijft staan, want die factureer je vaker.

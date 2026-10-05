@@ -1,5 +1,9 @@
-import { Invoice, LineItem } from "@/types";
+import { Invoice, LineItem, VatScheme } from "@/types";
 import { lineTotal, roundToCents, summariseDocument } from "@/lib/utils";
+import {
+    chargesVat, clientVatStatement, schemeOf, statementFor, VAT_SCHEMES,
+} from "@/lib/vat-schemes";
+import { isEuLand, landcode } from "@/lib/countries";
 
 /**
  * De e-factuur: dezelfde factuur, als UBL-bestand in plaats van als PDF.
@@ -108,15 +112,20 @@ const tag =(naam: string, waarde: string, attrs = ''): string =>
 /**
  * De belastingcategorie van een regel.
  *
- * E en Z zijn niet uitwisselbaar: E zegt "hier geldt geen btw", Z zegt "hier
- * geldt btw, tegen nul procent". Export en intracommunautaire levering zijn Z;
- * de kleineondernemersregeling is E.
+ * 0% is in UBL niet één ding. Het regime van het document bepaalt de categorie:
+ * vrijgesteld (KOR) is E, verlegd is AE, een intracommunautaire levering is K,
+ * uitvoer is G, en alleen een echt nultarief is Z. Pas bij het gewone regime
+ * volgt de categorie het tarief van de regel: S boven nul, Z op nul.
+ *
+ * Alles als Z wegschrijven — wat deze app eerder deed — vertelt het grootboek
+ * van de ontvanger iets anders dan wat er gebeurd is, en de officiële validator
+ * merkt dat niet: Z is op zichzelf geldig.
  */
-export const taxCategory = (vatRate: number, isVatExempt: boolean): 'E' | 'S' | 'Z' =>
-    isVatExempt ? 'E' : vatRate > 0 ? 'S' : 'Z';
-
-export const VRIJSTELLING_REDEN =
-    'Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).';
+export const taxCategory = (
+    vatRate: number,
+    scheme: VatScheme,
+): 'E' | 'S' | 'Z' | 'AE' | 'K' | 'G' =>
+    VAT_SCHEMES[scheme].ublCategory ?? (vatRate > 0 ? 'S' : 'Z');
 
 /**
  * Wat er nog ontbreekt voor een geldige e-factuur.
@@ -140,31 +149,72 @@ export const ontbrekendeVelden = (data: Invoice): string[] => {
     if (!data.sender.vatNumber?.trim()) ontbreekt.push('je btw-identificatienummer');
     if (!data.client.name.trim()) ontbreekt.push('de naam van je klant');
     if (!data.buyerReference?.trim()) ontbreekt.push('een referentie van je klant');
+
+    const scheme = schemeOf(data);
+
+    // Bij verlegging en een intracommunautaire levering geeft je klant de btw
+    // aan, en dat kan hij niet zonder dat zijn btw-nummer op de factuur staat.
+    // Zowel de wet als de e-factuurregels (BR-AE-*, BR-IC-*) eisen het.
+    if (VAT_SCHEMES[scheme].requiresClientVat && !data.client.vatNumber?.trim()) {
+        ontbreekt.push('het btw-nummer van je klant');
+    }
+
+    // Een land dat we niet kennen zou anders als NL de deur uit gaan, en dat is
+    // een onwaarheid op een factuur. Liever weigeren dan gokken.
+    const land = landcode(data.client.country);
+    if (!land) {
+        ontbreekt.push(`een landcode voor "${data.client.country}" (twee letters, bijvoorbeeld DE)`);
+    }
+
+    // Een intracommunautaire levering gaat naar een ánder EU-land. Naar
+    // Nederland is het een binnenlandse levering en naar buiten de EU uitvoer;
+    // in beide gevallen is dit het verkeerde regime. Geen schema dat dit ziet —
+    // het is een feit over de transactie, niet over het bestand.
+    if (scheme === 'icp') {
+        if (land === 'NL') {
+            ontbreekt.push('een EU-land buiten Nederland bij je klant: een intracommunautaire levering gaat niet naar Nederland');
+        } else if (land && !isEuLand(land)) {
+            ontbreekt.push(`een EU-land bij je klant: ${land} zit niet in de EU, dus dit is uitvoer en geen intracommunautaire levering`);
+        }
+    }
     return ontbreekt;
 };
 
 const adres = (
     p: { address?: string; zip?: string; city?: string; country?: string },
-): string => {
-    const landcode = /^(|nederland|nl|the netherlands|netherlands)$/i.test((p.country ?? '').trim())
-        ? 'NL'
-        // Een vrij ingevuld land kan geen landcode worden. Twee letters nemen we
-        // over, de rest valt terug op NL, want dit is een Nederlandse app en een
-        // ongeldige code maakt het hele bestand onbruikbaar.
-        : (p.country ?? '').trim().length === 2
-            ? (p.country ?? '').trim().toUpperCase()
-            : 'NL';
+): string => [
+    '<cac:PostalAddress>',
+    p.address?.trim() ? tag('cbc:StreetName', p.address.trim()) : '',
+    p.city?.trim() ? tag('cbc:CityName', p.city.trim()) : '',
+    p.zip?.trim() ? tag('cbc:PostalZone', p.zip.trim()) : '',
+    '<cac:Country>',
+    // Onbekend land valt hier terug op NL om het bestand welvormd te houden;
+    // `ontbrekendeVelden` houdt de export dan al tegen, zodat het nooit zover
+    // komt dat er een verzonnen code de deur uit gaat.
+    tag('cbc:IdentificationCode', landcode(p.country) ?? 'NL'),
+    '</cac:Country>',
+    '</cac:PostalAddress>',
+].filter(Boolean).join('');
 
+/**
+ * Waar en wanneer er geleverd is.
+ *
+ * Alleen nodig bij een intracommunautaire levering: BR-IC-11 wil de
+ * leverdatum (of een factuurperiode) en BR-IC-12 de landcode van de
+ * bestemming. Bij de andere regimes voegt het niets toe, en wat niets toevoegt
+ * laten we weg.
+ */
+const levering = (data: Invoice, scheme: VatScheme): string => {
+    if (scheme !== 'icp') return '';
+    const land = landcode(data.client.country);
     return [
-        '<cac:PostalAddress>',
-        p.address?.trim() ? tag('cbc:StreetName', p.address.trim()) : '',
-        p.city?.trim() ? tag('cbc:CityName', p.city.trim()) : '',
-        p.zip?.trim() ? tag('cbc:PostalZone', p.zip.trim()) : '',
-        '<cac:Country>',
-        tag('cbc:IdentificationCode', landcode),
-        '</cac:Country>',
-        '</cac:PostalAddress>',
-    ].filter(Boolean).join('');
+        '<cac:Delivery>',
+        tag('cbc:ActualDeliveryDate', (data.deliveryDate || data.date).trim()),
+        '<cac:DeliveryLocation><cac:Address><cac:Country>',
+        tag('cbc:IdentificationCode', land ?? 'NL'),
+        '</cac:Country></cac:Address></cac:DeliveryLocation>',
+        '</cac:Delivery>',
+    ].join('');
 };
 
 const afzender = (data: Invoice): string => {
@@ -251,10 +301,18 @@ const betaling = (data: Invoice): string => {
  * Bij een vrijstelling is er één groep: de hele grondslag, nul btw, categorie E
  * met de reden erbij. Geen tarieven, geen bedragen — net als op het papier.
  */
-const btwTotalen = (items: LineItem[], isVatExempt: boolean): string => {
+const btwTotalen = (items: LineItem[], scheme: VatScheme, clientVat?: string): string => {
+    const isVatExempt = !chargesVat(scheme);
     const { subtotal, vatTotals } = summariseDocument(items, isVatExempt);
 
     if (isVatExempt) {
+        // Eén groep: de hele grondslag, nul btw, de categorie van het regime en
+        // de reden erbij. Dezelfde zin als op het papier, zodat de twee niet
+        // uit elkaar lopen.
+        const reden = VAT_SCHEMES[scheme].ublExemptionReason
+            ? [statementFor(scheme), clientVatStatement(scheme, clientVat)]
+                .filter(Boolean).join(' ')
+            : '';
         return [
             '<cac:TaxTotal>',
             tag('cbc:TaxAmount', bedrag(0), ' currencyID="EUR"'),
@@ -262,14 +320,14 @@ const btwTotalen = (items: LineItem[], isVatExempt: boolean): string => {
             tag('cbc:TaxableAmount', bedrag(subtotal), ' currencyID="EUR"'),
             tag('cbc:TaxAmount', bedrag(0), ' currencyID="EUR"'),
             '<cac:TaxCategory>',
-            tag('cbc:ID', 'E'),
+            tag('cbc:ID', taxCategory(0, scheme)),
             tag('cbc:Percent', '0.00'),
-            tag('cbc:TaxExemptionReason', VRIJSTELLING_REDEN),
+            reden ? tag('cbc:TaxExemptionReason', reden) : '',
             `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
             '</cac:TaxCategory>',
             '</cac:TaxSubtotal>',
             '</cac:TaxTotal>',
-        ].join('');
+        ].filter(Boolean).join('');
     }
 
     // De grondslag per tarief, op dezelfde manier opgeteld als lib/utils.ts dat
@@ -289,7 +347,7 @@ const btwTotalen = (items: LineItem[], isVatExempt: boolean): string => {
             tag('cbc:TaxableAmount', bedrag(grondslag[tarief]), ' currencyID="EUR"'),
             tag('cbc:TaxAmount', bedrag(vatTotals[tarief] ?? 0), ' currencyID="EUR"'),
             '<cac:TaxCategory>',
-            tag('cbc:ID', taxCategory(tarief, false)),
+            tag('cbc:ID', taxCategory(tarief, 'normaal')),
             tag('cbc:Percent', tarief.toFixed(2)),
             `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
             '</cac:TaxCategory>',
@@ -305,8 +363,9 @@ const btwTotalen = (items: LineItem[], isVatExempt: boolean): string => {
     ].join('');
 };
 
-const regels = (items: LineItem[], isVatExempt: boolean): string =>
-    items.map((item, i) => {
+const regels = (items: LineItem[], scheme: VatScheme): string => {
+    const isVatExempt = !chargesVat(scheme);
+    return items.map((item, i) => {
         const naam = item.name?.trim() || item.description.trim() || `Regel ${i + 1}`;
         return [
             '<cac:InvoiceLine>',
@@ -321,7 +380,7 @@ const regels = (items: LineItem[], isVatExempt: boolean): string =>
                 ? tag('cbc:Description', item.description.trim())
                 : '',
             '<cac:ClassifiedTaxCategory>',
-            tag('cbc:ID', taxCategory(item.vatRate, isVatExempt)),
+            tag('cbc:ID', taxCategory(item.vatRate, scheme)),
             tag('cbc:Percent', isVatExempt ? '0.00' : item.vatRate.toFixed(2)),
             `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
             '</cac:ClassifiedTaxCategory>',
@@ -330,6 +389,7 @@ const regels = (items: LineItem[], isVatExempt: boolean): string =>
             '</cac:InvoiceLine>',
         ].filter(Boolean).join('');
     }).join('');
+};
 
 /**
  * Bouwt de e-factuur.
@@ -339,7 +399,8 @@ const regels = (items: LineItem[], isVatExempt: boolean): string =>
  * minimale gegevens.
  */
 export const buildUblInvoice = (data: Invoice): string => {
-    const { subtotal, total } = summariseDocument(data.items, data.isVatExempt);
+    const scheme = schemeOf(data);
+    const { subtotal, total } = summariseDocument(data.items, !chargesVat(scheme));
 
     const body = [
         tag('cbc:CustomizationID', CUSTOMIZATION_ID),
@@ -354,15 +415,18 @@ export const buildUblInvoice = (data: Invoice): string => {
         tag('cbc:BuyerReference', (data.buyerReference ?? '').trim()),
         afzender(data),
         ontvanger(data),
+        // cac:Delivery staat in het schema tussen AccountingCustomerParty en
+        // PaymentMeans; UBL is een vaste reeks, dus de plek is niet vrij.
+        levering(data, scheme),
         betaling(data),
-        btwTotalen(data.items, data.isVatExempt),
+        btwTotalen(data.items, scheme, data.client.vatNumber),
         '<cac:LegalMonetaryTotal>',
         tag('cbc:LineExtensionAmount', bedrag(subtotal), ' currencyID="EUR"'),
         tag('cbc:TaxExclusiveAmount', bedrag(subtotal), ' currencyID="EUR"'),
         tag('cbc:TaxInclusiveAmount', bedrag(total), ' currencyID="EUR"'),
         tag('cbc:PayableAmount', bedrag(total), ' currencyID="EUR"'),
         '</cac:LegalMonetaryTotal>',
-        regels(data.items, data.isVatExempt),
+        regels(data.items, scheme),
     ].filter(Boolean).join('');
 
     return '<?xml version="1.0" encoding="UTF-8"?>'
