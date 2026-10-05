@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, Download, Eye, Trash2, X } from "lucide-react";
+import { Copy, Download, Eye, Lock, Trash2, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { BewaardDocument } from "@/lib/documents";
 import InvoicePreview from "../InvoicePreview";
@@ -10,6 +10,8 @@ interface DocumentArchiveProps {
     documenten: readonly BewaardDocument[];
     /** Onwaar als de browser geen IndexedDB geeft; dan bewaart hij niets. */
     opslagWerkt: boolean;
+    /** Waar als er een wachtwoordzin staat die in deze sessie nog niet is ingevoerd. */
+    vergrendeld: boolean;
     open: boolean;
     onToggle: (open: boolean) => void;
     onDuplicate: (bewaard: BewaardDocument) => void;
@@ -27,7 +29,7 @@ interface DocumentArchiveProps {
  * een nieuw document — vandaar Dupliceren.
  */
 export default function DocumentArchive({
-    documenten, opslagWerkt, open, onToggle, onDuplicate, onDelete, onDownload,
+    documenten, opslagWerkt, vergrendeld, open, onToggle, onDuplicate, onDelete, onDownload,
 }: DocumentArchiveProps) {
     const [bekeken, setBekeken] = useState<BewaardDocument | null>(null);
     const venster = useRef<HTMLDialogElement>(null);
@@ -60,7 +62,15 @@ export default function DocumentArchive({
                     staat in deze browser, op dit apparaat, en gaat niet naar een server.
                 </p>
 
-                {documenten.length === 0 ? (
+                {vergrendeld ? (
+                    /* Niet simpelweg een lege lijst: die ziet eruit alsof je archief
+                       weg is, en dat is precies de verkeerde conclusie. */
+                    <p className="archief-vergrendeld">
+                        <Lock size={16} />
+                        Je archief is versleuteld. Voer je wachtwoordzin in bij
+                        <strong> Beveiliging en privacy</strong> om het te openen.
+                    </p>
+                ) : documenten.length === 0 ? (
                     <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>
                         Nog niets bewaard. Gebruik <strong>Bewaren</strong> onderaan het formulier om
                         een factuur of offerte vast te leggen.

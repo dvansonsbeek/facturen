@@ -22,16 +22,17 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Gegevens Onthouden**: Je bedrijfs- en betaalgegevens worden bewaard in je eigen browser, op dit apparaat. Je vult ze één keer in; met **Wissen** haal je ze er weer uit.
 - **Klantenboek**: Bewaar je klanten en kies ze de volgende keer uit een lijst. De velden klappen dan dicht; met **Bewerken** open je ze weer. Wat je aanpast verandert de bewaarde klant pas als je **Opslaan** gebruikt.
 - **Documenten Bewaren**: Leg een factuur of offerte vast met **Bewaren**. Een bewaard document staat vast — het bevat je bedrijfs- en betaalgegevens zoals ze op dat moment waren en is daarna niet meer te wijzigen, want je klant heeft hem al. Je kunt hem bekijken, opnieuw als PDF downloaden, of met **Dupliceren** de klant en regels overnemen in een nieuw concept.
-- **Instellingen Meenemen**: Exporteer en importeer je gegevens én je bewaarde documenten via een JSON-bestand om ze naar een ander apparaat of een andere browser over te zetten. Dat bestand is ook je reservekopie.
+- **Instellingen Meenemen**: Exporteer en importeer je gegevens én je bewaarde documenten via een JSON-bestand om ze naar een ander apparaat of een andere browser over te zetten. Dat bestand is ook je reservekopie. Is je archief versleuteld, dan is het bestand dat ook.
+- **Optionele Wachtwoordzin**: Zet een zin op je archief en je bewaarde documenten gaan versleuteld naar schijf (AES-256-GCM). De app legt bij **Beveiliging en privacy** uit waar je gegevens staan, waar het risico zit en wat een wachtwoordzin wel en niet oplost.
 - **Opgeruimd Formulier**: Secties die je maar één keer invult, klap je in; die keuze wordt onthouden.
 - **Dark Mode**: Oogvriendelijk ontwerp voor de late uurtjes.
 - **Responsief**: Werkt op desktop, tablet en telefoon.
-- **Privacy First**: Geen database, geen cloud-opslag. Al je gegevens blijven 100% in je eigen browser.
+- **Privacy First**: Geen database, geen cloud-opslag, geen trackers. Al je gegevens blijven in je eigen browser — en dat is afgedwongen, niet alleen beloofd: de pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om ook maar één verzoek naar buiten te doen. De lettertypes komen daarom uit de app zelf en niet bij Google vandaan.
 
 ## ⚠️ Goed om te weten
 
 - **Geen boekhouding.** De app bewaart je documenten wél, maar telt ze niet op: hij houdt je omzet niet bij tegen de KOR-grens van € 20.000 per kalenderjaar en doet geen aangifte.
-- **Bewaarde documenten staan in deze browser, onversleuteld.** Ze zijn leesbaar voor iedereen die bij dit browserprofiel kan — dezelfde gebruiker op dit apparaat, of een kwaadwillende browserextensie. Op een gedeelde of beheerde computer is dat iets om te weten. Gebruik Export voor een kopie die je zelf beheert.
+- **Het risico zit in dit apparaat, niet in het netwerk.** Er gaat niets naar buiten, maar wie bij dit browserprofiel kan, kan standaard bij je bewaarde documenten. Met een **wachtwoordzin** (zie *Beveiliging en privacy* in de app) gaan die versleuteld naar schijf; je bedrijfsgegevens, klantenboek en factuurnummers blijven dan nog wel leesbaar. Een wachtwoordzin beschermt wat er stilstaat — niet een sessie die al open is, en niet tegen een kwaadwillende browserextensie. Vergeet je de zin, dan is je archief weg: er is geen herstelcode.
 - **Factuurnummers: onthouden, niet bewaakt.** De app onthoudt waar je gebleven was en hoogt het nummer op als je op **Volgende factuur** klikt. Hij controleert niets: je blijft zelf verantwoordelijk voor een kloppende reeks. Factureer je vanaf twee apparaten, dan lopen er twee reeksen naast elkaar en kunnen er dubbele nummers ontstaan.
 - **Onthouden is per browser en per apparaat.** Je bedrijfsgegevens en je bewaarde documenten staan in de opslag van deze browser: je laptop en je telefoon delen ze niet, en het wissen van je browsergegevens haalt ze weg. Op een gedeelde computer blijven ze achter tot je op **Wissen** klikt. Gebruik Export als reservekopie — het is de enige kopie die je hebt.
 - **Btw wordt per tarief berekend en op centen afgerond**, zodat de getoonde btw-regels altijd optellen tot het getoonde totaal.

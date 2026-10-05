@@ -37,6 +37,7 @@ components/
     PaymentDetails.tsx   Mijn Betaalgegevens (foldout, invoice only)
     ClientDetails.tsx    client fields plus the customer book
     DocumentArchive.tsx  saved documents (foldout) + the read-only view dialog
+    SecurityPanel.tsx    what "in the browser" means, and the passphrase controls
   InvoicePreview.tsx the on-screen HTML preview
   InvoiceDocument.tsx the PDF document (@react-pdf/renderer)
   ItemRow.tsx        one line item
@@ -47,6 +48,7 @@ lib/
   clients.ts         the saved customer book, persisted
   numbering.ts       the running invoice/quotation numbers, persisted
   documents.ts       the archive of issued documents, in IndexedDB, append-only
+  crypto.ts          AES-256-GCM + PBKDF2 for the optional archive passphrase
   foldouts.ts        which sections the user collapsed, persisted
   image.ts           downscales an uploaded logo so it fits in localStorage
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
@@ -188,6 +190,54 @@ Because the archive loads asynchronously, `readDocuments` returns a frozen empty
 until IndexedDB answers — the same reference `readServerDocuments` returns, which is
 what keeps hydration consistent. The rules above still hold.
 
+## The optional passphrase
+
+`lib/crypto.ts` plus the vault half of `lib/documents.ts`. Off by default, because a
+forgotten passphrase destroys the archive and nobody who did not ask for that should
+get it.
+
+**State the limits, in the UI and not only here.** Encryption protects the archive *at
+rest*: someone with access to the browser profile — another user of the device, an
+administrator, a stolen laptop, a disk backup — sees noise instead of client names and
+amounts. It does **not** protect an unlocked session. Once the passphrase is entered the
+key is in the page's memory and the archive is readable, so anything running in the page
+can read it. The CSP in `lib/csp.ts` is what addresses that, and a malicious browser
+extension sits outside any CSP and cannot be defended against by a web page at all.
+`SecurityPanel.tsx` says all of this to the user, including the sentence that a
+passphrase does *not* help against extensions. Do not quietly drop those caveats to make
+the feature sound better; a false sense of security is worse than none.
+
+- **AES-256-GCM**, so a tampered or truncated record fails to decrypt rather than
+  yielding garbage. A fresh 12-byte IV per record: reusing an IV under one key breaks
+  GCM completely.
+- **PBKDF2-HMAC-SHA-256, 600,000 rounds** (OWASP 2024). Argon2id would resist GPU
+  cracking better, but PBKDF2 is the only slow KDF the browser ships; Argon2 would mean
+  ~100 kB of WebAssembly in an app that has no backend to fetch it from.
+- **The salt and round count live in the stored data, not in the code**, so raising the
+  rounds later does not orphan last year's archive.
+- **The key is never persisted.** It is `extractable: false` and held only in module
+  memory, so a reload asks again. Storing it — even as a non-extractable `CryptoKey` in
+  IndexedDB, which is a known pattern — would hand the archive back to anyone with
+  device access and defeat the whole feature.
+- **Only the archive is encrypted.** Company details, the customer book and the numbering
+  stay readable, because those stores read *synchronously* and Web Crypto is async;
+  encrypting them means rewriting them. The UI says so rather than implying everything
+  is covered.
+- **Only the `id` stays in the clear**, which is why `bewaarDocument` uses
+  `crypto.randomUUID()`. The earlier scheme embedded the invoice number in the id, so
+  the number would have been readable on disk despite the encryption.
+- **Export writes the archive as stored**, encrypted when the archive is, together with
+  the key header so the same passphrase opens the import. A backup that silently wrote
+  everything in the clear would undo the feature. The trade-off — forget the passphrase
+  and the backup is lost too — is stated in the confirmation dialog.
+- Saving is **refused while locked**: writing a readable record next to encrypted ones
+  would leave half the archive exposed.
+
+The tests for this read IndexedDB directly, outside the app (`ruweRecords` in
+`tests/encryption.spec.ts`), because the only claim worth checking is what an intruder
+would actually find on disk. There is a deliberate baseline test asserting the client
+name *is* readable without a passphrase, so the encrypted case proves something.
+
 ## Two renderers, one document
 
 The live preview is HTML/CSS; the PDF is `@react-pdf/renderer`. The preview is *not*
@@ -276,15 +326,16 @@ Run the suite before and after any refactor. It exists precisely because
   state), so splitting them into hooks would likely cost more clarity than it buys.
 - Settings import (`importSettings`) only checks that the file parses to an object —
   any shape beyond that is written straight into the settings store. That now includes
-  `documents`, which goes into the archive through `replaceDocuments` unvalidated.
-- **The archive is not encrypted.** It is readable by anything with access to the
-  browser profile: the device's user, a malicious extension, or script injected into
-  the page. The CSP in `lib/csp.ts` closes the last of those off; the first two it
-  cannot. An optional passphrase (AES-256-GCM over the archive) is the intended next
-  step, and it fits `lib/documents.ts` precisely because that store is already async —
-  `settings.ts` and `clients.ts` read synchronously and would have to be rewritten.
-  Note what encryption would and would not buy: it protects the data at rest, not a
-  session that is already unlocked.
+  `documents` and `documentsKey`, which go into the archive through `replaceDocuments`
+  unvalidated.
+- **The archive is unencrypted unless the user sets a passphrase**, and company details,
+  the customer book and the numbering are unencrypted either way. See *The optional
+  passphrase* above for why, and for what encryption does and does not buy.
+- Tests that depend on persisted state must call `waitForHydration` (or `openFoldout`,
+  which does it) after a reload. `readServerX` returning defaults means a section the
+  user had opened renders closed for one frame, and a click in that window toggles the
+  DOM behind React's back — which is exactly how three encryption tests failed before
+  the helper existed.
 - `npm audit` reports a handful of high-severity issues in the ESLint toolchain
   (brace-expansion, micromatch and friends). They are dev-only, build-time ReDoS/DoS
   issues that never reach the browser, and npm's only proposed "fix" is downgrading

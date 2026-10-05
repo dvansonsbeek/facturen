@@ -577,6 +577,64 @@ textarea:focus {
   padding: 1rem;
 }
 
+/* Een bewaard document is onleesbaar zolang het archief vergrendeld is; dan
+   staat hier waarom, in plaats van een lege lijst die lijkt alsof alles weg is. */
+.archief-vergrendeld {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* De uitleg over waar je gegevens staan en waar het risico zit. Leesbare
+   tekstbreedte en rustige kopjes; dit is iets om te lézen, niet in te vullen. */
+.uitleg-blok h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+.uitleg-blok p,
+.uitleg-blok li {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+.uitleg-blok ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.uitleg-blok .uitleg-let-op {
+  color: var(--error);
+}
+
+/* Label, veld en knop op één regel waar het past, eronder op een smal scherm. */
+.kluis-rij {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.kluis-rij label {
+  margin-bottom: 0;
+  min-width: 11rem;
+}
+
+.kluis-rij input {
+  flex: 1 1 14rem;
+}
+
 .label-group label.premium-btn,
 .form-section label.premium-btn {
   /* Ook display hoort hierbij: '.form-section label' zet display:block en is

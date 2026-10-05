@@ -6,7 +6,7 @@
  * sectie onder je handen dichtklapt. Een sectie beweegt hier alleen als de
  * gebruiker er zelf op klikt, en die keuze blijft staan na herladen.
  */
-export type FoldoutName = 'bedrijfsgegevens' | 'betaalgegevens' | 'archief';
+export type FoldoutName = 'bedrijfsgegevens' | 'betaalgegevens' | 'archief' | 'beveiliging';
 
 export type FoldoutState = Record<FoldoutName, boolean>;
 
@@ -21,6 +21,7 @@ export const DEFAULT_FOLDOUTS: FoldoutState = {
     bedrijfsgegevens: true,
     betaalgegevens: true,
     archief: false,
+    beveiliging: false,
 };
 
 const listeners = new Set<() => void>();

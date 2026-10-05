@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise } from './helpers';
+import { ui, normalise, openFoldout } from './helpers';
 
 /**
  * Het archief van bewaarde documenten.
@@ -23,12 +23,8 @@ const vulFactuur = async (page: import('@playwright/test').Page) => {
     return app;
 };
 
-const openArchief = async (page: import('@playwright/test').Page) => {
-    const app = ui(page);
-    if (!(await app.archiveRows.first().isVisible().catch(() => false))) {
-        await app.archiveSummary.click();
-    }
-};
+const openArchief = (page: import('@playwright/test').Page) =>
+    openFoldout(page, 'Bewaarde documenten');
 
 test('bewaart een factuur met nummer, klant en totaal', async ({ page }) => {
     const app = await vulFactuur(page);

@@ -24,7 +24,9 @@ import {
 } from "@/lib/numbering";
 import {
     subscribeDocuments, readDocuments, readServerDocuments, bewaarDocument,
-    verwijderDocument, replaceDocuments, clearDocuments, documentOpslagWerkt,
+    verwijderDocument, replaceDocuments, clearDocuments, exportDocuments,
+    readKluis, readServerKluis, stelWachtwoordzinIn, ontgrendel, vergrendel,
+    verwijderWachtwoordzin,
     type BewaardDocument,
 } from "@/lib/documents";
 import ItemRow from "./ItemRow";
@@ -32,6 +34,7 @@ import CompanyDetails from "./form/CompanyDetails";
 import PaymentDetails from "./form/PaymentDetails";
 import ClientDetails from "./form/ClientDetails";
 import DocumentArchive from "./form/DocumentArchive";
+import SecurityPanel from "./form/SecurityPanel";
 import InvoicePreview from "./InvoicePreview";
 // InvoiceDocument wordt bewust niet hierboven geïmporteerd: dat bestand hangt
 // aan @react-pdf/renderer, en een gewone import trekt die hele bibliotheek de
@@ -144,6 +147,10 @@ export default function InvoiceForm() {
     // render geeft de lege lijst, net als de server, en de opslag meldt zich
     // zodra hij gelezen is.
     const documenten = useSyncExternalStore(subscribeDocuments, readDocuments, readServerDocuments);
+
+    // Dezelfde opslag, een andere momentopname: of er een wachtwoordzin staat
+    // en of die in deze sessie al is ingevoerd.
+    const kluis = useSyncExternalStore(subscribeDocuments, readKluis, readServerKluis);
 
     // Welke bewaarde klant je uit het boek hebt gekozen. Hoort bij dit document,
     // niet bij het boek, dus die bewaren we niet.
@@ -383,6 +390,18 @@ export default function InvoiceForm() {
      */
     const handleSaveDocument = async () => {
         const soort = isQuotation ? 'offerte' : 'factuur';
+
+        // Vergrendeld kan er niet bewaard worden: zonder sleutel zou dit record
+        // leesbaar naast de versleutelde belanden. Zeg dat, in plaats van het op
+        // de opslag te gooien.
+        if (kluis.vergrendeld) {
+            setBewaarMelding(
+                'Je archief is vergrendeld. Voer bij Beveiliging en privacy je wachtwoordzin '
+                + 'in; daarna kun je dit document bewaren.',
+            );
+            return;
+        }
+
         const alBewaard = documenten.some(d => d.soort === soort && d.nummer === documentNumber);
         if (alBewaard && !window.confirm(
             `${soort === 'offerte' ? 'Offerte' : 'Factuur'} ${documentNumber} staat al in je archief. `
@@ -437,9 +456,18 @@ export default function InvoiceForm() {
      * Alles wat in deze browser bewaard is, in één bestand. Het archief hoort
      * er bij: dat is de enige kopie, en een browser die zijn site-data opruimt
      * neemt hem mee. Dit bestand is dus ook je back-up.
+     *
+     * Het archief gaat mee zoals het op schijf staat. Is het versleuteld, dan is
+     * het bestand dat ook, plus de kop die bij je wachtwoordzin hoort. Een
+     * reservekopie die alles alsnog leesbaar wegschrijft zou de versleuteling
+     * onderuit halen, en dat verwacht niemand die zijn archief net beveiligd heeft.
      */
-    const exportSettings = () => {
-        const payload = { ...settings, clients: savedClients, numbering, documents: documenten };
+    const exportSettings = async () => {
+        const { records, kop } = await exportDocuments();
+        const payload = {
+            ...settings, clients: savedClients, numbering,
+            documents: records, documentsKey: kop,
+        };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -459,7 +487,7 @@ export default function InvoiceForm() {
                     if (!parsed || typeof parsed !== 'object') throw new Error('geen object');
                     // Oudere bestanden bevatten alleen de bedrijfsgegevens zelf,
                     // zonder betaalgegevens of klantenboek eromheen.
-                    const { clients, numbering: reeks, documents, ...rest } =
+                    const { clients, numbering: reeks, documents, documentsKey, ...rest } =
                         'sender' in parsed ? parsed : { sender: parsed };
                     updateSettings(rest);
                     if (Array.isArray(clients)) {
@@ -472,8 +500,15 @@ export default function InvoiceForm() {
                     // Het archief komt alleen mee als het bestand er een heeft;
                     // een ouder bestand mag je bewaarde documenten niet wissen.
                     if (Array.isArray(documents)) {
-                        replaceDocuments(documents).then((gelukt) => {
-                            if (!gelukt) setBewaarMelding('Het archief uit dit bestand kon niet bewaard worden.');
+                        replaceDocuments(documents, documentsKey ?? null).then((gelukt) => {
+                            if (!gelukt) {
+                                setBewaarMelding('Het archief uit dit bestand kon niet bewaard worden.');
+                            } else if (documentsKey) {
+                                setBewaarMelding(
+                                    'Het archief uit dit bestand is versleuteld. Voer bij Beveiliging '
+                                    + 'en privacy de wachtwoordzin in die erbij hoort.',
+                                );
+                            }
                         });
                     }
                 } catch {
@@ -609,9 +644,21 @@ export default function InvoiceForm() {
                         />
                     )}
 
+                    <SecurityPanel
+                        kluis={kluis}
+                        aantalDocumenten={documenten.length}
+                        open={foldouts.beveiliging}
+                        onToggle={(open) => writeFoldout('beveiliging', open)}
+                        onSetPassphrase={stelWachtwoordzinIn}
+                        onUnlock={ontgrendel}
+                        onLock={vergrendel}
+                        onRemovePassphrase={verwijderWachtwoordzin}
+                    />
+
                     <DocumentArchive
                         documenten={documenten}
-                        opslagWerkt={documentOpslagWerkt()}
+                        opslagWerkt={kluis.opslagWerkt}
+                        vergrendeld={kluis.vergrendeld}
                         open={foldouts.archief}
                         onToggle={(open) => writeFoldout('archief', open)}
                         onDuplicate={handleDuplicateDocument}

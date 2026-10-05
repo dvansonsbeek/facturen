@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * All selectors live here on purpose.
@@ -96,7 +96,59 @@ export const ui = (page: Page) => ({
     /** Het voorbeeld binnen dat venster, los van het live voorbeeld ernaast. */
     archiveDialogPreview: page.locator('dialog.archief-venster .invoice-preview'),
     status: page.locator('p[role="status"]'),
+
+    // Beveiliging en privacy
+    securitySummary: page.locator('details.foldout summary', { hasText: 'Beveiliging en privacy' }),
+    newPassphrase: page.locator('#kluis-nieuw'),
+    repeatPassphrase: page.locator('#kluis-herhaal'),
+    /** Het veld om te ontgrendelen; een ander veld dan dat om er een in te stellen. */
+    passphrase: page.locator('#kluis-zin'),
+    encryptArchive: page.getByRole('button', { name: /Archief versleutelen|Bezig/ }),
+    unlockArchive: page.getByRole('button', { name: /Ontgrendelen|Bezig/ }),
+    lockArchive: page.getByRole('button', { name: 'Vergrendelen', exact: true }),
+    removePassphrase: page.getByRole('button', { name: /Versleuteling eraf halen/ }),
+    /** Meldingen binnen de beveiligingssectie, los van die onderaan het formulier. */
+    securityStatus: page.locator('details.foldout', {
+        has: page.locator('h3', { hasText: 'Beveiliging en privacy' }),
+    }).locator('p[role="status"]'),
 });
+
+/**
+ * Wait until React has hydrated and run its effects.
+ *
+ * `readServerFoldouts` returns the defaults while `readFoldouts` reads
+ * localStorage, so which sections are open differs between the server render and
+ * the client one. Right after a reload there is a window in which a section the
+ * user had opened is still rendered closed — and a click in that window toggles
+ * the DOM without React knowing, after which hydration undoes it. Anything that
+ * depends on persisted state has to wait for this first.
+ *
+ * `data-theme` is the marker because it is set from an effect, so it cannot
+ * appear before hydration has happened.
+ */
+export const waitForHydration = (page: Page) =>
+    expect(page.locator('html')).toHaveAttribute('data-theme', /^(light|dark)$/);
+
+/**
+ * Ensure a foldout section is open, idempotently.
+ *
+ * Decide on the <details open> attribute, never on whether a child is visible.
+ * A section whose contents arrive asynchronously — the archive and the vault are
+ * read from IndexedDB — has no visible children yet while it is already open, so
+ * a visibility check races the load and clicks an open section shut.
+ */
+export const openFoldout = async (page: Page, heading: string) => {
+    await waitForHydration(page);
+    const section = page
+        .locator('details.foldout')
+        .filter({ has: page.locator('h3', { hasText: heading }) });
+    await expect(section).toBeVisible();
+    if ((await section.getAttribute('open')) === null) {
+        await section.locator('summary').click();
+    }
+    await expect(section).toHaveAttribute('open', '');
+    return section;
+};
 
 /**
  * Intl currency output separates the symbol with a non-breaking space, which
