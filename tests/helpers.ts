@@ -11,10 +11,15 @@ export const ui = (page: Page) => ({
     tab: (name: 'Factuur' | 'Offerte') =>
         page.getByRole('button', { name, exact: true }).first(),
 
-    preview: page.locator('.invoice-preview'),
+    /**
+     * Het live voorbeeld. Bewust binnen .preview-wrapper: een bewaard document
+     * opent in een venster met zijn eigen .invoice-preview, en zonder deze
+     * begrenzing wijst "het voorbeeld" dan naar twee stukken tegelijk.
+     */
+    preview: page.locator('.preview-wrapper .invoice-preview'),
 
     /** Het klantblok, zodat klantasserties niet per ongeluk afzendertekst raken. */
-    clientBlock: page.locator('.invoice-preview div').filter({
+    clientBlock: page.locator('.preview-wrapper .invoice-preview div').filter({
         has: page.locator('h3', { hasText: /Factureren aan:|Offerte voor:/ }),
     }).last(),
 
@@ -39,7 +44,9 @@ export const ui = (page: Page) => ({
     clientPicker: page.locator('select#klantKiezen'),
     saveClient: page.getByRole('button', { name: /Opslaan|Bijwerken/ }),
     editClient: page.getByRole('button', { name: 'Bewerken', exact: true }),
-    deleteClient: page.getByRole('button', { name: 'Verwijderen', exact: true }),
+    // Op titel en niet op naam: het archief heeft ook een Verwijderen per regel,
+    // en dan wijst "Verwijderen" naar meer dan één knop.
+    deleteClient: page.locator('button[title="Deze klant uit je klantenboek verwijderen"]'),
     clientAddress: page.locator('input[placeholder="Straatnaam 123"]'),
     // De tweede: de eerste hoort bij de afzender.
     clientCity: page.locator('input[placeholder="Amsterdam"]').nth(1),
@@ -66,6 +73,29 @@ export const ui = (page: Page) => ({
     downloadPdf: page.getByRole('button', { name: /Download PDF/i }),
     nextDocument: page.getByRole('button', { name: /Volgende (factuur|offerte)/ }),
     convertToInvoice: page.getByRole('button', { name: /Omzetten naar factuur/ }),
+
+    // Bewaarde documenten
+    saveDocument: page.getByRole('button', { name: 'Bewaren', exact: true }),
+    archiveSummary: page.locator('details.foldout summary', { hasText: 'Bewaarde documenten' }),
+    archiveRows: page.locator('.archief-regel'),
+    /** Eén regel uit het archief, met de knoppen die erbij horen. */
+    archiveRow: (i = 0) => {
+        const row = page.locator('.archief-regel').nth(i);
+        return {
+            row,
+            text: () => row.innerText().then(normalise),
+            view: row.getByRole('button', { name: 'Bekijken' }),
+            pdf: row.getByRole('button', { name: 'PDF', exact: true }),
+            duplicate: row.getByRole('button', { name: 'Dupliceren' }),
+            remove: row.getByRole('button', { name: 'Verwijderen' }),
+        };
+    },
+    /** Het venster waarin een bewaard document opent. */
+    archiveDialog: page.locator('dialog.archief-venster'),
+    archiveDialogClose: page.locator('dialog.archief-venster').getByRole('button', { name: 'Sluiten' }),
+    /** Het voorbeeld binnen dat venster, los van het live voorbeeld ernaast. */
+    archiveDialogPreview: page.locator('dialog.archief-venster .invoice-preview'),
+    status: page.locator('p[role="status"]'),
 });
 
 /**
@@ -75,8 +105,8 @@ export const ui = (page: Page) => ({
 export const normalise = (text: string) => text.replace(/ /g, ' ');
 
 export const previewText = async (page: Page) =>
-    normalise(await page.locator('.invoice-preview').innerText());
+    normalise(await page.locator('.preview-wrapper .invoice-preview').innerText());
 
 /** The preview's line-item table headers, e.g. ['Beschrijving', 'Aantal', ...]. */
 export const previewHeaders = (page: Page) =>
-    page.locator('.invoice-preview thead th').allInnerTexts();
+    page.locator('.preview-wrapper .invoice-preview thead th').allInnerTexts();

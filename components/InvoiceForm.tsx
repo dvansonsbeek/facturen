@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
-import { Plus, Download, FileText, Briefcase, Upload, Moon, Sun, Trash2 } from "lucide-react";
+import { Plus, Download, FileText, Briefcase, Upload, Moon, Sun, Trash2, Save } from "lucide-react";
 import { Invoice, Quotation, LineItem, Sender, Client } from "@/types";
 import { generateId } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
@@ -22,10 +22,16 @@ import {
     subscribeNumbering, readNumbering, readServerNumbering, writeNumbering,
     clearNumbering, nextNumber,
 } from "@/lib/numbering";
+import {
+    subscribeDocuments, readDocuments, readServerDocuments, bewaarDocument,
+    verwijderDocument, replaceDocuments, clearDocuments, documentOpslagWerkt,
+    type BewaardDocument,
+} from "@/lib/documents";
 import ItemRow from "./ItemRow";
 import CompanyDetails from "./form/CompanyDetails";
 import PaymentDetails from "./form/PaymentDetails";
 import ClientDetails from "./form/ClientDetails";
+import DocumentArchive from "./form/DocumentArchive";
 import InvoicePreview from "./InvoicePreview";
 // InvoiceDocument wordt bewust niet hierboven geïmporteerd: dat bestand hangt
 // aan @react-pdf/renderer, en een gewone import trekt die hele bibliotheek de
@@ -134,11 +140,18 @@ export default function InvoiceForm() {
     // staat in de opslag en overleeft een herlaadbeurt.
     const numbering = useSyncExternalStore(subscribeNumbering, readNumbering, readServerNumbering);
 
+    // Het archief komt uit IndexedDB en dus asynchroon binnen: de eerste
+    // render geeft de lege lijst, net als de server, en de opslag meldt zich
+    // zodra hij gelezen is.
+    const documenten = useSyncExternalStore(subscribeDocuments, readDocuments, readServerDocuments);
+
     // Welke bewaarde klant je uit het boek hebt gekozen. Hoort bij dit document,
     // niet bij het boek, dus die bewaren we niet.
     const [selectedClientId, setSelectedClientId] = useState('');
     const [isEditingClient, setIsEditingClient] = useState(false);
     const [logoWaarschuwing, setLogoWaarschuwing] = useState<string | null>(null);
+    /** Terugkoppeling na Bewaren of Dupliceren; null als er niets te melden is. */
+    const [bewaarMelding, setBewaarMelding] = useState<string | null>(null);
 
     // Bij een bewaarde klant zijn de velden ingeklapt: je ziet hem al staan in
     // het voorbeeld. Ze gaan open voor een nieuwe klant, of via Bewerken.
@@ -321,13 +334,17 @@ export default function InvoiceForm() {
      * bovenaan wordt geïmporteerd, zit de bibliotheek alsnog in de eerste
      * paginalading.
      */
-    const handleDownloadPDF = async () => {
+    const downloadPdf = async (
+        data: Invoice | Quotation,
+        alsOfferte: boolean,
+        nummer: string,
+    ) => {
         const [{ pdf }, { default: InvoiceDocument }] = await Promise.all([
             import("@react-pdf/renderer"),
             import("./InvoiceDocument"),
         ]);
         const gerenderd = await pdf(
-            <InvoiceDocument data={currentData} isQuotation={isQuotation} />
+            <InvoiceDocument data={data} isQuotation={alsOfferte} />
         ).toBlob();
 
         // Pas na het renderen weten we hoeveel pagina's het zijn geworden, dus
@@ -335,9 +352,8 @@ export default function InvoiceForm() {
         const genummerd = await stampPageNumbers(await gerenderd.arrayBuffer());
         const blob = new Blob([genummerd as BlobPart], { type: 'application/pdf' });
 
-        const baseName = isQuotation ? 'Offerte' : 'Factuur';
-        const number = documentNumber;
-        const filename = `${sanitizeFilename(baseName)}_${sanitizeFilename(number)}.pdf`;
+        const baseName = alsOfferte ? 'Offerte' : 'Factuur';
+        const filename = `${sanitizeFilename(baseName)}_${sanitizeFilename(nummer)}.pdf`;
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -347,8 +363,83 @@ export default function InvoiceForm() {
         URL.revokeObjectURL(url);
     };
 
+    const handleDownloadPDF = () => downloadPdf(currentData, isQuotation, documentNumber);
+
+    /**
+     * Een bewaard document opnieuw downloaden levert hetzelfde stuk op, want
+     * het is mét jouw gegevens van toen bewaard. Zonder die momentopname zou
+     * een verhuizing elke oude factuur stilletjes herschrijven.
+     */
+    const handleDownloadSaved = (bewaard: BewaardDocument) =>
+        downloadPdf(bewaard.document, bewaard.soort === 'offerte', bewaard.nummer);
+
+    /**
+     * Legt het document vast in het archief.
+     *
+     * Dit hoogt het nummer niet op. Bewaren en de reeks doorschuiven zijn twee
+     * dingen: je kunt een factuur bewaren en er daarna nog naar kijken, en
+     * Volgende factuur is het moment waarop je aan de volgende begint. Hetzelfde
+     * onderscheid als tussen downloaden en uitreiken.
+     */
+    const handleSaveDocument = async () => {
+        const soort = isQuotation ? 'offerte' : 'factuur';
+        const alBewaard = documenten.some(d => d.soort === soort && d.nummer === documentNumber);
+        if (alBewaard && !window.confirm(
+            `${soort === 'offerte' ? 'Offerte' : 'Factuur'} ${documentNumber} staat al in je archief. `
+            + 'Een tweede keer bewaren geeft twee documenten met hetzelfde nummer. Doorgaan?',
+        )) return;
+
+        const bewaard = await bewaarDocument(currentData, soort);
+        setBewaarMelding(bewaard
+            ? `${soort === 'offerte' ? 'Offerte' : 'Factuur'} ${bewaard.nummer} is bewaard.`
+            : 'Bewaren is niet gelukt: deze browser geeft geen opslagruimte vrij.');
+    };
+
+    /**
+     * Neemt klant en regels van een bewaard document over in een nieuw concept.
+     *
+     * Bewust zonder het nummer: twee facturen met hetzelfde nummer zijn een
+     * echt probleem (art. 35a Wet OB 1968), dus een duplicaat begint bij het
+     * nummer waar je reeks nu staat.
+     */
+    const handleDuplicateDocument = (bewaard: BewaardDocument) => {
+        const naarOfferte = bewaard.soort === 'offerte';
+        const overnemen = {
+            client: { ...bewaard.document.client },
+            items: bewaard.document.items.map(item => ({ ...item, id: generateId() })),
+            isVatExempt: bewaard.document.isVatExempt,
+            notes: bewaard.document.notes ?? '',
+            date: getInitialDates().date,
+        };
+
+        if (naarOfferte) setQuotation(prev => ({ ...prev, ...overnemen }));
+        else setInvoice(prev => ({ ...prev, ...overnemen }));
+
+        setIsQuotation(naarOfferte);
+        setSelectedClientId('');
+        setIsEditingClient(false);
+        setBewaarMelding(
+            `Overgenomen uit ${naarOfferte ? 'offerte' : 'factuur'} ${bewaard.nummer}. `
+            + `Dit concept krijgt nummer ${naarOfferte ? numbering.offerte : numbering.factuur}.`,
+        );
+    };
+
+    const handleDeleteDocument = async (bewaard: BewaardDocument) => {
+        if (!window.confirm(
+            `${bewaard.soort === 'offerte' ? 'Offerte' : 'Factuur'} ${bewaard.nummer} uit je archief `
+            + 'verwijderen? Dit kan niet ongedaan worden gemaakt.',
+        )) return;
+        const gelukt = await verwijderDocument(bewaard.id);
+        if (!gelukt) setBewaarMelding('Verwijderen is niet gelukt.');
+    };
+
+    /**
+     * Alles wat in deze browser bewaard is, in één bestand. Het archief hoort
+     * er bij: dat is de enige kopie, en een browser die zijn site-data opruimt
+     * neemt hem mee. Dit bestand is dus ook je back-up.
+     */
     const exportSettings = () => {
-        const payload = { ...settings, clients: savedClients, numbering };
+        const payload = { ...settings, clients: savedClients, numbering, documents: documenten };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -368,7 +459,7 @@ export default function InvoiceForm() {
                     if (!parsed || typeof parsed !== 'object') throw new Error('geen object');
                     // Oudere bestanden bevatten alleen de bedrijfsgegevens zelf,
                     // zonder betaalgegevens of klantenboek eromheen.
-                    const { clients, numbering: reeks, ...rest } =
+                    const { clients, numbering: reeks, documents, ...rest } =
                         'sender' in parsed ? parsed : { sender: parsed };
                     updateSettings(rest);
                     if (Array.isArray(clients)) {
@@ -377,6 +468,13 @@ export default function InvoiceForm() {
                     }
                     if (reeks && typeof reeks === 'object') {
                         writeNumbering({ factuur: reeks.factuur, offerte: reeks.offerte });
+                    }
+                    // Het archief komt alleen mee als het bestand er een heeft;
+                    // een ouder bestand mag je bewaarde documenten niet wissen.
+                    if (Array.isArray(documents)) {
+                        replaceDocuments(documents).then((gelukt) => {
+                            if (!gelukt) setBewaarMelding('Het archief uit dit bestand kon niet bewaard worden.');
+                        });
                     }
                 } catch {
                     alert("Ongeldig instellingenbestand.");
@@ -413,15 +511,21 @@ export default function InvoiceForm() {
         }
     };
 
-    const handleClearSettings = () => {
+    const handleClearSettings = async () => {
+        const aantal = documenten.length;
         const confirmed = window.confirm(
             'Je bedrijfsgegevens, betaalgegevens, klantenboek en de stand van je factuurnummers '
-            + 'worden uit deze browser verwijderd. Weet je het zeker?',
+            + `worden uit deze browser verwijderd${aantal > 0
+                ? `, samen met ${aantal} bewaard${aantal === 1 ? ' document' : 'e documenten'}`
+                : ''}. `
+            + 'Dit kan niet ongedaan worden gemaakt; gebruik Export als je een kopie wilt houden. '
+            + 'Weet je het zeker?',
         );
         if (confirmed) {
             clearSettings();
             clearClients();
             clearNumbering();
+            await clearDocuments();
             setSelectedClientId('');
         }
     };
@@ -504,6 +608,16 @@ export default function InvoiceForm() {
                             onToggle={(open) => writeFoldout('betaalgegevens', open)}
                         />
                     )}
+
+                    <DocumentArchive
+                        documenten={documenten}
+                        opslagWerkt={documentOpslagWerkt()}
+                        open={foldouts.archief}
+                        onToggle={(open) => writeFoldout('archief', open)}
+                        onDuplicate={handleDuplicateDocument}
+                        onDelete={handleDeleteDocument}
+                        onDownload={handleDownloadSaved}
+                    />
 
                     <ClientDetails
                         client={currentData.client}
@@ -598,9 +712,23 @@ export default function InvoiceForm() {
                         />
                     </div>
 
+                    {bewaarMelding && (
+                        <p role="status" style={{ marginTop: '2rem', marginBottom: 0, fontSize: '0.85rem', color: 'var(--primary)' }}>
+                            {bewaarMelding}
+                        </p>
+                    )}
+
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '3rem', flexWrap: 'wrap' }}>
                         <button className="premium-btn" onClick={handleDownloadPDF} style={{ flex: '2 1 240px', padding: '1rem' }}>
                             <Download size={20} /> Download PDF
+                        </button>
+                        <button
+                            className="premium-btn"
+                            onClick={handleSaveDocument}
+                            style={{ flex: '1 1 180px', padding: '1rem' }}
+                            title="Dit document vastleggen in je archief; het is daarna niet meer te wijzigen"
+                        >
+                            <Save size={20} /> Bewaren
                         </button>
                         <button
                             className="premium-btn"

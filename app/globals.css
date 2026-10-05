@@ -508,6 +508,75 @@ textarea:focus {
   padding: 0 1rem 1.25rem;
 }
 
+/* Het archief met bewaarde documenten: een regel per document, met de knoppen
+   eronder op een smal scherm en ernaast als er ruimte is. */
+.archief-lijst {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.archief-regel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.archief-omschrijving {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 12rem;
+}
+
+.archief-knoppen {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* Een bewaard document opent hierin. Een <dialog> met showModal() geeft
+   Escape, het vasthouden van de focus en de achtergrond-overlay gratis. */
+.archief-venster {
+  width: min(52rem, 94vw);
+  max-height: 90vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--foreground);
+  overflow: auto;
+}
+
+.archief-venster::backdrop {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.archief-venster-balk {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--border);
+  /* Niet doorzichtig: het blad schuift eronder langs. */
+  background: var(--background);
+}
+
+.archief-venster-blad {
+  padding: 1rem;
+}
+
 .label-group label.premium-btn,
 .form-section label.premium-btn {
   /* Ook display hoort hierbij: '.form-section label' zet display:block en is

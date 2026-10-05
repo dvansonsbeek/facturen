@@ -36,6 +36,7 @@ components/
     CompanyDetails.tsx   Mijn Bedrijfsgegevens (foldout)
     PaymentDetails.tsx   Mijn Betaalgegevens (foldout, invoice only)
     ClientDetails.tsx    client fields plus the customer book
+    DocumentArchive.tsx  saved documents (foldout) + the read-only view dialog
   InvoicePreview.tsx the on-screen HTML preview
   InvoiceDocument.tsx the PDF document (@react-pdf/renderer)
   ItemRow.tsx        one line item
@@ -45,6 +46,7 @@ lib/
   settings.ts        company + payment details, persisted in localStorage
   clients.ts         the saved customer book, persisted
   numbering.ts       the running invoice/quotation numbers, persisted
+  documents.ts       the archive of issued documents, in IndexedDB, append-only
   foldouts.ts        which sections the user collapsed, persisted
   image.ts           downscales an uploaded logo so it fits in localStorage
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
@@ -78,8 +80,10 @@ tests/               Playwright end-to-end specs
   again. Deleting a customer from the book leaves the document's client untouched —
   you may be halfway through an invoice to them.
 - **Per browser** (`lib/theme.ts`, `lib/foldouts.ts`): theme, collapsed sections.
+- **Issued, and therefore frozen** (`lib/documents.ts`): the archive. See below — it
+  is the one store that is append-only and the one that is not in `localStorage`.
 
-All three persisted stores follow the same shape: `subscribeX` / `readX` /
+All these persisted stores follow the same shape: `subscribeX` / `readX` /
 `readServerX` / `writeX`, read with `useSyncExternalStore`. Two rules matter:
 
 1. **`readX` must return the same reference when nothing changed**, or React
@@ -144,6 +148,46 @@ and nothing else states it.
 on invoices by the Handelsregisterwet (independent of VAT law); Dutch IBANs are 18
 characters.
 
+## The archive: issued means frozen
+
+`lib/documents.ts` keeps the documents you pressed **Bewaren** on. It breaks two
+house patterns on purpose.
+
+**It is in IndexedDB, not `localStorage`.** Documents accumulate, and the 5 MB
+`localStorage` budget is already shared with a logo data-URL. IndexedDB is also async,
+which is what passphrase encryption would need, since Web Crypto is async too.
+
+**A saved document is never updated.** There is no update function, and `bewaarDocument`
+writes with `add()` rather than `put()`, so IndexedDB itself refuses an existing id —
+immutability is enforced by the storage layer, not by convention. Changing a saved
+document means duplicating it into a new draft.
+
+**The record stores the whole merged document, sender and payment details included.**
+Those normally live in `lib/settings.ts` and apply to everything you make, so without
+a snapshot at save time, moving offices next year would silently rewrite every invoice
+you already sent. The test *"latere wijzigingen aan je bedrijfsgegevens veranderen hem
+niet"* guards this, and it was validated by re-merging live settings at display time
+and confirming it goes red.
+
+**Duplicating does not copy the number.** Duplicate numbers are a real compliance
+failure (art. 35a Wet OB 1968) while gaps merely need explaining, so a duplicate starts
+at wherever your series currently stands. Saving likewise does **not** advance the
+counter: *Bewaren* and *Volgende factuur* are separate acts, the same distinction as
+between downloading and issuing.
+
+Deletion *is* allowed, with a confirmation. Data you cannot get back out of your own
+browser is a worse outcome than data you can delete by accident; Export carries the
+archive so a copy can live outside the browser, which also makes it the backup.
+
+The frozen document opens in a `<dialog>` above the page rather than in the preview
+pane. If it took over the live preview, typing in the form would appear to do nothing.
+The `<dialog>` lives outside the `<details>` foldout, because a closed `<details>` sets
+`display: none` on its children and a modal in that subtree never appears.
+
+Because the archive loads asynchronously, `readDocuments` returns a frozen empty array
+until IndexedDB answers — the same reference `readServerDocuments` returns, which is
+what keeps hydration consistent. The rules above still hold.
+
 ## Two renderers, one document
 
 The live preview is HTML/CSS; the PDF is `@react-pdf/renderer`. The preview is *not*
@@ -202,6 +246,12 @@ Playwright starts its own dev server and reuses one already on :3000.
 `htmlFor`, so `getByLabel` does not work and placeholders are the stable handle. If you
 split `InvoiceForm` up, that file should be the only test file needing changes.
 
+Two selectors there are deliberately narrower than they look. `preview` is scoped to
+`.preview-wrapper .invoice-preview` because the archive dialog renders a second
+`.invoice-preview`, and `deleteClient` matches on `title` rather than the name
+"Verwijderen", which every archive row also has. Both would otherwise match more than
+one element the moment a document is saved.
+
 Run the suite before and after any refactor. It exists precisely because
 `InvoiceForm.tsx` is large and under-typed at the layout level.
 
@@ -215,8 +265,8 @@ Run the suite before and after any refactor. It exists precisely because
 
 ## Known gaps and deliberate decisions
 
-- `InvoiceForm.tsx` is ~640 lines: roughly 430 of state and handlers, 210 of
-  composition. The company, payment and client sections were extracted to
+- `InvoiceForm.tsx` is ~770 lines: roughly 540 of state and handlers, 230 of
+  composition. The company, payment, client and archive sections were extracted to
   `components/form/`; *Algemene Informatie*, Items and the action buttons were left
   in place because pulling out another ~50 lines behind a props interface buys little.
   Only **one** `isQuotation` branch remains, inside `updateDocument` itself, and it is
@@ -225,7 +275,16 @@ Run the suite before and after any refactor. It exists precisely because
   (`handleConvertToInvoice` touches both drafts, the numbering store and the tab
   state), so splitting them into hooks would likely cost more clarity than it buys.
 - Settings import (`importSettings`) only checks that the file parses to an object —
-  any shape beyond that is written straight into the settings store.
+  any shape beyond that is written straight into the settings store. That now includes
+  `documents`, which goes into the archive through `replaceDocuments` unvalidated.
+- **The archive is not encrypted.** It is readable by anything with access to the
+  browser profile: the device's user, a malicious extension, or script injected into
+  the page. The CSP in `lib/csp.ts` closes the last of those off; the first two it
+  cannot. An optional passphrase (AES-256-GCM over the archive) is the intended next
+  step, and it fits `lib/documents.ts` precisely because that store is already async —
+  `settings.ts` and `clients.ts` read synchronously and would have to be rewritten.
+  Note what encryption would and would not buy: it protects the data at rest, not a
+  session that is already unlocked.
 - `npm audit` reports a handful of high-severity issues in the ESLint toolchain
   (brace-expansion, micromatch and friends). They are dev-only, build-time ReDoS/DoS
   issues that never reach the browser, and npm's only proposed "fix" is downgrading

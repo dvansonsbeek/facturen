@@ -6,16 +6,21 @@
  * sectie onder je handen dichtklapt. Een sectie beweegt hier alleen als de
  * gebruiker er zelf op klikt, en die keuze blijft staan na herladen.
  */
-export type FoldoutName = 'bedrijfsgegevens' | 'betaalgegevens';
+export type FoldoutName = 'bedrijfsgegevens' | 'betaalgegevens' | 'archief';
 
 export type FoldoutState = Record<FoldoutName, boolean>;
 
 const STORAGE_KEY = 'facturen.secties';
 
-/** Open bij een eerste bezoek, zodat niemand de velden hoeft te zoeken. */
+/**
+ * Open bij een eerste bezoek, zodat niemand de velden hoeft te zoeken. Het
+ * archief niet: dat is bij een eerste bezoek leeg. Een vaste keuze, niet
+ * afgeleid van "staat er al iets in" — zie de uitleg bovenaan.
+ */
 export const DEFAULT_FOLDOUTS: FoldoutState = {
     bedrijfsgegevens: true,
     betaalgegevens: true,
+    archief: false,
 };
 
 const listeners = new Set<() => void>();
