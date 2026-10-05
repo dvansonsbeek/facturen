@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Lock, LockOpen, ShieldCheck } from "lucide-react";
-import type { KluisStand } from "@/lib/documents";
+import type { KluisStand } from "@/lib/vault";
 
 interface SecurityPanelProps {
     kluis: KluisStand;
@@ -44,9 +44,10 @@ export default function SecurityPanel({
             return;
         }
         if (!window.confirm(
-            'Let op: zonder deze zin is je archief niet meer te openen. Er is geen server '
-            + 'en geen herstelcode, dus vergeten betekent kwijt — ook de reservekopie uit '
-            + 'Export blijft dan onleesbaar. Schrijf hem ergens op. Doorgaan?',
+            'Let op: zonder deze zin zijn je bewaarde documenten en je klantenboek niet meer '
+            + 'te openen. Er is geen server en geen herstelcode, dus vergeten betekent kwijt — '
+            + 'ook de reservekopie uit Export blijft dan onleesbaar. Schrijf hem ergens op. '
+            + 'Doorgaan?',
         )) return;
 
         setBezig(true);
@@ -55,7 +56,8 @@ export default function SecurityPanel({
         setZin('');
         setHerhaling('');
         setMelding(gelukt
-            ? 'Je archief is nu versleuteld. Na het herladen van de pagina vraagt hij de zin opnieuw.'
+            ? 'Je archief en klantenboek zijn nu versleuteld. Na het herladen van de pagina '
+              + 'vraagt hij de zin opnieuw.'
             : 'Instellen is niet gelukt.');
     };
 
@@ -130,11 +132,18 @@ export default function SecurityPanel({
                 <div className="uitleg-blok">
                     <h4>Wat een wachtwoordzin toevoegt</h4>
                     <p>
-                        Je bewaarde documenten gaan dan versleuteld naar schijf (AES-256-GCM, sleutel
-                        afgeleid met PBKDF2). Wie bij dit apparaat kan, ziet geen klantnamen, adressen
-                        of bedragen meer — alleen ruis. <strong>Je bedrijfsgegevens, je klantenboek en
-                        je factuurnummers blijven leesbaar;</strong> alleen het archief wordt
-                        versleuteld.
+                        Je <strong>bewaarde documenten</strong> en je <strong>klantenboek</strong> gaan
+                        dan versleuteld naar schijf (AES-256-GCM, sleutel afgeleid met PBKDF2). Wie bij
+                        dit apparaat kan, ziet geen klantnamen, adressen of bedragen meer — alleen ruis.
+                        Dat zijn de persoonsgegevens van anderen, en dus het deel dat er echt om vraagt.
+                    </p>
+                    <p>
+                        <strong>Je eigen bedrijfsgegevens en je factuurnummers blijven leesbaar.</strong>
+                        Die staan op elke factuur die je verstuurt en in het handelsregister, en een
+                        factuurnummer is geen geheim; versleutelen levert daar niets op en zou je de app
+                        niet meer laten gebruiken zonder de zin. Zo kun je nog gewoon een factuur maken
+                        terwijl het vergrendeld is — je ziet dan alleen je bewaarde klanten en documenten
+                        niet, en opslaan wordt geweigerd tot je ontgrendelt.
                     </p>
                     <p>
                         En de grens, duidelijk gezegd: dit beschermt wat er <em>stilstaat</em>, niet
@@ -143,8 +152,8 @@ export default function SecurityPanel({
                         sleutel wordt nooit bewaard, dus na herladen vraagt hij hem opnieuw.
                     </p>
                     <p className="uitleg-let-op">
-                        Er is geen herstelcode en niemand die je kan helpen. Vergeet je de zin, dan is
-                        je archief weg — ook het Export-bestand blijft dan onleesbaar.
+                        Er is geen herstelcode en niemand die je kan helpen. Vergeet je de zin, dan zijn
+                        je archief en je klantenboek weg — ook het Export-bestand blijft dan onleesbaar.
                     </p>
                 </div>
 

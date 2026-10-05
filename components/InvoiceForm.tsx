@@ -16,7 +16,8 @@ import {
 } from "@/lib/foldouts";
 import {
     subscribeClients, readClients, readServerClients, saveClient, deleteClient,
-    replaceClients, clearClients, findClientByName, type SavedClient,
+    clearClients, findClientByName, exportClients, importClients, klantenVergrendeld,
+    type SavedClient,
 } from "@/lib/clients";
 import {
     subscribeNumbering, readNumbering, readServerNumbering, writeNumbering,
@@ -25,10 +26,12 @@ import {
 import {
     subscribeDocuments, readDocuments, readServerDocuments, bewaarDocument,
     verwijderDocument, replaceDocuments, clearDocuments, exportDocuments,
-    readKluis, readServerKluis, stelWachtwoordzinIn, ontgrendel, vergrendel,
-    verwijderWachtwoordzin,
     type BewaardDocument,
 } from "@/lib/documents";
+import {
+    subscribeKluis, readKluis, readServerKluis, exportKluis, importKluis,
+    stelIn, ontgrendel, vergrendel, verwijderZin, vergeetKluis,
+} from "@/lib/vault";
 import ItemRow from "./ItemRow";
 import CompanyDetails from "./form/CompanyDetails";
 import PaymentDetails from "./form/PaymentDetails";
@@ -148,9 +151,9 @@ export default function InvoiceForm() {
     // zodra hij gelezen is.
     const documenten = useSyncExternalStore(subscribeDocuments, readDocuments, readServerDocuments);
 
-    // Dezelfde opslag, een andere momentopname: of er een wachtwoordzin staat
-    // en of die in deze sessie al is ingevoerd.
-    const kluis = useSyncExternalStore(subscribeDocuments, readKluis, readServerKluis);
+    // Of er een wachtwoordzin staat en of die in deze sessie al is ingevoerd.
+    // Geldt voor het archief én het klantenboek: één zin voor alles.
+    const kluis = useSyncExternalStore(subscribeKluis, readKluis, readServerKluis);
 
     // Welke bewaarde klant je uit het boek hebt gekozen. Hoort bij dit document,
     // niet bij het boek, dus die bewaren we niet.
@@ -457,16 +460,19 @@ export default function InvoiceForm() {
      * er bij: dat is de enige kopie, en een browser die zijn site-data opruimt
      * neemt hem mee. Dit bestand is dus ook je back-up.
      *
-     * Het archief gaat mee zoals het op schijf staat. Is het versleuteld, dan is
-     * het bestand dat ook, plus de kop die bij je wachtwoordzin hoort. Een
-     * reservekopie die alles alsnog leesbaar wegschrijft zou de versleuteling
-     * onderuit halen, en dat verwacht niemand die zijn archief net beveiligd heeft.
+     * Het archief en het klantenboek gaan mee zoals ze op schijf staan. Zijn ze
+     * versleuteld, dan is het bestand dat ook, met de kluis erbij zodat dezelfde
+     * zin het weer opent. Een reservekopie die alles alsnog leesbaar wegschrijft
+     * zou de versleuteling onderuit halen, en dat verwacht niemand die zijn
+     * gegevens net beveiligd heeft.
      */
     const exportSettings = async () => {
-        const { records, kop } = await exportDocuments();
         const payload = {
-            ...settings, clients: savedClients, numbering,
-            documents: records, documentsKey: kop,
+            ...settings,
+            clients: exportClients(),
+            numbering,
+            documents: await exportDocuments(),
+            kluis: await exportKluis(),
         };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -481,17 +487,24 @@ export default function InvoiceForm() {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const parsed = JSON.parse(event.target?.result as string);
                     if (!parsed || typeof parsed !== 'object') throw new Error('geen object');
                     // Oudere bestanden bevatten alleen de bedrijfsgegevens zelf,
                     // zonder betaalgegevens of klantenboek eromheen.
-                    const { clients, numbering: reeks, documents, documentsKey, ...rest } =
+                    const { clients, numbering: reeks, documents, kluis: bestandsKluis, ...rest } =
                         'sender' in parsed ? parsed : { sender: parsed };
                     updateSettings(rest);
-                    if (Array.isArray(clients)) {
-                        replaceClients(clients);
+
+                    // De kluis eerst: daarna weten de opslagen of wat er binnenkomt
+                    // versleuteld is, en met welke kop.
+                    if (bestandsKluis?.kop && bestandsKluis?.proef) {
+                        await importKluis(bestandsKluis);
+                    }
+
+                    if (clients) {
+                        importClients(clients);
                         setSelectedClientId('');
                     }
                     if (reeks && typeof reeks === 'object') {
@@ -499,17 +512,15 @@ export default function InvoiceForm() {
                     }
                     // Het archief komt alleen mee als het bestand er een heeft;
                     // een ouder bestand mag je bewaarde documenten niet wissen.
-                    if (Array.isArray(documents)) {
-                        replaceDocuments(documents, documentsKey ?? null).then((gelukt) => {
-                            if (!gelukt) {
-                                setBewaarMelding('Het archief uit dit bestand kon niet bewaard worden.');
-                            } else if (documentsKey) {
-                                setBewaarMelding(
-                                    'Het archief uit dit bestand is versleuteld. Voer bij Beveiliging '
-                                    + 'en privacy de wachtwoordzin in die erbij hoort.',
-                                );
-                            }
-                        });
+                    if (Array.isArray(documents) && !await replaceDocuments(documents)) {
+                        setBewaarMelding('Het archief uit dit bestand kon niet bewaard worden.');
+                        return;
+                    }
+                    if (bestandsKluis?.kop) {
+                        setBewaarMelding(
+                            'Dit bestand is versleuteld. Voer bij Beveiliging en privacy de '
+                            + 'wachtwoordzin in die erbij hoort om je klanten en documenten te zien.',
+                        );
                     }
                 } catch {
                     alert("Ongeldig instellingenbestand.");
@@ -530,8 +541,20 @@ export default function InvoiceForm() {
     // Opslaan werkt op naam: bestaat die al, dan werk je die klant bij.
     const matchingSavedClient = findClientByName(currentData.client.name);
 
+    /**
+     * Opslaan wordt geweigerd zolang het klantenboek vergrendeld is: een
+     * leesbare klant naast een versleuteld blok wegschrijven zou de helft
+     * alsnog open leggen. Zeg dat dan, in plaats van er niets mee te doen.
+     */
     const handleSaveClient = () => {
         const saved = saveClient(currentData.client);
+        if (!saved) {
+            setBewaarMelding(
+                'Je klantenboek is vergrendeld. Voer bij Beveiliging en privacy je '
+                + 'wachtwoordzin in; daarna kun je deze klant opslaan.',
+            );
+            return;
+        }
         setSelectedClientId(saved.id);
         setIsEditingClient(false);
     };
@@ -549,8 +572,8 @@ export default function InvoiceForm() {
     const handleClearSettings = async () => {
         const aantal = documenten.length;
         const confirmed = window.confirm(
-            'Je bedrijfsgegevens, betaalgegevens, klantenboek en de stand van je factuurnummers '
-            + `worden uit deze browser verwijderd${aantal > 0
+            'Je bedrijfsgegevens, betaalgegevens, klantenboek, de stand van je factuurnummers '
+            + `en je wachtwoordzin worden uit deze browser verwijderd${aantal > 0
                 ? `, samen met ${aantal} bewaard${aantal === 1 ? ' document' : 'e documenten'}`
                 : ''}. `
             + 'Dit kan niet ongedaan worden gemaakt; gebruik Export als je een kopie wilt houden. '
@@ -561,6 +584,7 @@ export default function InvoiceForm() {
             clearClients();
             clearNumbering();
             await clearDocuments();
+            await vergeetKluis();
             setSelectedClientId('');
         }
     };
@@ -649,10 +673,10 @@ export default function InvoiceForm() {
                         aantalDocumenten={documenten.length}
                         open={foldouts.beveiliging}
                         onToggle={(open) => writeFoldout('beveiliging', open)}
-                        onSetPassphrase={stelWachtwoordzinIn}
+                        onSetPassphrase={stelIn}
                         onUnlock={ontgrendel}
                         onLock={vergrendel}
-                        onRemovePassphrase={verwijderWachtwoordzin}
+                        onRemovePassphrase={verwijderZin}
                     />
 
                     <DocumentArchive
@@ -677,6 +701,7 @@ export default function InvoiceForm() {
                         onEdit={() => setIsEditingClient(true)}
                         fieldsVisible={clientFieldsVisible}
                         nameIsKnown={!!matchingSavedClient}
+                        locked={klantenVergrendeld()}
                     />
 
                     <div style={{ marginBottom: '2rem' }}>

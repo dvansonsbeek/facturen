@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise, openFoldout } from './helpers';
+import { ui, normalise, openFoldout, waitForHydration } from './helpers';
 
 /**
- * De optionele wachtwoordzin op het archief.
+ * De optionele wachtwoordzin, over het archief én het klantenboek.
  *
  * De kern van deze suite is wat er daadwerkelijk op schijf staat. Een test die
  * alleen kijkt of het scherm "versleuteld" zegt, bewijst niets: de vraag is of
  * iemand die bij dit browserprofiel kan er nog klantnamen en bedragen uit haalt.
- * Daarom leest `ruweRecords` IndexedDB rechtstreeks uit, buiten de app om.
+ * Daarom lezen `ruweRecords` en `ruweKlanten` IndexedDB en localStorage
+ * rechtstreeks uit, buiten de app om.
  */
 const ZIN = 'mijn lange wachtwoordzin';
 
@@ -29,6 +30,10 @@ const ruweRecords = (page: import('@playwright/test').Page) =>
         verzoek.onerror = () => mislukt(verzoek.error);
     }));
 
+/** Leest het klantenboek rechtstreeks uit localStorage. */
+const ruweKlanten = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => localStorage.getItem('facturen.klanten'));
+
 const vulEnBewaar = async (page: import('@playwright/test').Page) => {
     const app = ui(page);
     await app.companyName.fill('Sonsbeek Advies BV');
@@ -37,6 +42,16 @@ const vulEnBewaar = async (page: import('@playwright/test').Page) => {
     await app.itemPrice().fill('100');
     await app.saveDocument.click();
     await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+    return app;
+};
+
+/** Zet een klant in het boek, zodat er iets te versleutelen valt. */
+const bewaarKlant = async (page: import('@playwright/test').Page, naam = 'Boekklant BV') => {
+    const app = ui(page);
+    await app.clientName.fill(naam);
+    await app.clientAddress.fill('Kerkstraat 1');
+    await app.saveClient.click();
+    await expect(app.clientPicker).toHaveValue(/.+/);
     return app;
 };
 
@@ -187,9 +202,16 @@ test.describe('Export', () => {
         const bestand = JSON.parse(tekst);
         expect(bestand.documents).toHaveLength(1);
         expect(bestand.documents[0].blok).toBeTruthy();
-        // De kop moet mee, anders valt er niets meer af te leiden uit de zin.
-        expect(bestand.documentsKey.zout).toBeTruthy();
-        expect(bestand.documentsKey.ronden).toBeGreaterThanOrEqual(600_000);
+        // Het klantenboek hoort er net zo versleuteld in te staan.
+        expect(bestand.clients.iv).toBeTruthy();
+        expect(bestand.clients.data).toBeTruthy();
+        // Kop én proef moeten mee: zonder de kop valt er niets af te leiden uit
+        // de zin, zonder de proef is niet te zien of hij klopt.
+        expect(bestand.kluis.kop.zout).toBeTruthy();
+        expect(bestand.kluis.kop.ronden).toBeGreaterThanOrEqual(600_000);
+        expect(bestand.kluis.proef).toBeTruthy();
+        // En je eigen bedrijfsgegevens blijven juist leesbaar; dat is de keuze.
+        expect(bestand.sender.name).toBe('Sonsbeek Advies BV');
     });
 
     test('neemt een onversleuteld archief leesbaar mee', async ({ page }) => {
@@ -205,7 +227,7 @@ test.describe('Export', () => {
         const bestand = JSON.parse(Buffer.concat(chunks).toString('utf8'));
 
         expect(bestand.documents[0].klant).toBe('Gevoelige Klant BV');
-        expect(bestand.documentsKey).toBeNull();
+        expect(bestand.kluis).toBeNull();
     });
 });
 
@@ -223,6 +245,116 @@ test('Wissen haalt ook de wachtwoordzin weg', async ({ page }) => {
     await page.reload();
     await openBeveiliging(page);
     await expect(app.newPassphrase).toBeVisible();
+});
+
+test.describe('het klantenboek', () => {
+    test('staat zonder wachtwoordzin leesbaar op schijf', async ({ page }) => {
+        // De uitgangssituatie, zodat de test hieronder iets betekent.
+        await bewaarKlant(page);
+        expect(await ruweKlanten(page)).toContain('Boekklant BV');
+    });
+
+    test('is na het instellen van een zin niet meer te lezen', async ({ page }) => {
+        await bewaarKlant(page);
+        await stelZinIn(page);
+
+        const ruw = await ruweKlanten(page);
+        expect(ruw, 'de klantnaam is nog leesbaar op schijf').not.toContain('Boekklant BV');
+        expect(ruw, 'het adres is nog leesbaar op schijf').not.toContain('Kerkstraat');
+        expect(ruw).toContain('"iv"');
+    });
+
+    test('blijft leesbaar in de sessie waarin je de zin instelt', async ({ page }) => {
+        const app = await bewaarKlant(page);
+        await stelZinIn(page);
+        await expect(app.clientPicker.locator('option', { hasText: 'Boekklant BV' })).toHaveCount(1);
+    });
+
+    test('is na herladen leeg, met uitleg waarom', async ({ page }) => {
+        const app = await bewaarKlant(page);
+        await stelZinIn(page);
+        await page.reload();
+        await waitForHydration(page);
+
+        await expect(app.clientPicker.locator('option')).toHaveCount(1);
+        await expect(page.locator('.klantenboek-vergrendeld')).toBeVisible();
+        await expect(page.locator('.klantenboek-vergrendeld')).toContainText('versleuteld');
+    });
+
+    test('komt terug na ontgrendelen', async ({ page }) => {
+        const app = await bewaarKlant(page);
+        await stelZinIn(page);
+        await page.reload();
+
+        await openBeveiliging(page);
+        await app.passphrase.fill(ZIN);
+        await app.unlockArchive.click();
+
+        await expect(app.clientPicker.locator('option', { hasText: 'Boekklant BV' }))
+            .toHaveCount(1, { timeout: 30000 });
+        await expect(page.locator('.klantenboek-vergrendeld')).toHaveCount(0);
+    });
+
+    /**
+     * Niet gemak maar noodzaak: een leesbare klant naast een versleuteld blok
+     * wegschrijven zou het halve boek alsnog open leggen.
+     */
+    test('weigert opslaan zolang het vergrendeld is', async ({ page }) => {
+        await bewaarKlant(page);
+        await stelZinIn(page);
+        await page.reload();
+        await waitForHydration(page);
+
+        const app = ui(page);
+        await app.clientName.fill('Nieuwe Klant BV');
+        await expect(app.saveClient).toBeDisabled();
+
+        // En er is niets bijgeschreven dat leesbaar is.
+        expect(await ruweKlanten(page)).not.toContain('Nieuwe Klant BV');
+    });
+
+    test('laat een factuur maken terwijl het vergrendeld is', async ({ page }) => {
+        await bewaarKlant(page);
+        await stelZinIn(page);
+        await page.reload();
+        await waitForHydration(page);
+
+        // Dit is waarom bedrijfsgegevens en nummering leesbaar blijven: de app
+        // moet zonder de zin bruikbaar zijn.
+        const app = ui(page);
+        await app.clientName.fill('Losse Klant BV');
+        await app.itemPrice().fill('100');
+        await expect(app.preview).toContainText('Losse Klant BV');
+        await expect(app.preview).toContainText('€ 121,00');
+    });
+
+    test('de versleuteling eraf halen maakt het boek weer leesbaar', async ({ page }) => {
+        const app = await bewaarKlant(page);
+        await stelZinIn(page);
+
+        await openBeveiliging(page);
+        page.once('dialog', (d) => d.accept());
+        await app.removePassphrase.click();
+        await expect(app.securityStatus.filter({ hasText: 'eraf' })).toBeVisible();
+
+        expect(await ruweKlanten(page)).toContain('Boekklant BV');
+    });
+});
+
+test('je eigen bedrijfsgegevens blijven met een zin leesbaar, en dat is de bedoeling', async ({ page }) => {
+    const app = ui(page);
+    await app.companyName.fill('Sonsbeek Advies BV');
+    await app.documentNumber.fill('2026-042');
+    await bewaarKlant(page);
+    await stelZinIn(page);
+
+    // Ze staan op elke factuur die je verstuurt en in het handelsregister;
+    // versleutelen levert daar niets op en zou de app onbruikbaar maken zonder
+    // de zin. Deze test legt die keuze vast, zodat hij niet per ongeluk omgaat.
+    expect(await page.evaluate(() => localStorage.getItem('facturen.bedrijfsgegevens')))
+        .toContain('Sonsbeek Advies BV');
+    expect(await page.evaluate(() => localStorage.getItem('facturen.nummering')))
+        .toContain('2026-042');
 });
 
 test.describe('de uitleg', () => {

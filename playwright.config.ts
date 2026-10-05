@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
     testDir: './tests',
+    // tests/uat hoort bij playwright.productie.config.ts: die draait tegen de
+    // gepubliceerde build, op één worker, als één doorlopende staat. Hier zou
+    // hij parallel naast de rest komen en tegen de ontwikkelserver draaien.
+    testIgnore: '**/uat/**',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,

@@ -48,7 +48,9 @@ lib/
   clients.ts         the saved customer book, persisted
   numbering.ts       the running invoice/quotation numbers, persisted
   documents.ts       the archive of issued documents, in IndexedDB, append-only
-  crypto.ts          AES-256-GCM + PBKDF2 for the optional archive passphrase
+  idb.ts             the IndexedDB schema; the only module that knows its shape
+  vault.ts           the passphrase, the key, and who participates in it
+  crypto.ts          AES-256-GCM + PBKDF2 primitives
   foldouts.ts        which sections the user collapsed, persisted
   image.ts           downscales an uploaded logo so it fits in localStorage
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
@@ -192,9 +194,36 @@ what keeps hydration consistent. The rules above still hold.
 
 ## The optional passphrase
 
-`lib/crypto.ts` plus the vault half of `lib/documents.ts`. Off by default, because a
-forgotten passphrase destroys the archive and nobody who did not ask for that should
-get it.
+`lib/crypto.ts` (primitives), `lib/vault.ts` (the key and who uses it), `lib/idb.ts`
+(the database shape). Off by default, because a forgotten passphrase destroys the data
+and nobody who did not ask for that should get it.
+
+**It covers the archive and the customer book, and deliberately not the rest.** Those
+two hold *other people's* personal data, which is what matters if someone else can reach
+the device. Company details and numbering stay readable on purpose: they are printed on
+every invoice you send and sit in the Handelsregister, a sequence number is not a secret,
+and encrypting them would mean the app could not be used at all without the passphrase.
+The payoff is that a locked app still works — you can write a fresh invoice, you just
+cannot see saved customers or documents, and saving either is refused. There is a test
+(*"je eigen bedrijfsgegevens blijven met een zin leesbaar, en dat is de bedoeling"*) that
+pins this choice so it is not reversed by accident.
+
+**Participants register with the vault; the vault does not know them.** `vault.ts`
+exposes `doeMee({ herschrijf, herlaad, sluit })` and calls those on set / unlock / lock.
+Without that inversion the vault would have to import both stores, and those two would
+then import each other through it. All three callbacks are also called when there is
+nothing to do, so they must be safe to run twice.
+
+**The customer book infers its own lock state from the shape of what is stored**, not
+from the vault's load. The vault reads its header from IndexedDB asynchronously, while
+`readClients` is synchronous — so the book checks whether its own localStorage value is
+an encrypted block and reports locked on that basis. That keeps `readX` synchronous,
+which is what let this be a small change rather than a rewrite of three stores.
+
+**Writes are refused while locked, in both stores.** Writing a readable record next to
+encrypted ones would leave half the data exposed. `saveClient` returns `null` and
+`deleteClient` returns `false` rather than silently doing nothing, and the UI says which
+it was.
 
 **State the limits, in the UI and not only here.** Encryption protects the archive *at
 rest*: someone with access to the browser profile — another user of the device, an
@@ -219,24 +248,24 @@ the feature sound better; a false sense of security is worse than none.
   memory, so a reload asks again. Storing it — even as a non-extractable `CryptoKey` in
   IndexedDB, which is a known pattern — would hand the archive back to anyone with
   device access and defeat the whole feature.
-- **Only the archive is encrypted.** Company details, the customer book and the numbering
-  stay readable, because those stores read *synchronously* and Web Crypto is async;
-  encrypting them means rewriting them. The UI says so rather than implying everything
-  is covered.
 - **Only the `id` stays in the clear**, which is why `bewaarDocument` uses
   `crypto.randomUUID()`. The earlier scheme embedded the invoice number in the id, so
   the number would have been readable on disk despite the encryption.
-- **Export writes the archive as stored**, encrypted when the archive is, together with
-  the key header so the same passphrase opens the import. A backup that silently wrote
-  everything in the clear would undo the feature. The trade-off — forget the passphrase
-  and the backup is lost too — is stated in the confirmation dialog.
-- Saving is **refused while locked**: writing a readable record next to encrypted ones
-  would leave half the archive exposed.
+- **Export writes both stores as stored**, encrypted when they are, with the vault
+  record (header *and* proof) so the same passphrase opens the import. Without the proof
+  an unlock cannot tell a wrong passphrase from corrupt data. A backup that silently
+  wrote everything in the clear would undo the feature; the trade-off — forget the
+  passphrase and the backup is lost too — is stated in the confirmation dialog.
+- **Import takes the file's vault first**, then the data, and drops the session key:
+  after importing an encrypted file everything is locked until *that file's* passphrase
+  is entered.
 
-The tests for this read IndexedDB directly, outside the app (`ruweRecords` in
-`tests/encryption.spec.ts`), because the only claim worth checking is what an intruder
-would actually find on disk. There is a deliberate baseline test asserting the client
-name *is* readable without a passphrase, so the encrypted case proves something.
+The tests for this read IndexedDB and localStorage directly, outside the app
+(`ruweRecords` / `ruweKlanten` in `tests/encryption.spec.ts`), because the only claim
+worth checking is what an intruder would actually find on disk. There are deliberate
+baseline tests asserting the client name *is* readable without a passphrase, so the
+encrypted cases prove something — both were validated by bypassing encryption in the
+write path and confirming they go red.
 
 ## Two renderers, one document
 
@@ -287,10 +316,36 @@ depended on the user's screen.
 
 ```bash
 npx playwright install chromium   # once, and again after upgrading @playwright/test
-npm test
+npm test                          # the suites, against `next dev`
+
+npm run build && npm run test:uat # the UAT journey, against the published build
+PAGES_BASE_PATH=/facturen npm run build && PAGES_BASE_PATH=/facturen npm run test:uat
+UAT_BASE_URL=https://dvansonsbeek.github.io/facturen/ npm run test:uat
 ```
 
 Playwright starts its own dev server and reuses one already on :3000.
+
+**There are two configurations, on purpose.** `playwright.config.ts` runs the suites
+against `next dev`, in parallel, each test in a clean browser.
+`playwright.productie.config.ts` runs `tests/uat/` against the static export — a
+different code path, under the strict CSP — on one worker, with no retries, because what
+it tests *is* the order of events. The main config carries `testIgnore: '**/uat/**'` so
+the journey does not also get dragged into the parallel run.
+
+`tests/uat/reis.spec.ts` is **one test with `test.step()` calls**, not a series of tests:
+Playwright gives every test a fresh browser context, which would wipe localStorage and
+IndexedDB between steps, and the whole point is that the state carries. It walks the path
+a user walks — fill in the company, invoice two customers, re-download and inspect one,
+delete it, convert a quotation, encrypt everything, reload, unlock, export, delete the
+last one, wipe — and so it catches what only exists in sequence. It already caught an
+index-based archive lookup that deleted the wrong document once a quotation shifted the
+order; prefer `archiveRowFor(nummer)` over `archiveRow(i)` for that reason.
+
+`UAT_BASE_URL` points it at a real site instead, which is how CI re-runs it against
+GitHub Pages after deploying. That is safe to do against production precisely because
+there is no backend: everything the journey creates lives in the test's own browser
+profile and goes away with it. It is the step that catches publication-only faults — a
+wrong `basePath`, a missing `.nojekyll`, an asset Pages will not serve.
 
 **All selectors live in `tests/helpers.ts`.** The form's `<label>` elements have no
 `htmlFor`, so `getByLabel` does not work and placeholders are the stable handle. If you

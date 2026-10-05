@@ -1,9 +1,8 @@
 import { Invoice, Quotation } from "@/types";
 import { summariseDocument } from "@/lib/utils";
-import {
-    isVersleuteld, leidSleutelAf, nieuweKop, ontsleutel, versleutel,
-    type SleutelKop, type Versleuteld,
-} from "@/lib/crypto";
+import { isVersleuteld, ontsleutel, versleutel, type Versleuteld } from "@/lib/crypto";
+import { DOCUMENTEN, metWinkel, opslagWerkt } from "@/lib/idb";
+import { doeMee, huidigeSleutel, zorgDatKluisGeladenIs } from "@/lib/vault";
 
 /**
  * Je bewaarde facturen en offertes.
@@ -29,12 +28,10 @@ import {
  * ineens je nieuwe adres tonen. Wat is uitgereikt, blijft staan zoals het is
  * uitgereikt.
  *
- * **Hij kan versleuteld zijn.** Stelt de gebruiker een wachtwoordzin in, dan
- * gaat elk record als één versluierd blok naar schijf en blijft alleen het id
- * leesbaar — geen klantnamen, geen bedragen, ook niet het factuurnummer. Zie
- * lib/crypto.ts voor wat dat wel en niet beschermt. Zonder zin is alles gewoon
- * leesbaar, en dat is de standaard: een vergeten zin betekent dat het archief
- * weg is, en dat mag niemand overkomen die er niet om gevraagd heeft.
+ * **Hij kan versleuteld zijn.** Zie lib/vault.ts voor de sleutel en
+ * lib/crypto.ts voor wat dat wel en niet beschermt. Staat er een zin, dan gaat
+ * elk record als één versluierd blok naar schijf en blijft alleen het id
+ * leesbaar — geen klantnamen, geen bedragen, ook niet het factuurnummer.
  */
 export type DocumentSoort = 'factuur' | 'offerte';
 
@@ -58,35 +55,10 @@ interface VersleuteldRecord {
     blok: Versleuteld;
 }
 
-type RuwRecord = BewaardDocument | VersleuteldRecord;
+export type RuwDocumentRecord = BewaardDocument | VersleuteldRecord;
 
-const isVersleuteldRecord = (r: RuwRecord): r is VersleuteldRecord =>
+const isVersleuteldRecord = (r: RuwDocumentRecord): r is VersleuteldRecord =>
     isVersleuteld((r as VersleuteldRecord).blok);
-
-/** De stand van de versleuteling, voor het scherm. */
-export interface KluisStand {
-    /** Of er een wachtwoordzin is ingesteld. */
-    ingesteld: boolean;
-    /** Ingesteld maar nog niet ontgrendeld in deze sessie. */
-    vergrendeld: boolean;
-    /** Onwaar als de browser geen IndexedDB geeft, bijvoorbeeld in privémodus. */
-    opslagWerkt: boolean;
-}
-
-const DB_NAAM = 'facturen';
-const DB_VERSIE = 2;
-const WINKEL = 'documenten';
-const KLUIS = 'kluis';
-const KLUIS_ID = 'sleutel';
-
-/** Wat er versleuteld wordt bewaard om te kunnen controleren of de zin klopt. */
-const PROEFTEKST = 'facturen-sleutelproef';
-
-interface KluisRecord {
-    id: string;
-    kop: SleutelKop;
-    proef: Versleuteld;
-}
 
 /**
  * Eén vaste lege lijst. useSyncExternalStore vergelijkt op referentie, dus een
@@ -101,81 +73,6 @@ let cache: readonly BewaardDocument[] = LEEG;
 let geladen = false;
 let aanHetLaden: Promise<void> | null = null;
 
-/**
- * De sleutel staat alleen hier, in het geheugen van deze pagina, en is
- * extractable: false. Na herladen is hij weg en voer je de zin opnieuw in. Hem
- * bewaren zou de versleuteling zinloos maken — dan kan iedereen met toegang
- * tot dit apparaat er weer bij.
- */
-let sleutel: CryptoKey | null = null;
-let kop: SleutelKop | null = null;
-let opslagWerkt = true;
-
-/** Eén vaste referentie per stand, weer vanwege useSyncExternalStore. */
-/** Wat de server rendert: hij kent het apparaat niet, dus geen kluis. */
-const STAND_STANDAARD: KluisStand = Object.freeze({
-    ingesteld: false, vergrendeld: false, opslagWerkt: true,
-});
-
-let standCache: KluisStand = STAND_STANDAARD;
-const verversStand = () => {
-    const volgende: KluisStand = {
-        ingesteld: kop !== null,
-        vergrendeld: kop !== null && sleutel === null,
-        opslagWerkt,
-    };
-    if (volgende.ingesteld !== standCache.ingesteld
-        || volgende.vergrendeld !== standCache.vergrendeld
-        || volgende.opslagWerkt !== standCache.opslagWerkt) {
-        standCache = volgende;
-    }
-};
-
-export const readKluis = (): KluisStand => standCache;
-export const readServerKluis = (): KluisStand => STAND_STANDAARD;
-
-const open = (): Promise<IDBDatabase> =>
-    new Promise((klaar, mislukt) => {
-        let verzoek: IDBOpenDBRequest;
-        try {
-            verzoek = indexedDB.open(DB_NAAM, DB_VERSIE);
-        } catch (fout) {
-            mislukt(fout);
-            return;
-        }
-        verzoek.onupgradeneeded = () => {
-            const db = verzoek.result;
-            if (!db.objectStoreNames.contains(WINKEL)) {
-                db.createObjectStore(WINKEL, { keyPath: 'id' });
-            }
-            if (!db.objectStoreNames.contains(KLUIS)) {
-                db.createObjectStore(KLUIS, { keyPath: 'id' });
-            }
-        };
-        verzoek.onsuccess = () => klaar(verzoek.result);
-        verzoek.onerror = () => mislukt(verzoek.error);
-        verzoek.onblocked = () => mislukt(new Error('IndexedDB geblokkeerd'));
-    });
-
-const metWinkel = async <T>(
-    naam: string,
-    modus: IDBTransactionMode,
-    doe: (winkel: IDBObjectStore) => IDBRequest<T>,
-): Promise<T> => {
-    const db = await open();
-    try {
-        return await new Promise<T>((klaar, mislukt) => {
-            const transactie = db.transaction(naam, modus);
-            const verzoek = doe(transactie.objectStore(naam));
-            verzoek.onsuccess = () => klaar(verzoek.result);
-            verzoek.onerror = () => mislukt(verzoek.error);
-            transactie.onabort = () => mislukt(transactie.error);
-        });
-    } finally {
-        db.close();
-    }
-};
-
 /** Nieuwste eerst: dat is waar je naar zoekt als je iets terugzoekt. */
 const sorteer = (documenten: BewaardDocument[]): readonly BewaardDocument[] =>
     Object.freeze([...documenten].sort((a, b) => b.bewaardOp.localeCompare(a.bewaardOp)));
@@ -184,7 +81,8 @@ const sorteer = (documenten: BewaardDocument[]): readonly BewaardDocument[] =>
  * Maakt van de ruwe records een leesbare lijst. Versleutelde records worden
  * overgeslagen zolang er geen sleutel is; dat is de vergrendelde toestand.
  */
-const ontsluit = async (ruw: RuwRecord[]): Promise<BewaardDocument[]> => {
+const ontsluit = async (ruw: RuwDocumentRecord[]): Promise<BewaardDocument[]> => {
+    const sleutel = huidigeSleutel();
     const uit: BewaardDocument[] = [];
     for (const record of ruw) {
         if (!isVersleuteldRecord(record)) {
@@ -198,23 +96,19 @@ const ontsluit = async (ruw: RuwRecord[]): Promise<BewaardDocument[]> => {
     return uit;
 };
 
-const laad = async () => {
-    try {
-        const kluis = await metWinkel<KluisRecord | undefined>(
-            KLUIS, 'readonly', (winkel) => winkel.get(KLUIS_ID),
-        );
-        kop = kluis?.kop ?? null;
+const leesAlles = () =>
+    metWinkel<RuwDocumentRecord[]>(DOCUMENTEN, 'readonly', (winkel) => winkel.getAll());
 
-        const ruw = await metWinkel<RuwRecord[]>(WINKEL, 'readonly', (winkel) => winkel.getAll());
-        cache = sorteer(await ontsluit(ruw));
-        opslagWerkt = true;
+const laad = async () => {
+    // De kop eerst, anders weet ontsluit() nog niet of er een zin staat.
+    await zorgDatKluisGeladenIs();
+    try {
+        cache = sorteer(await ontsluit(await leesAlles()));
     } catch {
         // Geen IndexedDB: de app werkt verder, alleen bewaart hij niets.
         cache = LEEG;
-        opslagWerkt = false;
     }
     geladen = true;
-    verversStand();
     meld();
 };
 
@@ -244,11 +138,13 @@ export const readDocuments = (): readonly BewaardDocument[] => cache;
 /** De server kent het apparaat niet; die rendert dus een leeg archief. */
 export const readServerDocuments = (): readonly BewaardDocument[] => LEEG;
 
-export const documentOpslagWerkt = () => opslagWerkt;
+export const documentOpslagWerkt = opslagWerkt;
 
 /** Hoe een record naar schijf gaat: versleuteld als er een sleutel is. */
-const naarSchijf = async (document: BewaardDocument): Promise<RuwRecord> =>
-    sleutel ? { id: document.id, blok: await versleutel(sleutel, document) } : document;
+const naarSchijf = async (document: BewaardDocument): Promise<RuwDocumentRecord> => {
+    const sleutel = huidigeSleutel();
+    return sleutel ? { id: document.id, blok: await versleutel(sleutel, document) } : document;
+};
 
 /**
  * Legt het document vast zoals het er nu uitziet.
@@ -260,10 +156,6 @@ export const bewaarDocument = async (
     stuk: Invoice | Quotation,
     soort: DocumentSoort,
 ): Promise<BewaardDocument | null> => {
-    // Vergrendeld kan er niet bewaard worden: zonder sleutel zou het record
-    // leesbaar naast de versleutelde terechtkomen.
-    if (kop && !sleutel) return null;
-
     const nummer = 'invoiceNumber' in stuk ? stuk.invoiceNumber : stuk.quotationNumber;
     const { total } = summariseDocument(stuk.items, stuk.isVatExempt);
 
@@ -284,11 +176,8 @@ export const bewaarDocument = async (
 
     try {
         const opSchijf = await naarSchijf(record);
-        await metWinkel(WINKEL, 'readwrite', (winkel) => winkel.add(opSchijf));
-        opslagWerkt = true;
+        await metWinkel(DOCUMENTEN, 'readwrite', (winkel) => winkel.add(opSchijf));
     } catch {
-        opslagWerkt = false;
-        verversStand();
         return null;
     }
 
@@ -307,7 +196,7 @@ export const bewaarDocument = async (
  */
 export const verwijderDocument = async (id: string): Promise<boolean> => {
     try {
-        await metWinkel(WINKEL, 'readwrite', (winkel) => winkel.delete(id));
+        await metWinkel(DOCUMENTEN, 'readwrite', (winkel) => winkel.delete(id));
     } catch {
         return false;
     }
@@ -317,162 +206,66 @@ export const verwijderDocument = async (id: string): Promise<boolean> => {
 };
 
 /**
- * Wat Export meeneemt: de records zoals ze op schijf staan, plus de kop die bij
- * de wachtwoordzin hoort.
+ * Wat Export meeneemt: de records zoals ze op schijf staan.
  *
- * Bewust niet ontsleuteld. Een reservekopie die alles alsnog leesbaar wegschrijft
- * haalt de versleuteling onderuit; wie zijn archief heeft beveiligd verwacht niet
- * dat de back-up dat niet is. Keerzijde: zonder de zin is ook de kopie onleesbaar.
+ * Bewust niet ontsleuteld. Een reservekopie die alles alsnog leesbaar
+ * wegschrijft haalt de versleuteling onderuit; wie zijn archief heeft beveiligd
+ * verwacht niet dat de back-up dat niet is.
  */
-export const exportDocuments = async (): Promise<{ records: RuwRecord[]; kop: SleutelKop | null }> => {
+export const exportDocuments = async (): Promise<RuwDocumentRecord[]> => {
     try {
-        const records = await metWinkel<RuwRecord[]>(WINKEL, 'readonly', (w) => w.getAll());
-        return { records, kop };
+        return await leesAlles();
     } catch {
-        return { records: [], kop: null };
+        return [];
     }
 };
 
 /** Voor Import: zet het archief op wat er in het bestand stond. */
-export const replaceDocuments = async (
-    records: RuwRecord[],
-    nieuweSleutelKop?: SleutelKop | null,
-): Promise<boolean> => {
+export const replaceDocuments = async (records: RuwDocumentRecord[]): Promise<boolean> => {
     try {
-        await metWinkel(WINKEL, 'readwrite', (winkel) => winkel.clear());
+        await metWinkel(DOCUMENTEN, 'readwrite', (winkel) => winkel.clear());
         for (const record of records) {
-            await metWinkel(WINKEL, 'readwrite', (winkel) => winkel.put(record));
-        }
-
-        // Een bestand met versleutelde records heeft zijn eigen kop nodig,
-        // anders valt er niets meer af te leiden.
-        if (nieuweSleutelKop) {
-            const bestaand = await metWinkel<KluisRecord | undefined>(
-                KLUIS, 'readonly', (w) => w.get(KLUIS_ID),
-            );
-            if (!bestaand || JSON.stringify(bestaand.kop) !== JSON.stringify(nieuweSleutelKop)) {
-                // De sleutel van deze sessie hoort niet bij deze kop meer.
-                sleutel = null;
-            }
-            kop = nieuweSleutelKop;
+            await metWinkel(DOCUMENTEN, 'readwrite', (winkel) => winkel.put(record));
         }
     } catch {
         return false;
     }
-
     cache = sorteer(await ontsluit(records));
-    verversStand();
     meld();
     return true;
 };
 
 export const clearDocuments = async () => {
     try {
-        await metWinkel(WINKEL, 'readwrite', (winkel) => winkel.clear());
-        await metWinkel(KLUIS, 'readwrite', (winkel) => winkel.clear());
+        await metWinkel(DOCUMENTEN, 'readwrite', (winkel) => winkel.clear());
     } catch {
         // niets te wissen
     }
     cache = LEEG;
-    sleutel = null;
-    kop = null;
     geladen = true;
-    verversStand();
     meld();
 };
 
 /**
- * Zet een wachtwoordzin op het archief, en versleutelt wat er al staat.
+ * Meedoen met de wachtwoordzin.
  *
- * Kan alleen als het archief leesbaar is: anders zouden er twee sleutels door
- * elkaar lopen en was de helft onleesbaar.
+ * `herschrijf` zet alles om naar de huidige sleutel — of juist terug naar
+ * leesbaar als de sleutel net is weggehaald. Beide gevallen zijn hetzelfde
+ * stukje werk, want naarSchijf() kijkt zelf of er een sleutel is.
  */
-export const stelWachtwoordzinIn = async (zin: string): Promise<boolean> => {
-    if (kop && !sleutel) return false;
-
-    try {
-        const nieuwe = nieuweKop();
-        const nieuweSleutel = await leidSleutelAf(zin, nieuwe);
-        const proef = await versleutel(nieuweSleutel, PROEFTEKST);
-
-        // Eerst alles omzetten, dan pas de kop vastleggen: breekt het halverwege
-        // af, dan staat er geen kop en blijft het archief leesbaar.
-        const huidig = [...cache];
-        sleutel = nieuweSleutel;
-        for (const document of huidig) {
-            const blok = await versleutel(nieuweSleutel, document);
-            await metWinkel(WINKEL, 'readwrite', (w) => w.put(
-                { id: document.id, blok } satisfies VersleuteldRecord,
-            ));
-        }
-
-        await metWinkel(KLUIS, 'readwrite', (w) => w.put({
-            id: KLUIS_ID, kop: nieuwe, proef,
-        } satisfies KluisRecord));
-        kop = nieuwe;
-    } catch {
-        sleutel = null;
-        verversStand();
-        meld();
-        return false;
-    }
-
-    verversStand();
-    meld();
-    return true;
-};
-
-/** Ontgrendelt het archief met de wachtwoordzin. Onwaar bij een verkeerde zin. */
-export const ontgrendel = async (zin: string): Promise<boolean> => {
-    if (!kop) return false;
-    try {
-        const kandidaat = await leidSleutelAf(zin, kop);
-        const kluis = await metWinkel<KluisRecord | undefined>(
-            KLUIS, 'readonly', (w) => w.get(KLUIS_ID),
-        );
-        if (!kluis) return false;
-
-        // De proef zegt of de zin klopt, zonder dat we een document hoeven te
-        // raken en zonder dat een verkeerde zin halve resultaten oplevert.
-        if (await ontsleutel<string>(kandidaat, kluis.proef) !== PROEFTEKST) return false;
-
-        sleutel = kandidaat;
-        const ruw = await metWinkel<RuwRecord[]>(WINKEL, 'readonly', (w) => w.getAll());
-        cache = sorteer(await ontsluit(ruw));
-    } catch {
-        return false;
-    }
-    verversStand();
-    meld();
-    return true;
-};
-
-/** Vergeet de sleutel weer. Het archief is daarna onleesbaar tot je ontgrendelt. */
-export const vergrendel = () => {
-    if (!kop) return;
-    sleutel = null;
-    cache = LEEG;
-    verversStand();
-    meld();
-};
-
-/**
- * Haalt de versleuteling er weer af en schrijft alles leesbaar terug. Kan
- * alleen als het archief op dit moment ontgrendeld is.
- */
-export const verwijderWachtwoordzin = async (): Promise<boolean> => {
-    if (!kop || !sleutel) return false;
-    try {
+doeMee({
+    herschrijf: async () => {
         for (const document of cache) {
-            await metWinkel(WINKEL, 'readwrite', (w) => w.put(document));
+            const opSchijf = await naarSchijf(document);
+            await metWinkel(DOCUMENTEN, 'readwrite', (winkel) => winkel.put(opSchijf));
         }
-        await metWinkel(KLUIS, 'readwrite', (w) => w.delete(KLUIS_ID));
-    } catch {
-        return false;
-    }
-    sleutel = null;
-    kop = null;
-    verversStand();
-    meld();
-    return true;
-};
+    },
+    herlaad: async () => {
+        cache = sorteer(await ontsluit(await leesAlles()));
+        meld();
+    },
+    sluit: () => {
+        cache = LEEG;
+        meld();
+    },
+});

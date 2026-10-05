@@ -23,7 +23,7 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Klantenboek**: Bewaar je klanten en kies ze de volgende keer uit een lijst. De velden klappen dan dicht; met **Bewerken** open je ze weer. Wat je aanpast verandert de bewaarde klant pas als je **Opslaan** gebruikt.
 - **Documenten Bewaren**: Leg een factuur of offerte vast met **Bewaren**. Een bewaard document staat vast — het bevat je bedrijfs- en betaalgegevens zoals ze op dat moment waren en is daarna niet meer te wijzigen, want je klant heeft hem al. Je kunt hem bekijken, opnieuw als PDF downloaden, of met **Dupliceren** de klant en regels overnemen in een nieuw concept.
 - **Instellingen Meenemen**: Exporteer en importeer je gegevens én je bewaarde documenten via een JSON-bestand om ze naar een ander apparaat of een andere browser over te zetten. Dat bestand is ook je reservekopie. Is je archief versleuteld, dan is het bestand dat ook.
-- **Optionele Wachtwoordzin**: Zet een zin op je archief en je bewaarde documenten gaan versleuteld naar schijf (AES-256-GCM). De app legt bij **Beveiliging en privacy** uit waar je gegevens staan, waar het risico zit en wat een wachtwoordzin wel en niet oplost.
+- **Optionele Wachtwoordzin**: Zet een zin op je gegevens en je bewaarde documenten én je klantenboek gaan versleuteld naar schijf (AES-256-GCM). De app legt bij **Beveiliging en privacy** uit waar je gegevens staan, waar het risico zit en wat een wachtwoordzin wel en niet oplost.
 - **Opgeruimd Formulier**: Secties die je maar één keer invult, klap je in; die keuze wordt onthouden.
 - **Dark Mode**: Oogvriendelijk ontwerp voor de late uurtjes.
 - **Responsief**: Werkt op desktop, tablet en telefoon.
@@ -32,7 +32,7 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 ## ⚠️ Goed om te weten
 
 - **Geen boekhouding.** De app bewaart je documenten wél, maar telt ze niet op: hij houdt je omzet niet bij tegen de KOR-grens van € 20.000 per kalenderjaar en doet geen aangifte.
-- **Het risico zit in dit apparaat, niet in het netwerk.** Er gaat niets naar buiten, maar wie bij dit browserprofiel kan, kan standaard bij je bewaarde documenten. Met een **wachtwoordzin** (zie *Beveiliging en privacy* in de app) gaan die versleuteld naar schijf; je bedrijfsgegevens, klantenboek en factuurnummers blijven dan nog wel leesbaar. Een wachtwoordzin beschermt wat er stilstaat — niet een sessie die al open is, en niet tegen een kwaadwillende browserextensie. Vergeet je de zin, dan is je archief weg: er is geen herstelcode.
+- **Het risico zit in dit apparaat, niet in het netwerk.** Er gaat niets naar buiten, maar wie bij dit browserprofiel kan, kan standaard bij je bewaarde documenten en je klanten. Met een **wachtwoordzin** (zie *Beveiliging en privacy* in de app) gaan die versleuteld naar schijf. Je eigen bedrijfsgegevens en factuurnummers blijven bewust leesbaar: die staan op elke factuur die je verstuurt en in het handelsregister, en zo blijft de app bruikbaar zonder de zin. Een wachtwoordzin beschermt wat er stilstaat — niet een sessie die al open is, en niet tegen een kwaadwillende browserextensie. Vergeet je de zin, dan zijn je archief en klantenboek weg: er is geen herstelcode.
 - **Factuurnummers: onthouden, niet bewaakt.** De app onthoudt waar je gebleven was en hoogt het nummer op als je op **Volgende factuur** klikt. Hij controleert niets: je blijft zelf verantwoordelijk voor een kloppende reeks. Factureer je vanaf twee apparaten, dan lopen er twee reeksen naast elkaar en kunnen er dubbele nummers ontstaan.
 - **Onthouden is per browser en per apparaat.** Je bedrijfsgegevens en je bewaarde documenten staan in de opslag van deze browser: je laptop en je telefoon delen ze niet, en het wissen van je browsergegevens haalt ze weg. Op een gedeelde computer blijven ze achter tot je op **Wissen** klikt. Gebruik Export als reservekopie — het is de enige kopie die je hebt.
 - **Btw wordt per tarief berekend en op centen afgerond**, zodat de getoonde btw-regels altijd optellen tot het getoonde totaal.
@@ -80,6 +80,27 @@ Eenmalig de browser installeren, daarna:
 npx playwright install chromium
 npm test
 ```
+
+Daarnaast is er een UAT-reis die één keer de hele weg aflegt die een gebruiker
+aflegt — bedrijf invullen, twee klanten factureren, er een weggooien, een
+offerte omzetten, alles versleutelen, ontgrendelen en opruimen. Die draait
+tegen de **gepubliceerde build**, want een statische export is een ander pad
+dan de dev-server:
+
+```bash
+npm run build && npm run test:uat
+```
+
+Of tegen de echt gepubliceerde site. Dat kan zonder bijwerking: er is geen
+server en geen account, dus alles wat de reis aanmaakt staat in de browser van
+de test en verdwijnt ermee.
+
+```bash
+UAT_BASE_URL=https://dvansonsbeek.github.io/facturen/ npm run test:uat
+```
+
+Alle drie draaien bij elke commit: de suites en de UAT-reis op de build vóór
+publicatie, en de reis daarna nog eens op de site zelf.
 
 ## 📝 Gebruik
 

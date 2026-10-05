@@ -17,6 +17,8 @@ interface ClientDetailsProps {
     fieldsVisible: boolean;
     /** Of de ingevulde naam al in het boek staat; bepaalt Opslaan of Bijwerken. */
     nameIsKnown: boolean;
+    /** Waar als het boek versleuteld is en de zin nog niet is ingevoerd. */
+    locked: boolean;
 }
 
 /**
@@ -28,7 +30,7 @@ interface ClientDetailsProps {
  */
 export default function ClientDetails({
     client, onChange, savedClients, selectedClientId, onSelect,
-    onSave, onDelete, onEdit, fieldsVisible, nameIsKnown,
+    onSave, onDelete, onEdit, fieldsVisible, nameIsKnown, locked,
 }: ClientDetailsProps) {
     return (
         <div style={{ marginBottom: '2rem' }}>
@@ -49,13 +51,24 @@ export default function ClientDetails({
                             ))}
                         </select>
                     </div>
+                    {/* Een leeg boek ziet eruit alsof je klanten weg zijn; dat is
+                        precies de verkeerde conclusie, dus zeg waarom het leeg is. */}
+                    {locked && (
+                        <p className="klantenboek-vergrendeld" role="status">
+                            Je klantenboek is versleuteld. Voer je wachtwoordzin in bij
+                            <strong> Beveiliging en privacy</strong> om je bewaarde klanten te zien.
+                            Een factuur maken kan gewoon; opslaan niet.
+                        </p>
+                    )}
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {fieldsVisible ? (
                             <button
                                 className="premium-btn compact"
                                 onClick={onSave}
-                                disabled={!client.name.trim()}
-                                title="Deze klant in je klantenboek bewaren"
+                                disabled={!client.name.trim() || locked}
+                                title={locked
+                                    ? 'Je klantenboek is vergrendeld; ontgrendel het eerst'
+                                    : 'Deze klant in je klantenboek bewaren'}
                             >
                                 <Plus size={14} /> <span>{nameIsKnown ? 'Bijwerken' : 'Opslaan'}</span>
                             </button>

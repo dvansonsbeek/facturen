@@ -42,3 +42,8 @@ jobs:
         run: npm run check:publicatie
         env:
           PAGES_BASE_PATH: /facturen
+
+      - name: UAT-reis op de publicatiebuild
+        run: npm run test:uat
+        env:
+          PAGES_BASE_PATH: /facturen

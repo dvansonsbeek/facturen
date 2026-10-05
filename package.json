@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "playwright test",
+    "test:uat": "playwright test -c playwright.productie.config.ts",
     "check:publicatie": "node scripts/controleer-publicatie.mjs"
   },
   "dependencies": {

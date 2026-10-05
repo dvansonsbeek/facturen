@@ -9,47 +9,24 @@
  *
  * Draait na `npm run build` en serveert out/ zelf, zonder extra pakket.
  */
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { extname, join, normalize } from 'node:path';
 import { chromium } from '@playwright/test';
+import { startServer, voorvoegsel } from './statische-server.mjs';
 
-const WORTEL = new URL('../out', import.meta.url).pathname;
 const POORT = 4173;
 
 // De publicatiebuild staat onder /facturen (zie next.config.ts), dus de pagina
 // vraagt haar bestanden op als /facturen/_next/... terwijl ze in out/_next/...
-// liggen. Zonder dit voorvoegsel eraf te halen geeft elke asset een 404 en
-// laadt de pagina zonder JavaScript — dan meet deze controle niets.
-const VOORVOEGSEL = process.env.PAGES_BASE_PATH ?? '';
+// liggen. De server haalt dat voorvoegsel eraf; zonder dat geeft elke asset een
+// 404 en laadt de pagina zonder JavaScript — dan meet deze controle niets.
+const VOORVOEGSEL = voorvoegsel();
 
-if (!existsSync(WORTEL)) {
-    console.error('out/ bestaat niet — draai eerst `npm run build`.');
+let server;
+try {
+    server = await startServer(POORT);
+} catch (fout) {
+    console.error(fout.message);
     process.exit(1);
 }
-
-const TYPES = {
-    '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-    '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
-    '.woff2': 'font/woff2', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json',
-};
-
-const server = createServer(async (req, res) => {
-    let pad = decodeURIComponent((req.url || '/').split('?')[0]);
-    if (VOORVOEGSEL && pad.startsWith(VOORVOEGSEL)) pad = pad.slice(VOORVOEGSEL.length) || '/';
-    let bestand = join(WORTEL, normalize(pad).replace(/^(\.\.[/\\])+/, ''));
-    if (pad.endsWith('/')) bestand = join(bestand, 'index.html');
-    try {
-        const inhoud = await readFile(bestand);
-        res.writeHead(200, { 'Content-Type': TYPES[extname(bestand)] ?? 'application/octet-stream' });
-        res.end(inhoud);
-    } catch {
-        res.writeHead(404).end('niet gevonden');
-    }
-});
-
-await new Promise(klaar => server.listen(POORT, klaar));
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ acceptDownloads: true });

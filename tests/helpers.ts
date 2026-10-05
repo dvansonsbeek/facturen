@@ -78,6 +78,25 @@ export const ui = (page: Page) => ({
     saveDocument: page.getByRole('button', { name: 'Bewaren', exact: true }),
     archiveSummary: page.locator('details.foldout summary', { hasText: 'Bewaarde documenten' }),
     archiveRows: page.locator('.archief-regel'),
+    /**
+     * De archiefregel van een bepaald document, gezocht op nummer of klantnaam.
+     *
+     * Verkies dit boven een index. Het archief staat op bewaarmoment gesorteerd,
+     * dus zodra er iets bij komt verschuift alles — een index wijst dan stil naar
+     * een ander document, en een test die iets verwijdert gooit het verkeerde weg.
+     */
+    archiveRowFor: (tekst: string) => {
+        const row = page.locator('.archief-regel').filter({ hasText: tekst });
+        return {
+            row,
+            text: () => row.innerText().then(normalise),
+            view: row.getByRole('button', { name: 'Bekijken' }),
+            pdf: row.getByRole('button', { name: 'PDF', exact: true }),
+            duplicate: row.getByRole('button', { name: 'Dupliceren' }),
+            remove: row.getByRole('button', { name: 'Verwijderen' }),
+        };
+    },
+
     /** Eén regel uit het archief, met de knoppen die erbij horen. */
     archiveRow: (i = 0) => {
         const row = page.locator('.archief-regel').nth(i);

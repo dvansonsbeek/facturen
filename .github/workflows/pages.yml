@@ -50,6 +50,14 @@ jobs:
         env:
           PAGES_BASE_PATH: /facturen
 
+      # De hele reis door de app, tegen de build die hierna gepubliceerd wordt:
+      # twee klanten factureren, er een weggooien, een offerte omzetten, alles
+      # versleutelen en opruimen. Vindt wat alleen in de volgorde zit.
+      - name: UAT-reis op de publicatiebuild
+        run: npm run test:uat
+        env:
+          PAGES_BASE_PATH: /facturen
+
       # _next begint met een liggend streepje en zou door Jekyll worden
       # overgeslagen. Deze actie draait geen Jekyll, maar het kost niets.
       - run: touch out/.nojekyll
@@ -68,3 +76,38 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Dezelfde reis nog één keer, nu tegen de site zoals hij er echt staat. De
+  # stap hierboven toetst de build; deze toetst de publicatie — een verkeerd
+  # voorvoegsel, een ontbrekende .nojekyll of een asset die Pages niet uitlevert
+  # zie je alleen hier. Kan geen kwaad: er is geen server en geen account, dus
+  # alles wat de reis aanmaakt staat in de browser van de test.
+  uat-op-de-site:
+    needs: publiceren
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Wachten tot de nieuwe versie wordt uitgeleverd
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL" || true)
+            [ "$code" = "200" ] && echo "bereikbaar na ${i}e poging" && exit 0
+            sleep 10
+          done
+          echo "$URL gaf na vijf minuten geen 200"; exit 1
+        env:
+          URL: https://dvansonsbeek.github.io/facturen/
+
+      - name: UAT-reis op de gepubliceerde site
+        run: npm run test:uat
+        env:
+          UAT_BASE_URL: https://dvansonsbeek.github.io/facturen/
