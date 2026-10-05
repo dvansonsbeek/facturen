@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
-import { Plus, Download, FileText, Briefcase, Upload, Moon, Sun, Trash2, Save } from "lucide-react";
+import { Plus, Download, FileText, FileCode, Briefcase, Upload, Moon, Sun, Trash2, Save } from "lucide-react";
 import { Invoice, Quotation, LineItem, Sender, Client } from "@/types";
 import { generateId } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/settings";
 import { downscaleImage } from "@/lib/image";
 import { stampPageNumbers } from "@/lib/page-numbers";
+import { buildUblInvoice, ontbrekendeVelden, ublFilename } from "@/lib/ubl";
 import {
     subscribeFoldouts, readFoldouts, readServerFoldouts, writeFoldout,
 } from "@/lib/foldouts";
@@ -65,6 +66,7 @@ const toDocumentClient = (saved: SavedClient): Client => ({
     city: saved.city,
     country: saved.country,
     vatNumber: saved.vatNumber,
+    kvkNumber: saved.kvkNumber,
     email: saved.email,
 });
 
@@ -374,6 +376,35 @@ export default function InvoiceForm() {
     };
 
     const handleDownloadPDF = () => downloadPdf(currentData, isQuotation, documentNumber);
+
+    /**
+     * De e-factuur: dezelfde factuur als machineleesbaar UBL-bestand.
+     *
+     * Alleen voor een factuur, want een offerte is geen factuur en UBL kent er
+     * een ander documenttype voor. Ontbreekt er iets dat NLCIUS verplicht
+     * stelt, dan zeggen we dat in plaats van een bestand af te leveren dat bij
+     * je klant wordt afgewezen.
+     */
+    const handleDownloadUbl = (data: Invoice) => {
+        const ontbreekt = ontbrekendeVelden(data);
+        if (ontbreekt.length > 0) {
+            setBewaarMelding(
+                `Voor een e-factuur mist er nog ${ontbreekt.join(', ')}. `
+                + 'Een e-factuur wordt door de administratie van je klant ingelezen, en '
+                + 'zonder deze gegevens wordt hij geweigerd.',
+            );
+            return;
+        }
+
+        const blob = new Blob([buildUblInvoice(data)], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = ublFilename(data.invoiceNumber);
+        link.click();
+        URL.revokeObjectURL(url);
+        setBewaarMelding(null);
+    };
 
     /**
      * Een bewaard document opnieuw downloaden levert hetzelfde stuk op, want
@@ -688,6 +719,7 @@ export default function InvoiceForm() {
                         onDuplicate={handleDuplicateDocument}
                         onDelete={handleDeleteDocument}
                         onDownload={handleDownloadSaved}
+                        onDownloadUbl={(bewaard) => handleDownloadUbl(bewaard.document as Invoice)}
                     />
 
                     <ClientDetails
@@ -741,6 +773,23 @@ export default function InvoiceForm() {
                                     </div>
                                 )}
                             </div>
+                            {/* Alleen voor de e-factuur, dus alleen bij een factuur. Hij
+                                staat niet op de PDF: een mens leest daar de factuur, en
+                                verwerkingsinformatie hoort daar niet op. */}
+                            {!isQuotation && (
+                                <div className="label-group">
+                                    <label htmlFor="klantreferentie">
+                                        Referentie van je klant (voor e-factuur)
+                                    </label>
+                                    <input
+                                        id="klantreferentie"
+                                        placeholder="Inkoopordernummer, kostenplaats of projectcode"
+                                        value={invoice.buyerReference || ''}
+                                        onChange={(e) => updateDocument({ buyerReference: e.target.value })}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                            )}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', background: 'rgba(37, 99, 235, 0.05)', borderRadius: 'var(--radius)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
                                 <input
                                     type="checkbox"
@@ -794,6 +843,16 @@ export default function InvoiceForm() {
                         <button className="premium-btn" onClick={handleDownloadPDF} style={{ flex: '2 1 240px', padding: '1rem' }}>
                             <Download size={20} /> Download PDF
                         </button>
+                        {!isQuotation && (
+                            <button
+                                className="premium-btn"
+                                onClick={() => handleDownloadUbl(currentData as Invoice)}
+                                style={{ flex: '1 1 200px', padding: '1rem', background: 'var(--secondary)' }}
+                                title="Dezelfde factuur als UBL-bestand (NLCIUS), dat de administratie van je klant kan inlezen"
+                            >
+                                <FileCode size={20} /> E-factuur (UBL)
+                            </button>
+                        )}
                         <button
                             className="premium-btn"
                             onClick={handleSaveDocument}

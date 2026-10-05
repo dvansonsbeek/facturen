@@ -53,6 +53,7 @@ export const ui = (page: Page) => ({
     clientZip: page.locator('input[placeholder="1234 AB"]').nth(1),
     clientCountry: page.locator('input[placeholder="Alleen invullen bij buitenlandse klanten"]'),
     clientVat: page.locator('input[placeholder="NL123456789B01"]').nth(1),
+    clientKvk: page.locator('#klant-kvk'),
 
     // Items
     itemName: (i = 0) => page.locator('input[placeholder="Bijv. Webdesign"]').nth(i),
@@ -70,7 +71,11 @@ export const ui = (page: Page) => ({
     // Opmerkingen
     notes: page.locator('textarea[placeholder="Extra tekst onderaan het document (optioneel)"]'),
 
+    // Algemene Informatie, alleen bij een factuur: nodig voor de e-factuur.
+    buyerReference: page.locator('#klantreferentie'),
+
     downloadPdf: page.getByRole('button', { name: /Download PDF/i }),
+    downloadUbl: page.getByRole('button', { name: /E-factuur \(UBL\)/ }),
     nextDocument: page.getByRole('button', { name: /Volgende (factuur|offerte)/ }),
     convertToInvoice: page.getByRole('button', { name: /Omzetten naar factuur/ }),
 

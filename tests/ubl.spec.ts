@@ -1,0 +1,394 @@
+import { test, expect } from '@playwright/test';
+import { ui, openFoldout } from './helpers';
+
+/**
+ * De e-factuur (UBL / NLCIUS).
+ *
+ * Dit is de derde weergave van hetzelfde document, naast het voorbeeld en de
+ * PDF, en dus de derde plek waar de btw-opstelling uit elkaar kan lopen. De
+ * tests hier lezen daarom de XML in en vergelijken de bedragen met wat het
+ * voorbeeld ernaast laat zien.
+ *
+ * Wat ze **niet** doen: de officiële Schematron van SI-UBL draaien. Daar is een
+ * XSLT-motor voor nodig die niet in deze app past. In plaats daarvan toetsen ze
+ * de regels die hier het makkelijkst misgaan: welvormdheid, de verplichte
+ * velden, optellende totalen en — het belangrijkste — dat een
+ * KOR-factuur categorie E krijgt en niet Z. Voor het echte werk hoort een
+ * bestand eenmalig door een validator; dat staat in CLAUDE.md.
+ */
+const NS = {
+    cbc: 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+    cac: 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+};
+
+/** Vult een factuur die alles heeft wat een e-factuur nodig heeft. */
+const vulVolledigeFactuur = async (page: import('@playwright/test').Page) => {
+    const app = ui(page);
+    await openFoldout(page, 'Mijn Bedrijfsgegevens');
+    await app.companyName.fill('Sonsbeek Advies BV');
+    await app.companyKvk.fill('87654321');
+    await app.companyVat.fill('NL123456789B01');
+    await app.companyEmail.fill('info@sonsbeekadvies.nl');
+
+    await openFoldout(page, 'Mijn Betaalgegevens');
+    await app.iban.fill('NL91ABNA0417164300');
+
+    await app.clientName.fill('Klant BV');
+    await app.clientAddress.fill('Keizersgracht 10');
+    await app.clientZip.fill('1015 CJ');
+    await app.clientCity.fill('Amsterdam');
+    await app.buyerReference.fill('INKOOP-2026-77');
+
+    await app.itemDescription().fill('Advies');
+    await app.itemQuantity().fill('10');
+    await app.itemUnit().fill('uur');
+    await app.itemPrice().fill('125');
+    return app;
+};
+
+/** Downloadt de e-factuur en geeft de XML als tekst terug. */
+const haalUbl = async (page: import('@playwright/test').Page) => {
+    const app = ui(page);
+    const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        app.downloadUbl.click(),
+    ]);
+    const stream = await download.createReadStream();
+    const stukken: Buffer[] = [];
+    for await (const stuk of stream!) stukken.push(stuk as Buffer);
+    return { xml: Buffer.concat(stukken).toString('utf8'), naam: download.suggestedFilename() };
+};
+
+/**
+ * Leest de XML in de browser in en haalt eruit wat we willen toetsen.
+ *
+ * Via DOMParser en niet met een reguliere expressie: dan is "is dit welvormde
+ * XML" meteen onderdeel van de test, en worden naamruimten echt gerespecteerd.
+ */
+const ontleed = (page: import('@playwright/test').Page, xml: string) =>
+    page.evaluate(({ xml, NS }) => {
+        const doc = new DOMParser().parseFromString(xml, 'application/xml');
+        const fout = doc.querySelector('parsererror');
+        if (fout) return { fout: fout.textContent ?? 'onleesbaar' } as const;
+
+        const een = (ns: string, naam: string, binnen: Element | Document = doc) =>
+            binnen.getElementsByTagNameNS(ns, naam)[0]?.textContent ?? null;
+        const alle = (ns: string, naam: string, binnen: Element | Document = doc) =>
+            Array.from(binnen.getElementsByTagNameNS(ns, naam));
+
+        const regels = alle(NS.cac, 'InvoiceLine').map((regel) => ({
+            id: een(NS.cbc, 'ID', regel),
+            aantal: een(NS.cbc, 'InvoicedQuantity', regel),
+            eenheid: alle(NS.cbc, 'InvoicedQuantity', regel)[0]?.getAttribute('unitCode') ?? null,
+            regelbedrag: een(NS.cbc, 'LineExtensionAmount', regel),
+            naam: een(NS.cbc, 'Name', regel),
+            omschrijving: een(NS.cbc, 'Description', regel),
+            categorie: een(NS.cbc, 'ID', alle(NS.cac, 'ClassifiedTaxCategory', regel)[0]!),
+            percentage: een(NS.cbc, 'Percent', alle(NS.cac, 'ClassifiedTaxCategory', regel)[0]!),
+            prijs: een(NS.cbc, 'PriceAmount', alle(NS.cac, 'Price', regel)[0]!),
+        }));
+
+        const taxTotal = alle(NS.cac, 'TaxTotal')[0]!;
+        const groepen = alle(NS.cac, 'TaxSubtotal', taxTotal).map((groep) => ({
+            grondslag: een(NS.cbc, 'TaxableAmount', groep),
+            btw: een(NS.cbc, 'TaxAmount', groep),
+            categorie: een(NS.cbc, 'ID', alle(NS.cac, 'TaxCategory', groep)[0]!),
+            percentage: een(NS.cbc, 'Percent', alle(NS.cac, 'TaxCategory', groep)[0]!),
+            reden: een(NS.cbc, 'TaxExemptionReason', groep),
+        }));
+
+        const totalen = alle(NS.cac, 'LegalMonetaryTotal')[0]!;
+
+        return {
+            wortel: doc.documentElement.localName,
+            naamruimte: doc.documentElement.namespaceURI,
+            customizationID: een(NS.cbc, 'CustomizationID'),
+            profileID: een(NS.cbc, 'ProfileID'),
+            nummer: een(NS.cbc, 'ID'),
+            datum: een(NS.cbc, 'IssueDate'),
+            typeCode: een(NS.cbc, 'InvoiceTypeCode'),
+            valuta: een(NS.cbc, 'DocumentCurrencyCode'),
+            klantreferentie: een(NS.cbc, 'BuyerReference'),
+            afzenderKvk: een(NS.cbc, 'EndpointID', alle(NS.cac, 'AccountingSupplierParty')[0]!),
+            afzenderNaam: een(NS.cbc, 'Name', alle(NS.cac, 'AccountingSupplierParty')[0]!),
+            ontvangerKvk: een(NS.cbc, 'EndpointID', alle(NS.cac, 'AccountingCustomerParty')[0]!),
+            ontvangerNaam: een(NS.cbc, 'Name', alle(NS.cac, 'AccountingCustomerParty')[0]!),
+            iban: een(NS.cbc, 'ID', alle(NS.cac, 'PayeeFinancialAccount')[0]!),
+            betaalwijze: een(NS.cbc, 'PaymentMeansCode'),
+            btwTotaal: een(NS.cbc, 'TaxAmount', taxTotal),
+            groepen,
+            regelTotaal: een(NS.cbc, 'LineExtensionAmount', totalen),
+            exclusief: een(NS.cbc, 'TaxExclusiveAmount', totalen),
+            inclusief: een(NS.cbc, 'TaxInclusiveAmount', totalen),
+            teBetalen: een(NS.cbc, 'PayableAmount', totalen),
+            regels,
+        } as const;
+    }, { xml, NS });
+
+test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+});
+
+test('levert welvormde UBL met de Nederlandse inperking', async ({ page }) => {
+    await vulVolledigeFactuur(page);
+    const { xml, naam } = await haalUbl(page);
+
+    expect(naam).toMatch(/^efactuur_.*\.xml$/);
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+
+    const uit = await ontleed(page, xml);
+    expect('fout' in uit ? uit.fout : null, 'de XML is niet welvormd').toBeNull();
+    if ('fout' in uit) return;
+
+    expect(uit.wortel).toBe('Invoice');
+    expect(uit.naamruimte).toBe('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2');
+    // NLCIUS, niet alleen de Europese norm: dit is wat Nederlandse ontvangers verwachten.
+    expect(uit.customizationID).toContain('nlcius');
+    expect(uit.profileID).toContain('peppol');
+    expect(uit.typeCode).toBe('380');
+    expect(uit.valuta).toBe('EUR');
+});
+
+test('neemt afzender, ontvanger en betaalgegevens over', async ({ page }) => {
+    const app = await vulVolledigeFactuur(page);
+    const nummer = await app.documentNumber.inputValue();
+    const uit = await ontleed(page, (await haalUbl(page)).xml);
+    if ('fout' in uit) throw new Error(uit.fout);
+
+    expect(uit.nummer).toBe(nummer);
+    expect(uit.datum).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(uit.klantreferentie).toBe('INKOOP-2026-77');
+    expect(uit.afzenderNaam).toBe('Sonsbeek Advies BV');
+    expect(uit.ontvangerNaam).toBe('Klant BV');
+    // Het KvK-nummer is ook het adres waarop je over Peppol bereikbaar bent.
+    expect(uit.afzenderKvk).toBe('87654321');
+    expect(uit.iban).toBe('NL91ABNA0417164300');
+    expect(uit.betaalwijze).toBe('30');
+});
+
+test('de bedragen in het bestand zijn dezelfde als in het voorbeeld', async ({ page }) => {
+    const app = await vulVolledigeFactuur(page);
+
+    // Wat het voorbeeld zegt, moet het bestand ook zeggen: dit is de derde
+    // weergave van hetzelfde document.
+    await expect(app.preview).toContainText('€ 1.250,00');
+    await expect(app.preview).toContainText('€ 1.512,50');
+
+    const uit = await ontleed(page, (await haalUbl(page)).xml);
+    if ('fout' in uit) throw new Error(uit.fout);
+
+    expect(uit.regelTotaal).toBe('1250.00');
+    expect(uit.exclusief).toBe('1250.00');
+    expect(uit.inclusief).toBe('1512.50');
+    expect(uit.teBetalen).toBe('1512.50');
+    expect(uit.btwTotaal).toBe('262.50');
+
+    expect(uit.regels).toHaveLength(1);
+    expect(uit.regels[0].aantal).toBe('10');
+    expect(uit.regels[0].eenheid, 'uur hoort HUR te worden').toBe('HUR');
+    expect(uit.regels[0].prijs).toBe('125.00');
+    expect(uit.regels[0].regelbedrag).toBe('1250.00');
+    expect(uit.regels[0].categorie).toBe('S');
+    expect(uit.regels[0].percentage).toBe('21.00');
+});
+
+test('groepeert de btw per tarief, en die groepen tellen op tot het totaal', async ({ page }) => {
+    const app = await vulVolledigeFactuur(page);
+    await app.itemQuantity().fill('1');
+    await app.itemPrice().fill('100');
+
+    await app.addItem.click();
+    await app.itemDescription(1).fill('Boek');
+    await app.itemQuantity(1).fill('1');
+    await app.itemPrice(1).fill('50');
+    await app.itemVatRate(1).selectOption('9');
+
+    const uit = await ontleed(page, (await haalUbl(page)).xml);
+    if ('fout' in uit) throw new Error(uit.fout);
+
+    expect(uit.groepen).toHaveLength(2);
+    const perTarief = Object.fromEntries(uit.groepen.map(g => [g.percentage, g]));
+    expect(perTarief['21.00'].grondslag).toBe('100.00');
+    expect(perTarief['21.00'].btw).toBe('21.00');
+    expect(perTarief['9.00'].grondslag).toBe('50.00');
+    expect(perTarief['9.00'].btw).toBe('4.50');
+
+    // De groepen moeten optellen tot het gemelde btw-totaal, net als op papier.
+    const som = uit.groepen.reduce((a, g) => a + Number(g.btw), 0);
+    expect(som.toFixed(2)).toBe(uit.btwTotaal);
+    expect(uit.btwTotaal).toBe('25.50');
+    expect(uit.teBetalen).toBe('175.50');
+});
+
+test.describe('kleineondernemersregeling', () => {
+    /**
+     * De kern van dit bestand. In UBL is E "hier geldt geen btw" en Z "hier
+     * geldt btw, tegen nul procent". De KOR is een vrijstelling, dus E. Als Z
+     * wegschrijven vertelt de boekhouding van je klant iets anders dan wat er
+     * op de papieren factuur staat.
+     */
+    test('schrijft categorie E weg, niet Z', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.korToggle.check();
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+
+        expect(uit.groepen).toHaveLength(1);
+        expect(uit.groepen[0].categorie, 'vrijgesteld is E, nultarief is Z').toBe('E');
+        expect(uit.groepen[0].categorie).not.toBe('Z');
+        expect(uit.regels[0].categorie).toBe('E');
+        expect(uit.regels[0].categorie).not.toBe('Z');
+    });
+
+    test('noemt de reden van de vrijstelling', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.korToggle.check();
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.groepen[0].reden).toContain('art. 25 Wet OB 1968');
+    });
+
+    test('rekent geen btw en laat het totaal gelijk zijn aan de grondslag', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.korToggle.check();
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+
+        expect(uit.btwTotaal).toBe('0.00');
+        expect(uit.groepen[0].btw).toBe('0.00');
+        expect(uit.groepen[0].grondslag).toBe('1250.00');
+        expect(uit.exclusief).toBe('1250.00');
+        expect(uit.inclusief).toBe('1250.00');
+        expect(uit.teBetalen).toBe('1250.00');
+    });
+
+    test('laat het tarief van de regel ongemoeid na uitzetten', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.korToggle.check();
+        await app.korToggle.uncheck();
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.regels[0].categorie).toBe('S');
+        expect(uit.regels[0].percentage).toBe('21.00');
+    });
+});
+
+test('het nultarief blijft Z', async ({ page }) => {
+    // Export en intracommunautaire levering: wél een tarief, namelijk nul.
+    const app = await vulVolledigeFactuur(page);
+    await app.itemVatRate().selectOption('0');
+
+    const uit = await ontleed(page, (await haalUbl(page)).xml);
+    if ('fout' in uit) throw new Error(uit.fout);
+    expect(uit.regels[0].categorie).toBe('Z');
+    expect(uit.groepen[0].categorie).toBe('Z');
+    expect(uit.groepen[0].reden, 'het nultarief is geen vrijstelling').toBeNull();
+});
+
+test.describe('de klant als Peppol-adres', () => {
+    /**
+     * Zonder het KvK-nummer van de klant is het bestand geldige NLCIUS die je
+     * zelf kunt aanleveren, maar kan een Peppol-toegangspunt het niet routeren.
+     * Daarom optioneel en niet verplicht: een buitenlandse klant of een
+     * particulier heeft geen KvK-nummer, en dan is een geweigerde export erger.
+     */
+    test('neemt het KvK-nummer van de klant over als het is ingevuld', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientKvk.fill('12345678');
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.ontvangerKvk).toBe('12345678');
+    });
+
+    test('laat het weg als het er niet is, en blijft verder gewoon werken', async ({ page }) => {
+        await vulVolledigeFactuur(page);
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.ontvangerKvk).toBeNull();
+        expect(uit.teBetalen).toBe('1512.50');
+    });
+
+    test('komt mee uit het klantenboek', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientKvk.fill('12345678');
+        await app.saveClient.click();
+
+        // Een andere klant kiezen en weer terug: het nummer hoort mee te komen.
+        await app.clientPicker.selectOption('');
+        await app.clientPicker.selectOption({ label: 'Klant BV' });
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.ontvangerKvk).toBe('12345678');
+    });
+});
+
+test.describe('wat er mis kan gaan', () => {
+    test('weigert te exporteren zonder de verplichte gegevens, en zegt welke', async ({ page }) => {
+        const app = ui(page);
+        await app.clientName.fill('Klant BV');
+        await app.itemPrice().fill('100');
+
+        await app.downloadUbl.click();
+
+        const melding = app.status.filter({ hasText: 'e-factuur' });
+        await expect(melding).toBeVisible();
+        await expect(melding).toContainText('KvK-nummer');
+        await expect(melding).toContainText('btw-identificatienummer');
+        await expect(melding).toContainText('referentie van je klant');
+    });
+
+    test('een vrij ingevulde eenheid wordt een geldige code', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        // Niemand kent alle UN/ECE-codes, dus het veld is vrij. Wat we niet
+        // kennen wordt C62 — een geldige code — en niet de vrije tekst.
+        await app.itemUnit().fill('bakje koffie');
+
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.regels[0].eenheid).toBe('C62');
+    });
+
+    test('tekens die XML breken worden ontsnapt', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientName.fill('Jansen & Zn <BV> "De Hoek"');
+
+        const { xml } = await haalUbl(page);
+        expect(xml).not.toContain('<BV>');
+        expect(xml).toContain('&amp;');
+
+        // En na het inlezen staat de naam er weer gewoon: ontsnappen is geen
+        // verminking.
+        const uit = await ontleed(page, xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.ontvangerNaam).toBe('Jansen & Zn <BV> "De Hoek"');
+    });
+
+    test('een offerte biedt geen e-factuur aan', async ({ page }) => {
+        const app = ui(page);
+        await app.tab('Offerte').click();
+        // Een offerte is geen factuur; UBL kent er een ander documenttype voor.
+        await expect(app.downloadUbl).toHaveCount(0);
+    });
+});
+
+test('een bewaarde factuur is nog als e-factuur te downloaden', async ({ page }) => {
+    const app = await vulVolledigeFactuur(page);
+    const nummer = await app.documentNumber.inputValue();
+    await app.saveDocument.click();
+    await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+
+    await openFoldout(page, 'Bewaarde documenten');
+    await app.archiveRowFor(nummer).view.click();
+
+    const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        app.archiveDialog.getByRole('button', { name: 'E-factuur' }).click(),
+    ]);
+    expect(download.suggestedFilename()).toContain('efactuur');
+});

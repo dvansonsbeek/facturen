@@ -18,6 +18,7 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Offerte omzetten**: Een geaccepteerde offerte wordt met één klik een factuur, met klant en regels en een verwijzing naar het offertenummer.
 - **Live Preview**: Bekijk direct hoe je document eruit ziet terwijl je typt.
 - **PDF Export**: Download je document als een echte PDF op A4-formaat, met selecteerbare en doorzoekbare tekst. Bij meerdere pagina's staan de betaalinstructies onderaan elke pagina en wordt er genummerd ("pagina 1 van 2").
+- **E-factuur (UBL)**: Download dezelfde factuur als machineleesbaar UBL-bestand volgens **NLCIUS** (SI-UBL 2.0), de Nederlandse uitvoering van de Europese norm EN 16931. Dat is wat de administratie van je klant kan inlezen, en wat de Rijksoverheid verplicht stelt. Vul daarvoor je KvK- en btw-nummer in, plus een referentie van je klant; het KvK-nummer van je klant is optioneel en nodig om het bestand via Peppol te laten versturen.
 - **Logo Support**: Upload je eigen bedrijfslogo voor een professionele uitstraling op al je documenten.
 - **Gegevens Onthouden**: Je bedrijfs- en betaalgegevens worden bewaard in je eigen browser, op dit apparaat. Je vult ze één keer in; met **Wissen** haal je ze er weer uit.
 - **Klantenboek**: Bewaar je klanten en kies ze de volgende keer uit een lijst. De velden klappen dan dicht; met **Bewerken** open je ze weer. Wat je aanpast verandert de bewaarde klant pas als je **Opslaan** gebruikt.
@@ -36,7 +37,8 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Factuurnummers: onthouden, niet bewaakt.** De app onthoudt waar je gebleven was en hoogt het nummer op als je op **Volgende factuur** klikt. Hij controleert niets: je blijft zelf verantwoordelijk voor een kloppende reeks. Factureer je vanaf twee apparaten, dan lopen er twee reeksen naast elkaar en kunnen er dubbele nummers ontstaan.
 - **Onthouden is per browser en per apparaat.** Je bedrijfsgegevens en je bewaarde documenten staan in de opslag van deze browser: je laptop en je telefoon delen ze niet, en het wissen van je browsergegevens haalt ze weg. Op een gedeelde computer blijven ze achter tot je op **Wissen** klikt. Gebruik Export als reservekopie — het is de enige kopie die je hebt.
 - **Btw wordt per tarief berekend en op centen afgerond**, zodat de getoonde btw-regels altijd optellen tot het getoonde totaal.
-- **Het voorbeeld en de PDF zijn twee weergaven.** Het scherm is HTML, de PDF wordt apart opgebouwd. De btw-opstelling delen ze, en de end-to-end tests vergelijken de tekst van de PDF met die van het voorbeeld, zodat ze niet ongemerkt uit elkaar lopen.
+- **Het voorbeeld, de PDF en de e-factuur zijn drie weergaven.** Het scherm is HTML, de PDF wordt apart opgebouwd, de e-factuur is XML. De btw-opstelling delen ze alle drie, en de end-to-end tests vergelijken de bedragen met elkaar, zodat ze niet ongemerkt uit elkaar lopen.
+- **De e-factuur is niet door de officiële validator gehaald.** De tests lezen de XML in en toetsen de regels die er het makkelijkst misgaan — verplichte velden, optellende totalen, en vrijgesteld (`E`) tegenover nultarief (`Z`). De Schematron van SI-UBL draaien vraagt gereedschap dat niet in een app zonder server past. Haal er bij je eerste echte e-factuur één keer een door een validator.
 
 ## 🛠️ Technologie
 

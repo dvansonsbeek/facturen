@@ -54,6 +54,7 @@ lib/
   foldouts.ts        which sections the user collapsed, persisted
   image.ts           downscales an uploaded logo so it fits in localStorage
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
+  ubl.ts             the e-factuur: the same invoice as UBL/NLCIUS XML
 types/index.ts       Invoice, Quotation, Sender, Client, LineItem
 tests/               Playwright end-to-end specs
 ```
@@ -267,6 +268,49 @@ baseline tests asserting the client name *is* readable without a passphrase, so 
 encrypted cases prove something — both were validated by bypassing encryption in the
 write path and confirming they go red.
 
+## The e-factuur is a third renderer
+
+`lib/ubl.ts` writes the same invoice as UBL 2.1 in the Dutch customisation —
+**NLCIUS / SI-UBL 2.0** — so the recipient's bookkeeping can read it instead of a human
+retyping a PDF. Central government already accepts nothing else, and domestic B2B is
+coming. It fits this app because it needs no server: it is a text file built in the
+browser. This app produces the file; it does not send it over Peppol.
+
+**It is a third view of one document, so it takes its numbers from
+`summariseDocument`.** The same rule as for the preview and the PDF, and for the same
+reason — an e-factuur quoting different amounts than the PDF sent alongside it is worse
+than no e-factuur. Never compute VAT here.
+
+**"Vrijgesteld is niet 0%" appears here as category `E` versus `Z`.** `E` means no VAT
+applies; `Z` means VAT applies at zero percent (export, intra-EU). KOR is an exemption,
+so `E`, with a `TaxExemptionReason`. Writing a KOR invoice as `Z` tells the buyer's
+ledger something different from what the paper invoice says. `taxCategory()` is the one
+place that decides, and the test for it was validated by flipping it to `Z`.
+
+**Two fields exist only for this** and deliberately do not appear on the PDF, because
+paper is read by a person and processing metadata does not belong there:
+
+- `Invoice.buyerReference` — NLCIUS requires a buyer reference or an order reference. It
+  is how the buyer's AP system matches the invoice to an order or cost centre, so
+  `ontbrekendeVelden` refuses export without it rather than quietly substituting the
+  invoice number, which would pass validation and then still be rejected in practice.
+- `Client.kvkNumber` — the buyer's Peppol endpoint. Optional, because a foreign client
+  or a consumer has no KvK number, and refusing export would be worse. Without it the
+  file is still valid NLCIUS to hand over directly, but a Peppol access point cannot
+  route it.
+
+**Free-text units become UN/ECE Rec 20 codes.** The unit field is deliberately free —
+nobody knows every unit — so `unitCode()` maps what it knows and falls back to `C62`
+("one"). An invented word must not make the file invalid; the line description carries
+the real meaning.
+
+**What the tests do not do: run the official SI-UBL Schematron.** That needs an XSLT
+engine this app has no place for. `tests/ubl.spec.ts` parses the XML with `DOMParser`
+(so well-formedness is part of every assertion) and checks the rules that actually slip
+here: required elements, totals that add up, per-rate grouping, escaping, and the
+`E`/`Z` distinction. Before relying on this in anger, put one generated file through a
+real validator once — that is a gap worth knowing about, not one the test suite closes.
+
 ## Two renderers, one document
 
 The live preview is HTML/CSS; the PDF is `@react-pdf/renderer`. The preview is *not*
@@ -299,7 +343,10 @@ baselines here — font rasterisation differs between machines, so pixel baselin
 re-approved until they mean nothing, while coordinates do not.
 
 **Any change to what the document says must be made in both `InvoicePreview.tsx` and
-`InvoiceDocument.tsx`.** Fixing one alone is how these two drift apart.
+`InvoiceDocument.tsx`.** Fixing one alone is how these two drift apart. If it changes
+*amounts* or the VAT treatment, `lib/ubl.ts` is a third place that says the same thing —
+though it takes them from `summariseDocument`, so sharing that function is what keeps all
+three in step.
 
 **The preview is paper, not interface.** `.invoice-preview` in `globals.css` redefines
 `--foreground`, `--primary`, `--secondary`, `--muted` and `--border` to their light

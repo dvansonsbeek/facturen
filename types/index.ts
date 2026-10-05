@@ -6,6 +6,13 @@ export interface Client {
   country: string;
   vatNumber?: string;
   email?: string;
+  /**
+   * Het KvK-nummer van de klant. Alleen nodig voor de e-factuur, waar het het
+   * adres is waarop je klant over Peppol bereikbaar is. Optioneel: een
+   * buitenlandse klant of een particulier heeft er geen, en zonder blijft het
+   * bestand gewoon geldig om zelf aan te leveren.
+   */
+  kvkNumber?: string;
 }
 
 export interface LineItem {
@@ -46,6 +53,15 @@ export interface Invoice {
   paymentConditions?: string;
   bankAccount?: string;
   bic?: string;
+  /**
+   * De referentie waarmee de klant deze factuur in zijn eigen administratie
+   * terugvindt: een inkoopordernummer, een kostenplaats, een projectcode.
+   *
+   * Alleen nodig voor de e-factuur (lib/ubl.ts), waar NLCIUS hem verplicht
+   * stelt. Hij staat niet op de PDF en niet in het voorbeeld: op papier leest
+   * een mens de factuur, en daar hoort dit soort verwerkingsinformatie niet.
+   */
+  buyerReference?: string;
 }
 
 /**

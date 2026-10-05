@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, Download, Eye, Lock, Trash2, X } from "lucide-react";
+import { Copy, Download, Eye, FileCode, Lock, Trash2, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { BewaardDocument } from "@/lib/documents";
 import InvoicePreview from "../InvoicePreview";
@@ -17,6 +17,8 @@ interface DocumentArchiveProps {
     onDuplicate: (bewaard: BewaardDocument) => void;
     onDelete: (bewaard: BewaardDocument) => void;
     onDownload: (bewaard: BewaardDocument) => void;
+    /** Alleen voor een factuur: een offerte is geen e-factuur. */
+    onDownloadUbl: (bewaard: BewaardDocument) => void;
 }
 
 /**
@@ -29,7 +31,8 @@ interface DocumentArchiveProps {
  * een nieuw document — vandaar Dupliceren.
  */
 export default function DocumentArchive({
-    documenten, opslagWerkt, vergrendeld, open, onToggle, onDuplicate, onDelete, onDownload,
+    documenten, opslagWerkt, vergrendeld, open, onToggle,
+    onDuplicate, onDelete, onDownload, onDownloadUbl,
 }: DocumentArchiveProps) {
     const [bekeken, setBekeken] = useState<BewaardDocument | null>(null);
     const venster = useRef<HTMLDialogElement>(null);
@@ -144,6 +147,18 @@ export default function DocumentArchive({
                                 <button className="premium-btn compact" onClick={() => onDownload(bekeken)}>
                                     <Download size={14} /> <span>PDF</span>
                                 </button>
+                                {/* In het venster en niet in de regel: vier knoppen per
+                                    regel is al veel, en hier kijk je toch al naar dit
+                                    ene document. */}
+                                {bekeken.soort === 'factuur' && (
+                                    <button
+                                        className="premium-btn compact"
+                                        onClick={() => onDownloadUbl(bekeken)}
+                                        title="Deze factuur als UBL-bestand voor de administratie van je klant"
+                                    >
+                                        <FileCode size={14} /> <span>E-factuur</span>
+                                    </button>
+                                )}
                                 <button
                                     className="premium-btn compact"
                                     onClick={() => { onDuplicate(bekeken); setBekeken(null); }}

@@ -149,6 +149,17 @@ export default function ClientDetails({
                             onChange={(e) => onChange({ vatNumber: e.target.value })}
                         />
                     </div>
+                    <div>
+                        <label className="label-wrap" htmlFor="klant-kvk">
+                            KvK-nummer Klant (optioneel, voor e-factuur)
+                        </label>
+                        <input
+                            id="klant-kvk"
+                            placeholder="Nodig om de e-factuur via Peppol te kunnen versturen"
+                            value={client.kvkNumber || ''}
+                            onChange={(e) => onChange({ kvkNumber: e.target.value })}
+                        />
+                    </div>
                 </>)}
             </div>
         </div>

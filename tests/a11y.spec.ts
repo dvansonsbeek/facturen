@@ -46,7 +46,8 @@ test('knoppen zonder tekst hebben een omschrijving', async ({ page }) => {
 test('de velden zijn ook via hun label te vinden', async ({ page }) => {
     // Lukt alleen als de koppeling echt klopt.
     await page.getByLabel('Bedrijfsnaam', { exact: true }).fill('Sonsbeek Advies BV');
-    await page.getByLabel('KvK-nummer').fill('87654321');
+    // Exact, want de klant heeft inmiddels ook een KvK-veld voor de e-factuur.
+    await page.getByLabel('KvK-nummer', { exact: true }).fill('87654321');
     await expect(ui(page).preview).toContainText('KvK: 87654321');
 });
 

@@ -75,6 +75,19 @@ test('de hele reis: twee klanten factureren, opruimen en versleutelen', async ({
         await expect(app.preview).toContainText('€ 1.512,50');
     });
 
+    await test.step('factuur A ook als e-factuur, met klantreferentie', async () => {
+        // Zonder referentie weigert hij, en dat hoort hij te zeggen.
+        await app.downloadUbl.click();
+        await expect(app.status.filter({ hasText: 'referentie van je klant' })).toBeVisible();
+
+        await app.buyerReference.fill('INKOOP-A-2026-001');
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            app.downloadUbl.click(),
+        ]);
+        expect(download.suggestedFilename()).toMatch(/^efactuur_.*\.xml$/);
+    });
+
     await test.step('factuur A bewaren', async () => {
         await app.saveDocument.click();
         await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
