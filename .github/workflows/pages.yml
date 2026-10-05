@@ -44,8 +44,11 @@ jobs:
       # De gepubliceerde versie draait onder een strenger beveiligingsbeleid dan
       # de ontwikkelserver, dus een fout daarin merk je niet in de testsuite.
       # Deze controle opent de echte build en kijkt of de PDF het nog doet en er
-      # niets naar buiten gaat.
+      # niets naar buiten gaat. Hetzelfde voorvoegsel als de build, anders
+      # bedient de controle een andere URL dan er gepubliceerd wordt.
       - run: npm run check:publicatie
+        env:
+          PAGES_BASE_PATH: /facturen
 
       # _next begint met een liggend streepje en zou door Jekyll worden
       # overgeslagen. Deze actie draait geen Jekyll, maar het kost niets.

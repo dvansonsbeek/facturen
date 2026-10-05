@@ -40,3 +40,5 @@ jobs:
 
       - name: Controle op de gepubliceerde build
         run: npm run check:publicatie
+        env:
+          PAGES_BASE_PATH: /facturen

@@ -13,10 +13,16 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
-import { createRequire } from 'node:module';
+import { chromium } from '@playwright/test';
 
 const WORTEL = new URL('../out', import.meta.url).pathname;
 const POORT = 4173;
+
+// De publicatiebuild staat onder /facturen (zie next.config.ts), dus de pagina
+// vraagt haar bestanden op als /facturen/_next/... terwijl ze in out/_next/...
+// liggen. Zonder dit voorvoegsel eraf te halen geeft elke asset een 404 en
+// laadt de pagina zonder JavaScript — dan meet deze controle niets.
+const VOORVOEGSEL = process.env.PAGES_BASE_PATH ?? '';
 
 if (!existsSync(WORTEL)) {
     console.error('out/ bestaat niet — draai eerst `npm run build`.');
@@ -30,7 +36,8 @@ const TYPES = {
 };
 
 const server = createServer(async (req, res) => {
-    const pad = decodeURIComponent((req.url || '/').split('?')[0]);
+    let pad = decodeURIComponent((req.url || '/').split('?')[0]);
+    if (VOORVOEGSEL && pad.startsWith(VOORVOEGSEL)) pad = pad.slice(VOORVOEGSEL.length) || '/';
     let bestand = join(WORTEL, normalize(pad).replace(/^(\.\.[/\\])+/, ''));
     if (pad.endsWith('/')) bestand = join(bestand, 'index.html');
     try {
@@ -44,7 +51,6 @@ const server = createServer(async (req, res) => {
 
 await new Promise(klaar => server.listen(POORT, klaar));
 
-const { chromium } = createRequire('/home/dennis/code/facturen/package.json')('playwright');
 const browser = await chromium.launch();
 const page = await browser.newPage({ acceptDownloads: true });
 
@@ -58,8 +64,13 @@ page.on('request', (r) => {
     const binnen = url.hostname === 'localhost' || ['data:', 'blob:'].includes(url.protocol);
     if (!binnen) problemen.push(`verzoek naar buiten: ${r.url().slice(0, 100)}`);
 });
+// Een gemiste asset is stil: de pagina laadt, alleen zonder JavaScript. Zo
+// kwam het basePath-voorvoegsel hier binnen, dus noem het bij naam.
+page.on('response', (r) => {
+    if (r.status() === 404) problemen.push(`404: ${r.url().slice(0, 100)}`);
+});
 
-await page.goto(`http://localhost:${POORT}/`, { waitUntil: 'networkidle' });
+await page.goto(`http://localhost:${POORT}${VOORVOEGSEL}/`, { waitUntil: 'networkidle' });
 await page.locator('input[placeholder="Eenheidsprijs"]').first().fill('100');
 
 try {
