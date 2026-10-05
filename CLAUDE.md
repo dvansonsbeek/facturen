@@ -12,11 +12,15 @@ This repo is a fork of [eraycode/factuurr](https://github.com/eraycode/factuurr)
 **Belgian** invoice generator, adapted to Dutch invoicing law and renamed from
 *Factuurr* to *Facturen*.
 
-- The only git remote is `upstream`, pointing at the original. **There is deliberately
-  no `origin`, and nothing should be pushed anywhere.** Do not add a remote or push
-  without being asked.
+- Two remotes: `origin` is this fork at
+  [dvansonsbeek/facturen](https://github.com/dvansonsbeek/facturen) (public), `upstream`
+  is Eray's original. Every push to `main` publishes to
+  [dvansonsbeek.github.io/facturen](https://dvansonsbeek.github.io/facturen/) via
+  GitHub Pages, gated on the test suite. Never push to `upstream`.
 - The first four commits (Feb 2026, authored by Eray) are kept intentionally as
   provenance. Do not rewrite that history.
+- The repo was published under MIT after a deliberate decision; see the licence note
+  below. Publishing was the irreversible step, and it has been taken.
 - `LICENSE` is MIT with two copyright lines: Eray for the original work, Dennis for
   the Dutch adaptations. Names only, no email addresses — Eray's address is a student
   address and is already in the git log; it does not need wider distribution.
