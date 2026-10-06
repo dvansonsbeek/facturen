@@ -3,8 +3,14 @@
 # Facturen
 
 A client-side invoice and quotation generator for the **Dutch** market. No backend,
-no database, no accounts: everything lives in the browser and nothing is persisted
-except the theme choice in `localStorage`.
+no database, no accounts: everything lives in the browser.
+
+Plenty *is* persisted, all of it on the device: company and payment details, the
+customer book, the running document numbers and which sections you collapsed in
+`localStorage`; the archive of issued documents in IndexedDB; and, if you set a
+passphrase, the key header beside it. Only the theme is cosmetic. See *State lives in
+four places* and *The archive* below — the privacy claim is "it never leaves this
+browser", not "it is not written down".
 
 ## Provenance and repo rules
 
@@ -42,6 +48,7 @@ components/
   InvoiceDocument.tsx the PDF document (@react-pdf/renderer)
   ItemRow.tsx        one line item
 lib/
+  csp.ts             the Content-Security-Policy the page ships with
   utils.ts           formatting (currency, date, IBAN) + all VAT arithmetic
   vat-schemes.ts     the VAT regime: statement on paper + UBL category
   countries.ts       country names to ISO codes, and who is in the EU
@@ -57,7 +64,8 @@ lib/
   image.ts           downscales an uploaded logo so it fits in localStorage
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
   ubl.ts             the e-factuur: the same invoice as UBL/NLCIUS XML
-types/index.ts       Invoice, Quotation, Sender, Client, LineItem
+types/index.ts       Invoice, Quotation, Sender, Client, LineItem, VatScheme
+scripts/             controleer-publicatie, controleer-efactuur, statische-server
 tests/               Playwright end-to-end specs
 ```
 
@@ -66,7 +74,7 @@ tests/               Playwright end-to-end specs
 (`InvoiceDraft` / `QuotationDraft`, which omit everything living in the stores), and
 `handleToggleType` copies the shared per-document fields when you switch tabs.
 
-## State lives in three places, deliberately
+## State lives in four places, deliberately
 
 - **Per document** (`useState`): number, dates, client, items, exemption, notes.
   Two drafts, one per document type.
@@ -118,7 +126,7 @@ The critical distinction, and the thing a previous version of this app got wrong
 > **"Vrijgesteld" is not the same as "0%".** 0% (nultarief) is a *rate* — exports,
 > intra-EU supplies. KOR is an *exemption*: no VAT may appear on the invoice at all.
 
-So when `isVatExempt` is true the document must show **no BTW column, no per-rate BTW
+So under `kor` the document must show **no BTW column, no per-rate BTW
 rows, and no subtotal** (a subtotal identical to the total is noise) — just a total and
 the exemption sentence. Rendering `BTW (0%): € 0,00` on a KOR invoice is a compliance
 bug, not a cosmetic one.
@@ -148,6 +156,15 @@ they are, not from what you sold; a half-intracommunautaire invoice does not exi
 `schemeOf()` is the only place that reads the legacy `isVatExempt`, so archived documents
 from before the regime existed keep working without ever being rewritten. Everything else
 asks `schemeOf()`.
+
+**Every path that copies a document must carry the regime, via `schemeOf()`.** There are
+three — `handleToggleType`, `handleConvertToInvoice`, `handleDuplicateDocument` — and when
+the regime was introduced all three were missed: they still copied `isVatExempt`, which is
+`false` on any new document, so switching tabs, converting a quotation or duplicating an
+archived invoice silently reset the regime to `normaal` and put 21% VAT on a document that
+must not carry any. Nothing in the existing suite noticed, because every KOR test set the
+regime and then looked at the same document. `tests/vat-scheme-carry.spec.ts` covers all
+three plus the per-line rate being disabled, and each assertion was seen to fail first.
 
 Every non-`normaal` regime looks **identical** on the document — lines excluding VAT, no
 VAT amounts, total equal to the subtotal, plus the statement. That is why
@@ -355,7 +372,7 @@ the real meaning.
 
 **The official Schematron runs too, and it is not the same thing as our own tests.**
 `npm run check:efactuur` (`scripts/controleer-efactuur.mjs`) drives the built app,
-downloads three invoices — two rates, KOR, zero-rated — and puts each through the
+downloads one invoice per VAT regime — six of them — and puts each through the
 Nederlandse Peppolautoriteit's compiled SI-UBL 2.0 stylesheet with Saxon-HE. It fires
 **86 rules** on a normal invoice. Both artefacts are permissively licensed (the
 validation repo is MIT, Stichting Simplerinvoicing; Saxon-HE is MPL-2.0), pinned to an
@@ -376,7 +393,7 @@ Why both layers exist, and why neither replaces the other:
   `tests/ubl.spec.ts`, which was in turn validated by flipping `taxCategory()`.
 
 The script's own teeth were checked by removing `BuyerReference` from `lib/ubl.ts` and
-confirming it exits 1 naming `BR-NL-2` on all three invoices.
+confirming it exits 1 naming `BR-NL-2` on every invoice it generates.
 
 ## Two renderers, one document
 

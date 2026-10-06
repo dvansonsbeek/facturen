@@ -3,7 +3,7 @@
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { Plus, Download, FileText, FileCode, Briefcase, Upload, Moon, Sun, Trash2, Save } from "lucide-react";
 import { Invoice, Quotation, LineItem, Sender, Client, VatScheme } from "@/types";
-import { schemeOf, VAT_SCHEMES, VAT_SCHEME_ORDER } from "@/lib/vat-schemes";
+import { chargesVat, schemeOf, VAT_SCHEMES, VAT_SCHEME_ORDER } from "@/lib/vat-schemes";
 import { generateId } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
 import {
@@ -122,7 +122,9 @@ export default function InvoiceForm() {
             date,
             client: emptyClient(),
             items: [defaultItem()],
-            isVatExempt: false,
+            // Expliciet en niet via het oude isVatExempt: dat veld is er alleen
+            // nog om bewaarde documenten van vóór deze keuze te kunnen lezen.
+            vatScheme: 'normaal',
             notes: "",
         };
     });
@@ -135,7 +137,7 @@ export default function InvoiceForm() {
             validUntil,
             client: emptyClient(),
             items: [defaultItem()],
-            isVatExempt: false,
+            vatScheme: 'normaal',
             notes: "Deze offerte is 30 dagen geldig.",
         };
     });
@@ -256,7 +258,9 @@ export default function InvoiceForm() {
         const carriedOver = (prev: InvoiceDraft | QuotationDraft) => ({
             client: { ...prev.client, ...source.client },
             items: source.items.map(item => ({ ...item })),
-            isVatExempt: source.isVatExempt,
+            // Via schemeOf en niet rechtstreeks: anders valt een document met
+            // een regime terug op "normaal" en staat er ineens btw op.
+            vatScheme: schemeOf(source),
             notes: source.notes || prev.notes,
             date: source.date,
         });
@@ -287,7 +291,7 @@ export default function InvoiceForm() {
             ...prev,
             client: { ...quotation.client },
             items: quotation.items.map(item => ({ ...item })),
-            isVatExempt: quotation.isVatExempt,
+            vatScheme: schemeOf(quotation),
             notes: `Conform offerte ${offerteNummer}.`,
             date: getInitialDates().date,
         }));
@@ -461,7 +465,7 @@ export default function InvoiceForm() {
         const overnemen = {
             client: { ...bewaard.document.client },
             items: bewaard.document.items.map(item => ({ ...item, id: generateId() })),
-            isVatExempt: bewaard.document.isVatExempt,
+            vatScheme: schemeOf(bewaard.document),
             notes: bewaard.document.notes ?? '',
             date: getInitialDates().date,
         };
@@ -851,7 +855,7 @@ export default function InvoiceForm() {
                             {UNIT_SUGGESTIONS.map(unit => <option key={unit} value={unit} />)}
                         </datalist>
                         {currentData.items.map((item) => (
-                            <ItemRow key={item.id} item={item} onUpdate={updateItem} onRemove={removeItem} isVatExempt={currentData.isVatExempt} />
+                            <ItemRow key={item.id} item={item} onUpdate={updateItem} onRemove={removeItem} isVatExempt={!chargesVat(vatScheme)} />
                         ))}
                     </div>
 
