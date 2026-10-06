@@ -36,10 +36,28 @@ page.on('console', (m) => {
     if (/Content Security Policy|Refused to/i.test(m.text())) problemen.push(`CSP blokkeert: ${m.text().slice(0, 140)}`);
 });
 page.on('pageerror', (e) => problemen.push(`fout op de pagina: ${e.message.slice(0, 140)}`));
+/**
+ * Eén uitzondering op "niets gaat naar buiten": de bezoekersteller
+ * (lib/analytics.ts). Die mag, en alleen die — en er mag niets in staan van wat
+ * er op het document is ingevuld. Daarom niet simpelweg toegestaan maar
+ * nagelopen op de gegevens die we hierboven invullen.
+ */
+const GEHEIMEN = ['Sonsbeek', 'Geheimeklant', 'Vertrouwelijk'];
 page.on('request', (r) => {
     const url = new URL(r.url());
     const binnen = url.hostname === 'localhost' || ['data:', 'blob:'].includes(url.protocol);
-    if (!binnen) problemen.push(`verzoek naar buiten: ${r.url().slice(0, 100)}`);
+    if (binnen) return;
+
+    if (!url.hostname.endsWith('.goatcounter.com')) {
+        problemen.push(`verzoek naar buiten: ${r.url().slice(0, 100)}`);
+        return;
+    }
+    const leesbaar = decodeURIComponent(r.url());
+    for (const geheim of GEHEIMEN) {
+        if (leesbaar.includes(geheim)) {
+            problemen.push(`de teller stuurt documentgegevens mee (${geheim}): ${leesbaar.slice(0, 120)}`);
+        }
+    }
 });
 // Een gemiste asset is stil: de pagina laadt, alleen zonder JavaScript. Zo
 // kwam het basePath-voorvoegsel hier binnen, dus noem het bij naam.
@@ -48,6 +66,11 @@ page.on('response', (r) => {
 });
 
 await page.goto(`http://localhost:${POORT}${VOORVOEGSEL}/`, { waitUntil: 'networkidle' });
+// Herkenbare namen, zodat hierboven te zien is of er iets van het document
+// meelift in een verzoek naar buiten.
+await page.locator('input[placeholder="Mijn Bedrijf BV"]').fill('Sonsbeek Advies BV');
+await page.locator('input[placeholder="Naam van de klant"]').fill('Geheimeklant BV');
+await page.locator('textarea[placeholder="Omschrijving goederen/ diensten"]').first().fill('Vertrouwelijk werk');
 await page.locator('input[placeholder="Eenheidsprijs"]').first().fill('100');
 
 try {

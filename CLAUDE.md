@@ -49,6 +49,7 @@ components/
   ItemRow.tsx        one line item
 lib/
   csp.ts             the Content-Security-Policy the page ships with
+  analytics.ts       the GoatCounter visit pixel, off unless configured
   utils.ts           formatting (currency, date, IBAN) + all VAT arithmetic
   vat-schemes.ts     the VAT regime: statement on paper + UBL category
   countries.ts       country names to ISO codes, and who is in the EU
@@ -276,6 +277,37 @@ The `<dialog>` lives outside the `<details>` foldout, because a closed `<details
 Because the archive loads asynchronously, `readDocuments` returns a frozen empty array
 until IndexedDB answers — the same reference `readServerDocuments` returns, which is
 what keeps hydration consistent. The rules above still hold.
+
+## The visit counter, and what it costs the privacy claim
+
+`lib/analytics.ts` plus `components/VisitCounter.tsx` count page views with
+GoatCounter. Deliberately **not** their `count.js`.
+
+**A third-party script was not an option.** This page holds decrypted client data and,
+while the archive is unlocked, the key in memory — `SecurityPanel.tsx` tells users
+exactly that. Loading someone else's script into it is the risk that panel describes.
+An image request cannot read anything, so the counter is a pixel whose URL this app
+builds itself, filling in referrer and screen size that GoatCounter's script would
+otherwise collect. The policy therefore grows by **one host in `img-src` only**;
+`script-src` and `connect-src` are untouched.
+
+**It is off unless `NEXT_PUBLIC_GOATCOUNTER` is set.** No variable, no pixel, and the CSP
+is byte-identical to before — which is how the dev server and the whole test suite run.
+It is set only in `pages.yml`.
+
+**It stays silent for anyone who asked**: Do Not Track, Global Privacy Control, and
+`navigator.webdriver`. That last one matters practically — the publication check and the
+UAT journey open the published build several times per commit, and without it every CI
+run would land in the statistics.
+
+**The absolute claim had to go.** "This page makes no outbound request" was true, tested
+and enforced; it no longer is. What survives is the claim that actually mattered: *what
+you type never leaves the browser*. `tests/privacy.spec.ts` now asserts that any request
+leaving the origin is the counter and that it carries none of the document's content,
+and `scripts/controleer-publicatie.mjs` fails the build if a request smuggles out a name
+filled into the form. The README and `SecurityPanel.tsx` say plainly that counting
+happens — an app that asks for trust reports its own telemetry rather than waiting to be
+found out.
 
 ## The optional passphrase
 

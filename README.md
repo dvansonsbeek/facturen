@@ -28,7 +28,7 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 - **Opgeruimd Formulier**: Secties die je maar één keer invult, klap je in; die keuze wordt onthouden.
 - **Dark Mode**: Oogvriendelijk ontwerp voor de late uurtjes.
 - **Responsief**: Werkt op desktop, tablet en telefoon.
-- **Privacy First**: Geen database, geen cloud-opslag, geen trackers. Al je gegevens blijven in je eigen browser — en dat is afgedwongen, niet alleen beloofd: de pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om ook maar één verzoek naar buiten te doen. De lettertypes komen daarom uit de app zelf en niet bij Google vandaan.
+- **Privacy First**: Geen database, geen cloud-opslag, geen account. Alles wat je invult blijft in je eigen browser — en dat is afgedwongen, niet alleen beloofd: de pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om die gegevens ergens heen te sturen. De lettertypes komen daarom uit de app zelf en niet bij Google vandaan. Het enige dat de browser verlaat is een bezoekersteller ([GoatCounter](https://www.goatcounter.com/)): die telt dat de pagina geopend is, zonder cookies en zonder iets van je factuur. Zie *Bezoekersteller* hieronder.
 
 ## ⚠️ Goed om te weten
 
@@ -126,6 +126,25 @@ site zelf.
 8. **Volgende**: Klik op **Volgende factuur** om het nummer op te hogen en met een leeg document verder te gaan. Je klant blijft staan, want die factureer je vaker.
 
 Werk je op meerdere apparaten? Gebruik **Export** en **Import** om je bedrijfsgegevens, klantenboek en nummering mee te nemen.
+
+## 📊 Bezoekersteller
+
+De gepubliceerde site telt bezoeken met [GoatCounter](https://www.goatcounter.com/).
+Dat gebeurt bewust niet met hun script maar met een telpixel die deze app zelf
+opbouwt: een afbeelding kan niets uit de pagina lezen, een script van een andere
+host wel — en deze pagina houdt je klantgegevens vast en, zolang je archief
+openstaat, je sleutel in het geheugen. Het beveiligingsbeleid zet daarom alleen
+`img-src` open voor die ene host; `script-src` en `connect-src` blijven dicht.
+
+Wat er meegaat: het pad van de pagina, de host waar je vandaan kwam en je
+schermformaat. Wat er niet meegaat: alles wat je invult. Er worden geen cookies
+gezet en er wordt niet tussen websites gevolgd. Staat *Do Not Track* of *Global
+Privacy Control* aan, dan wordt er niets geteld — net zomin als bij een
+geautomatiseerde browser, zodat de testsuite de cijfers niet vervuilt.
+
+Zonder de omgevingsvariabele `NEXT_PUBLIC_GOATCOUNTER` gebeurt er helemaal
+niets: geen pixel, en het beveiligingsbeleid blijft onveranderd. Zo draaien de
+ontwikkelserver en de tests zonder teller.
 
 ## 📄 Licentie
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { beleidVoorOmgeving } from "@/lib/csp";
+import VisitCounter from "@/components/VisitCounter";
 import "./globals.css";
 
 /**
@@ -69,6 +70,9 @@ export default function RootLayout({
       </head>
       <body>
         {children}
+        {/* Telt één bezoek met een afbeelding, niet met een script van buiten.
+            Staat uit zonder NEXT_PUBLIC_GOATCOUNTER; zie lib/analytics.ts. */}
+        <VisitCounter />
       </body>
     </html>
   );

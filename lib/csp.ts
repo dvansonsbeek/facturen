@@ -1,21 +1,42 @@
 /**
  * Het beveiligingsbeleid dat de pagina meestuurt.
  *
- * De app belooft dat alles in je eigen browser blijft. Een Content-Security-
- * Policy maakt daar meer van dan een belofte: `connect-src 'none'` betekent dat
- * deze pagina geen enkel verzoek naar buiten kán doen, afgedwongen door de
- * browser zelf. Wat je invult kan er dus niet uit, ook niet als er ooit code in
- * zou sluipen die dat wel zou willen.
+ * De app belooft dat alles wat je invult in je eigen browser blijft. Een
+ * Content-Security-Policy maakt daar meer van dan een belofte: `connect-src`
+ * noemt geen enkele herkomst op het netwerk, dus deze pagina kan niets
+ * versturen — afgedwongen door de browser zelf, ook als er ooit code in zou
+ * sluipen die dat wel zou willen.
+ *
+ * Let op de precieze formulering. Er gaat wél één verzoek naar buiten: de
+ * bezoekersteller haalt een afbeelding op bij GoatCounter (lib/analytics.ts).
+ * Die draagt het pad, de herkomst en het schermformaat — gegevens over het
+ * bezoek, niet over het document — en hij staat alleen in `img-src`. Daarmee
+ * blijft overeind wat de belofte altijd was: wat je intypt kan er niet uit.
  *
  * Meegegeven via een meta-tag, want een statische export op GitHub Pages kan
  * geen HTTP-headers zetten. Let op: frame-ancestors en sandbox werken niet via
  * meta, alleen via een header.
  */
+/**
+ * De enige host die hier ooit bij komt, en alleen voor afbeeldingen: de
+ * bezoekersteller (lib/analytics.ts). Staat NEXT_PUBLIC_GOATCOUNTER niet
+ * gezet, dan verandert er niets en blijft het beleid dicht zoals het was.
+ *
+ * Let op wat hier *niet* gebeurt: script-src en connect-src blijven ongemoeid.
+ * Een afbeelding ophalen kan geen gegevens uit deze pagina lezen; een script
+ * van een andere host wel, en dat is in een pagina met een ontsleuteld archief
+ * geen aanvaardbare ruil.
+ */
+const tellerHost = (process.env.NEXT_PUBLIC_GOATCOUNTER ?? '').trim()
+    ? ` https://${(process.env.NEXT_PUBLIC_GOATCOUNTER ?? '').trim()}.goatcounter.com`
+    : '';
+
 const gedeeld = [
     "default-src 'self'",
     "style-src 'self' 'unsafe-inline'",   // React zet stijlen rechtstreeks op elementen
     "font-src 'self'",
-    "img-src 'self' data: blob:",         // geüpload logo is een data-URL, PDF-voorbeeld een blob
+    // geüpload logo is een data-URL, PDF-voorbeeld een blob
+    `img-src 'self' data: blob:${tellerHost}`,
     "object-src 'self' blob:",
     "form-action 'none'",
     "base-uri 'none'",

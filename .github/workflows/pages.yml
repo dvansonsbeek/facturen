@@ -51,10 +51,13 @@ jobs:
       - run: npm test
 
       # Alleen de gepubliceerde build staat onder /facturen; lokaal en in de
-      # tests draait de app op de root.
+      # tests draait de app op de root. De bezoekersteller zit er om dezelfde
+      # reden alleen hier in: zonder deze variabele bouwt hij geen telpixel en
+      # blijft het beveiligingsbeleid onveranderd (zie lib/analytics.ts).
       - run: npm run build
         env:
           PAGES_BASE_PATH: /facturen
+          NEXT_PUBLIC_GOATCOUNTER: ${{ vars.GOATCOUNTER_CODE }}
 
       # De gepubliceerde versie draait onder een strenger beveiligingsbeleid dan
       # de ontwikkelserver, dus een fout daarin merk je niet in de testsuite.

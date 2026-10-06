@@ -91,10 +91,21 @@ export default function SecurityPanel({
                     <p>
                         In de opslag van <strong>deze browser, op dit apparaat</strong>. Er is geen
                         server, geen account en geen database. Dat is niet alleen een belofte: de
-                        pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om ook maar
-                        één verzoek naar buiten te doen. Zelfs als er ooit code in zou sluipen die
-                        gegevens wilde versturen, kan dat niet. De lettertypes komen daarom ook uit
-                        deze app zelf en niet bij Google vandaan.
+                        pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om wat je
+                        invult ergens heen te sturen. Zelfs als er ooit code in zou sluipen die dat
+                        wilde, kan het niet. De lettertypes komen daarom ook uit deze app zelf en
+                        niet bij Google vandaan.
+                    </p>
+                    {/* Een app die om vertrouwen vraagt, hoort zelf te melden dat
+                        er geteld wordt — en niet pas als iemand het ontdekt. */}
+                    <p>
+                        Eén ding gaat er wél naar buiten: bij het openen van de pagina wordt een
+                        bezoek geteld bij GoatCounter. Daarbij gaat mee welke pagina je opent, waar
+                        je vandaan kwam en hoe groot je scherm is. <strong>Niets van wat je
+                        invult</strong> — geen klantnaam, geen bedrag, geen factuurnummer. Er worden
+                        geen cookies gezet en je wordt niet gevolgd tussen websites. Zet je browser
+                        op <em>Do Not Track</em> of <em>Global Privacy Control</em>, dan wordt er
+                        niets geteld.
                     </p>
                 </div>
 
