@@ -34,7 +34,25 @@ import { doeMee, huidigeSleutel, zorgDatKluisGeladenIs } from "@/lib/vault";
  * elk record als één versluierd blok naar schijf en blijft alleen het id
  * leesbaar — geen klantnamen, geen bedragen, ook niet het factuurnummer.
  */
-export type DocumentSoort = 'factuur' | 'offerte';
+/**
+ * `creditfactuur` is een factuur die een eerdere terugneemt; zie
+ * `Invoice.creditOf`. Hij staat hier apart zodat je hem in het archief kunt
+ * herkennen zonder het document open te maken — bij het terugzoeken van een
+ * correctie is dat juist wat je wilt zien.
+ */
+export type DocumentSoort = 'factuur' | 'offerte' | 'creditfactuur';
+
+/**
+ * Hoe een soort op het scherm heet.
+ *
+ * Op één plek, want dit stond eerder vijf keer als `soort === 'offerte' ?
+ * 'Offerte' : 'Factuur'` in het scherm — en bij een derde soort noemt zo'n
+ * ternaire operator een creditfactuur stilletjes "Factuur".
+ */
+export const soortLabel = (soort: DocumentSoort): string =>
+    soort === 'offerte' ? 'Offerte'
+        : soort === 'creditfactuur' ? 'Creditfactuur'
+            : 'Factuur';
 
 export interface BewaardDocument {
     id: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { Invoice, Quotation } from "@/types";
-import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 
 interface InvoicePreviewProps {
@@ -17,6 +17,7 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
     const statement = statementFor(scheme);
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
     const supplyDate = supplyDateOnDocument(data);
+    const creditRef = creditReference(data);
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const bankAccount = (data as Invoice).bankAccount;
     const bankAccountDisplay = bankAccount ? formatIban(bankAccount) : IBAN_PLACEHOLDER;
@@ -49,7 +50,7 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                         <div style={{ height: '120px', width: '240px', marginBottom: '1.5rem' }} />
                     )}
                     <h1 style={{ fontSize: '2.5rem', color: 'var(--primary)', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
-                        {isQuotation ? 'OFFERTE' : 'FACTUUR'}
+                        {isQuotation ? 'OFFERTE' : creditRef ? 'CREDITFACTUUR' : 'FACTUUR'}
                     </h1>
                     <p style={{ fontWeight: 600 }}># {isQuotation ? (data as Quotation).quotationNumber : (data as Invoice).invoiceNumber}</p>
                     <p>Datum: {formatDate(data.date)}</p>
@@ -57,6 +58,9 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                         Wet OB 1968), en gelijk aan de factuurdatum is hij ruis. */}
                     {supplyDate && <p>Datum levering/dienst: {formatDate(supplyDate)}</p>}
                     {isQuotation && <p>Geldig tot: {formatDate((data as Quotation).validUntil)}</p>}
+                    {/* De verwijzing hoort prominent: zonder het oorspronkelijke
+                        nummer is niet na te gaan wát er gecorrigeerd wordt. */}
+                    {creditRef && <p style={{ fontWeight: 600 }}>{creditRef}</p>}
                 </div>
                 <div style={{ textAlign: 'right', flex: 1 }}>
                     <h2 style={{ fontSize: '1.25rem', color: 'var(--foreground)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>{data.sender.name}</h2>
@@ -123,7 +127,9 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                         </div>
                     ))}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', paddingTop: '1rem', borderTop: '2px solid var(--primary)', fontWeight: 700, fontSize: '1.2rem' }}>
-                        <span>Totaal:</span>
+                        {/* Bij een creditfactuur is dit geen bedrag dat je nog
+                            krijgt maar een bedrag dat je terugneemt. */}
+                        <span>{creditRef ? 'Te crediteren:' : 'Totaal:'}</span>
                         <span>{formatCurrency(total)}</span>
                     </div>
                 </div>
@@ -146,14 +152,24 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                     )}
                     {!isQuotation && (
                         <div style={{ marginTop: '1rem', color: 'var(--secondary)' }}>
-                            <p>
-                                Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar
-                                rekeningnummer <strong>{bankAccountDisplay}</strong> ten name van{' '}
-                                <strong>{data.sender.name}</strong>. Vermeld hierbij a.u.b. het
-                                factuurnummer: <strong>{(data as Invoice).invoiceNumber}</strong>.
-                                Hartelijk dank voor uw vertrouwen!
-                            </p>
-                            {(data as Invoice).bic && <p>BIC: {(data as Invoice).bic}</p>}
+                            {/* Op een creditfactuur gaat het geld de andere kant op;
+                                "maak dit bedrag over" zou daar het tegenovergestelde
+                                vragen van wat er moet gebeuren. */}
+                            {creditRef ? (
+                                <p>
+                                    Dit bedrag wordt met u verrekend of aan u terugbetaald. Er hoeft
+                                    naar aanleiding van deze creditfactuur niets te worden overgemaakt.
+                                </p>
+                            ) : (
+                                <p>
+                                    Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar
+                                    rekeningnummer <strong>{bankAccountDisplay}</strong> ten name van{' '}
+                                    <strong>{data.sender.name}</strong>. Vermeld hierbij a.u.b. het
+                                    factuurnummer: <strong>{(data as Invoice).invoiceNumber}</strong>.
+                                    Hartelijk dank voor uw vertrouwen!
+                                </p>
+                            )}
+                            {!creditRef && (data as Invoice).bic && <p>BIC: {(data as Invoice).bic}</p>}
                         </div>
                     )}
                 </div>

@@ -97,6 +97,19 @@ export interface Invoice {
    * leeg laten betekent daar dat de factuurdatum wordt genomen.
    */
   deliveryDate?: string;
+  /**
+   * De factuur die met dit document wordt teruggedraaid.
+   *
+   * Staat dit er, dan is het een **creditfactuur**. Een uitgereikte factuur
+   * wijzig je niet — hij ligt bij je klant en je aangifte verwijst ernaar — dus
+   * corrigeren doe je met een nieuw document dat de oude terugneemt. Dat is ook
+   * de reden dat het archief niets laat bijwerken: dit is het nette alternatief.
+   *
+   * Nummer én datum, want de verwijzing naar de oorspronkelijke factuur moet
+   * duidelijk en ondubbelzinnig zijn; een nummer alleen is dat niet als je
+   * reeksen per jaar opnieuw beginnen.
+   */
+  creditOf?: { number: string; date: string };
 }
 
 /**

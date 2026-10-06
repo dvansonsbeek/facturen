@@ -88,6 +88,12 @@ const ontleed = (page: import('@playwright/test').Page, xml: string) =>
             prijs: een(NS.cbc, 'PriceAmount', alle(NS.cac, 'Price', regel)[0]!),
         }));
 
+        const regelsCredit = alle(NS.cac, 'CreditNoteLine').map((regel) => ({
+            id: een(NS.cbc, 'ID', regel),
+            aantal: een(NS.cbc, 'CreditedQuantity', regel),
+            regelbedrag: een(NS.cbc, 'LineExtensionAmount', regel),
+        }));
+
         const taxTotal = alle(NS.cac, 'TaxTotal')[0]!;
         const groepen = alle(NS.cac, 'TaxSubtotal', taxTotal).map((groep) => ({
             grondslag: een(NS.cbc, 'TaxableAmount', groep),
@@ -106,7 +112,9 @@ const ontleed = (page: import('@playwright/test').Page, xml: string) =>
             profileID: een(NS.cbc, 'ProfileID'),
             nummer: een(NS.cbc, 'ID'),
             datum: een(NS.cbc, 'IssueDate'),
-            typeCode: een(NS.cbc, 'InvoiceTypeCode'),
+            typeCode: een(NS.cbc, 'InvoiceTypeCode') ?? een(NS.cbc, 'CreditNoteTypeCode'),
+            gecrediteerd: een(NS.cbc, 'ID', alle(NS.cac, 'InvoiceDocumentReference')[0] ?? doc.createElement('x')),
+            regelsCredit,
             valuta: een(NS.cbc, 'DocumentCurrencyCode'),
             klantreferentie: een(NS.cbc, 'BuyerReference'),
             afzenderKvk: een(NS.cbc, 'EndpointID', alle(NS.cac, 'AccountingSupplierParty')[0]!),
@@ -537,6 +545,75 @@ test.describe('wat er mis kan gaan', () => {
         await app.tab('Offerte').click();
         // Een offerte is geen factuur; UBL kent er een ander documenttype voor.
         await expect(app.downloadUbl).toHaveCount(0);
+    });
+});
+
+test.describe('de creditfactuur', () => {
+    /**
+     * Een creditnota is in UBL een ánder document dan een factuur, niet een
+     * factuur met een andere code erin. NLCIUS zegt dat met zoveel woorden
+     * (BR-NL-8), en de officiële validator wees de eerste poging daarop af.
+     */
+    const maakCreditfactuur = async (page: import('@playwright/test').Page) => {
+        const app = await vulVolledigeFactuur(page);
+        const origineel = await app.documentNumber.inputValue();
+        await app.saveDocument.click();
+        await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+
+        await openFoldout(page, 'Bewaarde documenten');
+        await app.archiveRowFor(origineel).view.click();
+        await app.archiveDialog.getByRole('button', { name: 'Crediteren' }).click();
+        await expect(app.archiveDialog).not.toBeVisible();
+        return { app, origineel };
+    };
+
+    test('gaat als CreditNote de deur uit, niet als Invoice', async ({ page }) => {
+        const { app } = await maakCreditfactuur(page);
+        const { xml, naam } = await haalUbl(page);
+
+        expect(naam).toContain('ecreditfactuur');
+        const uit = await ontleed(page, xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+
+        expect(uit.wortel).toBe('CreditNote');
+        expect(uit.naamruimte).toBe('urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2');
+        expect(uit.typeCode).toBe('381');
+        // De regels heten daar ook anders.
+        expect(uit.regelsCredit.length).toBeGreaterThan(0);
+        expect(uit.regels).toHaveLength(0);
+        await expect(app.preview).toContainText('CREDITFACTUUR');
+    });
+
+    test('verwijst naar de factuur die hij terugneemt', async ({ page }) => {
+        const { origineel } = await maakCreditfactuur(page);
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+
+        // BR-55 wil de verwijzing; BR-NL-24 raadt de datum erbij juist af.
+        expect(uit.gecrediteerd).toBe(origineel);
+        expect((await haalUbl(page)).xml).not.toContain('<cac:InvoiceDocumentReference><cbc:ID>'
+            + origineel + '</cbc:ID><cbc:IssueDate>');
+    });
+
+    test('houdt de bedragen positief', async ({ page }) => {
+        await maakCreditfactuur(page);
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+
+        // De documentsoort zegt al welke kant het op gaat; een min erbij zou
+        // dat een tweede keer zeggen en daarmee omkeren.
+        expect(uit.teBetalen).toBe('1512.50');
+        expect(uit.regelsCredit[0].regelbedrag).toBe('1250.00');
+        expect((await haalUbl(page)).xml).not.toContain('>-');
+    });
+
+    test('een gewone factuur blijft Invoice met 380', async ({ page }) => {
+        await vulVolledigeFactuur(page);
+        const uit = await ontleed(page, (await haalUbl(page)).xml);
+        if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.wortel).toBe('Invoice');
+        expect(uit.typeCode).toBe('380');
+        expect(uit.gecrediteerd).toBeNull();
     });
 });
 

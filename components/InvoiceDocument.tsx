@@ -1,6 +1,6 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { Invoice, Quotation } from "@/types";
-import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 
 const COLORS = {
@@ -140,6 +140,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
     const statement = statementFor(scheme);
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
     const supplyDate = supplyDateOnDocument(data);
+    const creditRef = creditReference(data);
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const invoice = data as Invoice;
     const quotation = data as Quotation;
@@ -160,7 +161,9 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                         {/* react-pdf's Image is een PDF-primitief, geen <img>: alt bestaat hier niet. */}
                         {/* eslint-disable-next-line jsx-a11y/alt-text */}
                         {data.sender.logoUrl && <Image src={data.sender.logoUrl} style={styles.logo} />}
-                        <Text style={styles.title}>{isQuotation ? 'OFFERTE' : 'FACTUUR'}</Text>
+                        <Text style={styles.title}>
+                            {isQuotation ? 'OFFERTE' : creditRef ? 'CREDITFACTUUR' : 'FACTUUR'}
+                        </Text>
                         <Text style={styles.label}>
                             # {isQuotation ? quotation.quotationNumber : invoice.invoiceNumber}
                         </Text>
@@ -173,6 +176,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                         {isQuotation && (
                             <Text>Geldig tot: {formatDate(quotation.validUntil)}</Text>
                         )}
+                        {creditRef && <Text style={styles.label}>{creditRef}</Text>}
                     </View>
 
                     <View style={styles.headerRight}>
@@ -241,7 +245,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                             </View>
                         ))}
                         <View style={styles.grandTotal}>
-                            <Text>Totaal:</Text>
+                            <Text>{creditRef ? 'Te crediteren:' : 'Totaal:'}</Text>
                             <Text>{formatCurrency(total)}</Text>
                         </View>
                     </View>
@@ -278,15 +282,23 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                     afgeronde PDF gestempeld, zie lib/page-numbers.ts. */}
                 {!isQuotation && (
                     <View style={styles.pageFooter} fixed>
-                        <Text>
-                            Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar
-                            rekeningnummer <Text style={styles.label}>{bankAccountDisplay}</Text>
-                            {' '}ten name van <Text style={styles.label}>{data.sender.name}</Text>.
-                            {' '}Vermeld hierbij a.u.b. het factuurnummer:{' '}
-                            <Text style={styles.label}>{invoice.invoiceNumber}</Text>.
-                            {' '}Hartelijk dank voor uw vertrouwen!
-                        </Text>
-                        {!!invoice.bic && <Text>BIC: {invoice.bic}</Text>}
+                        {/* Op een creditfactuur gaat het geld de andere kant op. */}
+                        {creditRef ? (
+                            <Text>
+                                Dit bedrag wordt met u verrekend of aan u terugbetaald. Er hoeft naar
+                                aanleiding van deze creditfactuur niets te worden overgemaakt.
+                            </Text>
+                        ) : (
+                            <Text>
+                                Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar
+                                rekeningnummer <Text style={styles.label}>{bankAccountDisplay}</Text>
+                                {' '}ten name van <Text style={styles.label}>{data.sender.name}</Text>.
+                                {' '}Vermeld hierbij a.u.b. het factuurnummer:{' '}
+                                <Text style={styles.label}>{invoice.invoiceNumber}</Text>.
+                                {' '}Hartelijk dank voor uw vertrouwen!
+                            </Text>
+                        )}
+                        {!creditRef && !!invoice.bic && <Text>BIC: {invoice.bic}</Text>}
                     </View>
                 )}
             </Page>

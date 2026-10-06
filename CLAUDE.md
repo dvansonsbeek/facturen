@@ -265,6 +265,23 @@ at wherever your series currently stands. Saving likewise does **not** advance t
 counter: *Bewaren* and *Volgende factuur* are separate acts, the same distinction as
 between downloading and issuing.
 
+**Correcting a sent invoice is what the creditfactuur is for.** Immutability left no lawful
+way to fix a mistake, which was a hole this opened. `Invoice.creditOf` holds the original's
+number and date; when set, the document is a credit note. It is created from the archive —
+you credit a *specific* invoice, you do not write one from scratch — and `creditReference()`
+in `lib/utils.ts` builds the one sentence all three renderers use, because the reference to
+the original has to be clear and unambiguous.
+
+Amounts stay **positive**. The document type already says which way the money goes; a minus
+sign would say it a second time and thereby reverse it. The paper says *Te crediteren*
+instead of *Totaal* and drops the "please transfer" footer, because on a credit note the
+money moves the other way.
+
+Three paths must clear or carry `creditOf` deliberately: *Volgende factuur* clears it (else
+you would silently credit the same invoice twice), converting a quotation clears it, and
+duplicating a credit note carries it. Same class of bug as the regime migration, so
+`tests/creditnota.spec.ts` covers all three.
+
 Deletion *is* allowed, with a confirmation. Data you cannot get back out of your own
 browser is a worse outcome than data you can delete by accident; Export carries the
 archive so a copy can live outside the browser, which also makes it the backup.
@@ -406,6 +423,15 @@ validated by flipping KOR to `Z`.
 mapped anything that was not "Nederland" or already a two-letter code to `NL`, so a
 Belgian client was labelled Dutch on *every* invoice. Unknown input now makes
 `ontbrekendeVelden` refuse rather than emit a plausible lie.
+
+**A credit note is a different UBL document, not an Invoice with another code.** EN 16931
+does allow type code 381 inside an `<Invoice>`, and that is how this was written first.
+NLCIUS forbids it: **`BR-NL-8`** requires the `CreditNote` schema when the code is 381, and
+the validator rejected the first attempt. So `lib/ubl.ts` carries a `Documentvorm` — root
+element, namespace, type-code tag, line tag, quantity tag — and picks `CREDITNOTA` when
+`creditOf` is set. Reasoning alone would not have produced that rule. **`BR-NL-24`** also
+discourages repeating the original's issue date in `cac:BillingReference`, so only the
+number goes in the XML while the paper keeps both.
 
 **Two fields exist only for this** and deliberately do not appear on the PDF, because
 paper is read by a person and processing metadata does not belong there:

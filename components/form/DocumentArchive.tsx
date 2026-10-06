@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, Download, Eye, FileCode, Lock, Trash2, X } from "lucide-react";
+import { Copy, Download, Eye, FileCode, Lock, Trash2, Undo2, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { BewaardDocument } from "@/lib/documents";
+import { soortLabel, type BewaardDocument } from "@/lib/documents";
 import InvoicePreview from "../InvoicePreview";
 
 interface DocumentArchiveProps {
@@ -19,6 +19,8 @@ interface DocumentArchiveProps {
     onDownload: (bewaard: BewaardDocument) => void;
     /** Alleen voor een factuur: een offerte is geen e-factuur. */
     onDownloadUbl: (bewaard: BewaardDocument) => void;
+    /** Maakt een creditfactuur die deze factuur terugneemt. */
+    onCredit: (bewaard: BewaardDocument) => void;
 }
 
 /**
@@ -32,7 +34,7 @@ interface DocumentArchiveProps {
  */
 export default function DocumentArchive({
     documenten, opslagWerkt, vergrendeld, open, onToggle,
-    onDuplicate, onDelete, onDownload, onDownloadUbl,
+    onDuplicate, onDelete, onDownload, onDownloadUbl, onCredit,
 }: DocumentArchiveProps) {
     const [bekeken, setBekeken] = useState<BewaardDocument | null>(null);
     const venster = useRef<HTMLDialogElement>(null);
@@ -83,7 +85,7 @@ export default function DocumentArchive({
                         {documenten.map((bewaard) => (
                             <li key={bewaard.id} className="archief-regel">
                                 <div className="archief-omschrijving">
-                                    <strong>{bewaard.soort === 'offerte' ? 'Offerte' : 'Factuur'} {bewaard.nummer}</strong>
+                                    <strong>{soortLabel(bewaard.soort)} {bewaard.nummer}</strong>
                                     <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                                         {formatDate(bewaard.datum)} · {bewaard.klant || 'geen klantnaam'} · {formatCurrency(bewaard.totaal)}
                                     </span>
@@ -138,7 +140,7 @@ export default function DocumentArchive({
                     <>
                         <div className="archief-venster-balk">
                             <div>
-                                <strong>{bekeken.soort === 'offerte' ? 'Offerte' : 'Factuur'} {bekeken.nummer}</strong>
+                                <strong>{soortLabel(bekeken.soort)} {bekeken.nummer}</strong>
                                 <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--muted)' }}>
                                     Bewaard document — niet meer te wijzigen
                                 </span>
@@ -150,13 +152,25 @@ export default function DocumentArchive({
                                 {/* In het venster en niet in de regel: vier knoppen per
                                     regel is al veel, en hier kijk je toch al naar dit
                                     ene document. */}
-                                {bekeken.soort === 'factuur' && (
+                                {bekeken.soort !== 'offerte' && (
                                     <button
                                         className="premium-btn compact"
                                         onClick={() => onDownloadUbl(bekeken)}
-                                        title="Deze factuur als UBL-bestand voor de administratie van je klant"
+                                        title="Dit document als UBL-bestand voor de administratie van je klant"
                                     >
                                         <FileCode size={14} /> <span>E-factuur</span>
+                                    </button>
+                                )}
+                                {/* Alleen bij een gewone factuur: een creditfactuur
+                                    crediteren is een factuur, en dat loopt snel in de
+                                    war. Wie dat wil, maakt een nieuwe factuur. */}
+                                {bekeken.soort === 'factuur' && (
+                                    <button
+                                        className="premium-btn compact"
+                                        onClick={() => { onCredit(bekeken); setBekeken(null); }}
+                                        title="Een creditfactuur maken die deze factuur terugneemt"
+                                    >
+                                        <Undo2 size={14} /> <span>Crediteren</span>
                                     </button>
                                 )}
                                 <button

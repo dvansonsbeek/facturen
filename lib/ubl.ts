@@ -46,8 +46,46 @@ const CUSTOMIZATION_ID =
     'urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0';
 const PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
 
-/** 380 = handelsfactuur. Een creditnota (381) kent deze app nog niet. */
-const INVOICE_TYPE_CODE = '380';
+/**
+ * Een factuur en een creditnota zijn in UBL twee verschillende documenten.
+ *
+ * Dat is niet wat je zou denken: EN 16931 laat een creditnota ook toe als
+ * gewoon Invoice-document met typecode 381, en zo stond het hier eerst. NLCIUS
+ * staat dat niet toe — BR-NL-8 zegt met zoveel woorden dat bij code 381 het
+ * CreditNote-schema gebruikt móet worden. De officiële validator wees het af;
+ * zelf nadenken had deze regel niet opgeleverd.
+ *
+ * Verder is het dezelfde inhoud: andere naam voor de wortel, de typecode, de
+ * regels en het aantal per regel. De bedragen blijven positief, want de
+ * documentsoort zegt al welke kant het op gaat; een min erbij zou dat een
+ * tweede keer zeggen en daarmee omkeren.
+ */
+interface Documentvorm {
+    wortel: string;
+    naamruimte: string;
+    typeCode: string;
+    typeWaarde: string;
+    regel: string;
+    aantal: string;
+}
+
+const FACTUUR: Documentvorm = {
+    wortel: 'Invoice',
+    naamruimte: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
+    typeCode: 'cbc:InvoiceTypeCode',
+    typeWaarde: '380',
+    regel: 'cac:InvoiceLine',
+    aantal: 'cbc:InvoicedQuantity',
+};
+
+const CREDITNOTA: Documentvorm = {
+    wortel: 'CreditNote',
+    naamruimte: 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2',
+    typeCode: 'cbc:CreditNoteTypeCode',
+    typeWaarde: '381',
+    regel: 'cac:CreditNoteLine',
+    aantal: 'cbc:CreditedQuantity',
+};
 
 /** 30 = overboeking. De app kent geen andere betaalwijze. */
 const PAYMENT_MEANS_CODE = '30';
@@ -376,14 +414,14 @@ const btwTotalen = (items: LineItem[], scheme: VatScheme, clientVat?: string): s
     ].join('');
 };
 
-const regels = (items: LineItem[], scheme: VatScheme): string => {
+const regels = (items: LineItem[], scheme: VatScheme, vorm: Documentvorm): string => {
     const isVatExempt = !chargesVat(scheme);
     return items.map((item, i) => {
         const naam = item.name?.trim() || item.description.trim() || `Regel ${i + 1}`;
         return [
-            '<cac:InvoiceLine>',
+            `<${vorm.regel}>`,
             tag('cbc:ID', String(i + 1)),
-            tag('cbc:InvoicedQuantity', String(item.quantity), ` unitCode="${unitCode(item.unit)}"`),
+            tag(vorm.aantal, String(item.quantity), ` unitCode="${unitCode(item.unit)}"`),
             tag('cbc:LineExtensionAmount', bedrag(lineTotal(item)), ' currencyID="EUR"'),
             '<cac:Item>',
             tag('cbc:Name', naam),
@@ -399,7 +437,7 @@ const regels = (items: LineItem[], scheme: VatScheme): string => {
             '</cac:ClassifiedTaxCategory>',
             '</cac:Item>',
             `<cac:Price>${tag('cbc:PriceAmount', bedrag(item.unitPrice), ' currencyID="EUR"')}</cac:Price>`,
-            '</cac:InvoiceLine>',
+            `</${vorm.regel}>`,
         ].filter(Boolean).join('');
     }).join('');
 };
@@ -413,6 +451,7 @@ const regels = (items: LineItem[], scheme: VatScheme): string => {
  */
 export const buildUblInvoice = (data: Invoice): string => {
     const scheme = schemeOf(data);
+    const vorm = data.creditOf ? CREDITNOTA : FACTUUR;
     const { subtotal, total } = summariseDocument(data.items, !chargesVat(scheme));
 
     const body = [
@@ -420,12 +459,25 @@ export const buildUblInvoice = (data: Invoice): string => {
         tag('cbc:ProfileID', PROFILE_ID),
         tag('cbc:ID', data.invoiceNumber),
         tag('cbc:IssueDate', data.date),
-        tag('cbc:InvoiceTypeCode', INVOICE_TYPE_CODE),
+        tag(vorm.typeCode, vorm.typeWaarde),
         data.notes?.trim() ? tag('cbc:Note', data.notes.trim()) : '',
         tag('cbc:DocumentCurrencyCode', 'EUR'),
         // De referentie waarmee je klant de factuur terugvindt in zijn eigen
         // administratie. NLCIUS wil deze of een opdrachtnummer.
         tag('cbc:BuyerReference', (data.buyerReference ?? '').trim()),
+        // De factuur die wordt teruggedraaid. Verplicht bij een creditnota
+        // (BR-55 wil een verwijzing naar het voorafgaande stuk), en in het
+        // schema staat BillingReference hier: na BuyerReference en vóór de
+        // partijen.
+        //
+        // Alleen het nummer: de datum van de oorspronkelijke factuur erbij
+        // zetten wordt door BR-NL-24 afgeraden. Op het papier staat hij wel,
+        // want daar moet de verwijzing voor een mens ondubbelzinnig zijn.
+        data.creditOf
+            ? '<cac:BillingReference><cac:InvoiceDocumentReference>'
+              + tag('cbc:ID', data.creditOf.number)
+              + '</cac:InvoiceDocumentReference></cac:BillingReference>'
+            : '',
         afzender(data),
         ontvanger(data),
         // cac:Delivery staat in het schema tussen AccountingCustomerParty en
@@ -439,17 +491,24 @@ export const buildUblInvoice = (data: Invoice): string => {
         tag('cbc:TaxInclusiveAmount', bedrag(total), ' currencyID="EUR"'),
         tag('cbc:PayableAmount', bedrag(total), ' currencyID="EUR"'),
         '</cac:LegalMonetaryTotal>',
-        regels(data.items, scheme),
+        regels(data.items, scheme, vorm),
     ].filter(Boolean).join('');
 
     return '<?xml version="1.0" encoding="UTF-8"?>'
-        + '<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"'
+        + `<${vorm.wortel} xmlns="${vorm.naamruimte}"`
         + ' xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"'
         + ' xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">'
         + body
-        + '</Invoice>';
+        + `</${vorm.wortel}>`;
 };
 
-/** De bestandsnaam waaronder de e-factuur wordt aangeboden. */
-export const ublFilename = (invoiceNumber: string): string =>
-    `efactuur_${invoiceNumber.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.xml`;
+/**
+ * De bestandsnaam waaronder de e-factuur wordt aangeboden.
+ *
+ * Een creditnota heet ook zo: in een map met e-facturen wil je ze uit elkaar
+ * kunnen houden zonder ze te openen.
+ */
+export const ublFilename = (data: Pick<Invoice, 'invoiceNumber' | 'creditOf'>): string => {
+    const soort = data.creditOf ? 'ecreditfactuur' : 'efactuur';
+    return `${soort}_${data.invoiceNumber.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.xml`;
+};

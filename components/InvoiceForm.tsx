@@ -27,8 +27,8 @@ import {
 } from "@/lib/numbering";
 import {
     subscribeDocuments, readDocuments, readServerDocuments, bewaarDocument,
-    verwijderDocument, replaceDocuments, clearDocuments, exportDocuments,
-    type BewaardDocument,
+    verwijderDocument, replaceDocuments, clearDocuments, exportDocuments, soortLabel,
+    type BewaardDocument, type DocumentSoort,
 } from "@/lib/documents";
 import {
     subscribeKluis, readKluis, readServerKluis, exportKluis, importKluis,
@@ -239,6 +239,10 @@ export default function InvoiceForm() {
             items: [defaultItem()],
             notes: isQuotation ? 'Deze offerte is 30 dagen geldig.' : '',
             date: getInitialDates().date,
+            // Een volgend document is een gewone factuur. Bleef dit staan, dan
+            // crediteerde je ongemerkt opnieuw dezelfde factuur.
+            creditOf: undefined,
+            deliveryDate: undefined,
         }));
     };
 
@@ -292,6 +296,9 @@ export default function InvoiceForm() {
             client: { ...quotation.client },
             items: quotation.items.map(item => ({ ...item })),
             vatScheme: schemeOf(quotation),
+            // Een omgezette offerte is een gewone factuur, ook als er net nog
+            // een creditfactuur op dit tabblad stond.
+            creditOf: undefined,
             notes: `Conform offerte ${offerteNummer}.`,
             date: getInitialDates().date,
         }));
@@ -369,7 +376,11 @@ export default function InvoiceForm() {
         const genummerd = await stampPageNumbers(await gerenderd.arrayBuffer());
         const blob = new Blob([genummerd as BlobPart], { type: 'application/pdf' });
 
-        const baseName = alsOfferte ? 'Offerte' : 'Factuur';
+        // De bestandsnaam zegt wat het is: een creditfactuur die "Factuur_..."
+        // heet, raakt in een map met facturen zoek.
+        const baseName = alsOfferte
+            ? 'Offerte'
+            : (data as Invoice).creditOf ? 'Creditfactuur' : 'Factuur';
         const filename = `${sanitizeFilename(baseName)}_${sanitizeFilename(nummer)}.pdf`;
 
         const url = URL.createObjectURL(blob);
@@ -405,7 +416,7 @@ export default function InvoiceForm() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = ublFilename(data.invoiceNumber);
+        link.download = ublFilename(data);
         link.click();
         URL.revokeObjectURL(url);
         setBewaarMelding(null);
@@ -428,7 +439,9 @@ export default function InvoiceForm() {
      * onderscheid als tussen downloaden en uitreiken.
      */
     const handleSaveDocument = async () => {
-        const soort = isQuotation ? 'offerte' : 'factuur';
+        const soort: DocumentSoort = isQuotation
+            ? 'offerte'
+            : invoice.creditOf ? 'creditfactuur' : 'factuur';
 
         // Vergrendeld kan er niet bewaard worden: zonder sleutel zou dit record
         // leesbaar naast de versleutelde belanden. Zeg dat, in plaats van het op
@@ -443,13 +456,13 @@ export default function InvoiceForm() {
 
         const alBewaard = documenten.some(d => d.soort === soort && d.nummer === documentNumber);
         if (alBewaard && !window.confirm(
-            `${soort === 'offerte' ? 'Offerte' : 'Factuur'} ${documentNumber} staat al in je archief. `
+            `${soortLabel(soort)} ${documentNumber} staat al in je archief. `
             + 'Een tweede keer bewaren geeft twee documenten met hetzelfde nummer. Doorgaan?',
         )) return;
 
         const bewaard = await bewaarDocument(currentData, soort);
         setBewaarMelding(bewaard
-            ? `${soort === 'offerte' ? 'Offerte' : 'Factuur'} ${bewaard.nummer} is bewaard.`
+            ? `${soortLabel(soort)} ${bewaard.nummer} is bewaard.`
             : 'Bewaren is niet gelukt: deze browser geeft geen opslagruimte vrij.');
     };
 
@@ -466,6 +479,10 @@ export default function InvoiceForm() {
             client: { ...bewaard.document.client },
             items: bewaard.document.items.map(item => ({ ...item, id: generateId() })),
             vatScheme: schemeOf(bewaard.document),
+            // Een duplicaat van een creditfactuur crediteert dezelfde factuur;
+            // zonder dit zou het een gewone factuur worden en zou het bedrag de
+            // verkeerde kant op gaan.
+            creditOf: (bewaard.document as Invoice).creditOf,
             notes: bewaard.document.notes ?? '',
             date: getInitialDates().date,
         };
@@ -482,9 +499,44 @@ export default function InvoiceForm() {
         );
     };
 
+    /**
+     * Maakt een creditfactuur die een bewaarde factuur terugneemt.
+     *
+     * Dit is het nette alternatief voor wijzigen, en de reden dat het archief
+     * niets laat bijwerken: een uitgereikte factuur ligt bij je klant en je
+     * aangifte verwijst ernaar, dus corrigeren doe je met een nieuw stuk.
+     *
+     * De regels komen ongewijzigd mee en de bedragen blijven positief — het
+     * document zegt zelf dat het crediteert, en dat er dan óók nog een min voor
+     * zou staan draait het twee keer om.
+     */
+    const handleCreditDocument = (bewaard: BewaardDocument) => {
+        const origineel = bewaard.document as Invoice;
+        setInvoice(prev => ({
+            ...prev,
+            client: { ...origineel.client },
+            items: origineel.items.map(item => ({ ...item, id: generateId() })),
+            // Hetzelfde btw-regime als het origineel: je neemt precies terug
+            // wat je in rekening hebt gebracht, inclusief de behandeling ervan.
+            vatScheme: schemeOf(origineel),
+            creditOf: { number: bewaard.nummer, date: origineel.date },
+            buyerReference: origineel.buyerReference,
+            deliveryDate: undefined,
+            notes: '',
+            date: getInitialDates().date,
+        }));
+        setIsQuotation(false);
+        setSelectedClientId('');
+        setIsEditingClient(false);
+        setBewaarMelding(
+            `Creditfactuur opgesteld bij factuur ${bewaard.nummer}. Hij krijgt nummer `
+            + `${numbering.factuur}; pas de regels aan als je maar een deel crediteert.`,
+        );
+    };
+
     const handleDeleteDocument = async (bewaard: BewaardDocument) => {
         if (!window.confirm(
-            `${bewaard.soort === 'offerte' ? 'Offerte' : 'Factuur'} ${bewaard.nummer} uit je archief `
+            `${soortLabel(bewaard.soort)} ${bewaard.nummer} uit je archief `
             + 'verwijderen? Dit kan niet ongedaan worden gemaakt.',
         )) return;
         const gelukt = await verwijderDocument(bewaard.id);
@@ -725,6 +777,7 @@ export default function InvoiceForm() {
                         onDelete={handleDeleteDocument}
                         onDownload={handleDownloadSaved}
                         onDownloadUbl={(bewaard) => handleDownloadUbl(bewaard.document as Invoice)}
+                        onCredit={handleCreditDocument}
                     />
 
                     <ClientDetails

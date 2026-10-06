@@ -99,6 +99,27 @@ const GEVALLEN = {
     // Een leverdatum hoort ook op een gewone factuur (art. 35a lid 1 Wet OB);
     // in UBL is dat cac:Delivery, en die kent zijn eigen regels.
     leverdatum: (page) => page.locator('#leverdatum').fill('2026-09-15'),
+    /**
+     * Een creditfactuur: typecode 381 in plaats van 380, met een verwijzing
+     * naar het stuk dat wordt teruggenomen. BR-55 wil die verwijzing, en de
+     * bedragen horen positief te blijven.
+     *
+     * Hij komt uit het archief, want zo maak je er een: eerst bewaren, dan
+     * crediteren.
+     */
+    creditfactuur: async (page) => {
+        await page.getByRole('button', { name: 'Bewaren', exact: true }).click();
+        await page.locator('p.form-melding').filter({ hasText: 'is bewaard' }).waitFor();
+
+        await page.locator('details.foldout')
+            .filter({ has: page.locator('h3', { hasText: 'Bewaarde documenten' }) })
+            .locator('summary').click();
+        await page.locator('.archief-regel').first()
+            .getByRole('button', { name: 'Bekijken' }).click();
+        await page.locator('dialog.archief-venster')
+            .getByRole('button', { name: 'Crediteren' }).click();
+        await page.locator('dialog.archief-venster').waitFor({ state: 'hidden' });
+    },
 };
 
 const maakFactuur = async (browser, naam, extra) => {

@@ -87,6 +87,22 @@ export const supplyDateOnDocument = (
     return geleverd && geleverd !== data.date ? geleverd : null;
 };
 
+/**
+ * De verwijzing naar de factuur die wordt teruggedraaid, of null.
+ *
+ * Een creditfactuur moet duidelijk en ondubbelzinnig naar het oorspronkelijke
+ * stuk verwijzen, anders is bij een controle niet vast te stellen wát er
+ * gecorrigeerd is. Nummer én datum dus.
+ *
+ * Staat hier zodat het voorbeeld, de PDF en de e-factuur dezelfde zin gebruiken.
+ */
+export const creditReference = (
+    data: { creditOf?: { number: string; date: string } },
+): string | null =>
+    data.creditOf
+        ? `Creditfactuur bij factuur ${data.creditOf.number} van ${formatDate(data.creditOf.date)}.`
+        : null;
+
 /** Voorbeeldnotatie van een Nederlandse IBAN: 18 tekens, in blokken van vier. */
 export const IBAN_PLACEHOLDER = 'NLxx XXXX XXXX XXXX XX';
 
