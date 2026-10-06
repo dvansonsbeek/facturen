@@ -357,6 +357,114 @@ test('je eigen bedrijfsgegevens blijven met een zin leesbaar, en dat is de bedoe
         .toContain('2026-042');
 });
 
+/**
+ * De hele rondgang: versleutelen, exporteren, wissen, importeren, ontgrendelen.
+ *
+ * Dit is waarom de kluis — kop én proef — in het exportbestand meegaat: zodat
+ * dezelfde wachtwoordzin het bestand elders weer opent. Dat stond zo in de
+ * documentatie en werd nergens nagelopen. De losse stukken waren wel getoetst
+ * (Export schrijft versleuteld, Import vraagt om een zin), maar niet dat het
+ * invoeren van die zin je gegevens echt terugbrengt.
+ *
+ * Juist deze route mag niet stilletjes stuk zijn: hij wordt pas gebruikt als
+ * het ergens anders al misgegaan is, en de app noemt Export je enige kopie.
+ */
+test('een versleutelde reservekopie is terug te zetten en te openen', async ({ page }) => {
+    const app = ui(page);
+
+    // Iets om kwijt te raken: een klant in het boek en een bewaarde factuur.
+    await app.companyName.fill('Sonsbeek Advies BV');
+    await app.clientName.fill('Gevoelige Klant BV');
+    await app.clientAddress.fill('Kerkstraat 1');
+    await app.saveClient.click();
+    await app.itemDescription().fill('Advies');
+    await app.itemPrice().fill('100');
+    const nummer = await app.documentNumber.inputValue();
+    await app.saveDocument.click();
+    await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+
+    await stelZinIn(page);
+
+    const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        app.exportSettings.click(),
+    ]);
+    const stream = await download.createReadStream();
+    const stukken: Buffer[] = [];
+    for await (const s of stream!) stukken.push(s as Buffer);
+    const backup = Buffer.concat(stukken);
+
+    // De kopie hoort versleuteld te zijn; anders bewijst de rest niets.
+    expect(backup.toString('utf8')).not.toContain('Gevoelige Klant BV');
+
+    // Alles weg, zoals na een gewiste browser of op een ander apparaat.
+    page.once('dialog', (d) => d.accept());
+    await app.clearSettings.click();
+    await expect(app.archiveRows).toHaveCount(0);
+
+    page.once('dialog', (d) => d.accept());
+    await page.locator('input[type="file"][accept=".json"]').setInputFiles({
+        name: 'facturen_instellingen.json',
+        mimeType: 'application/json',
+        buffer: backup,
+    });
+    await expect(app.status.filter({ hasText: 'versleuteld' })).toBeVisible();
+
+    // Vergrendeld binnengekomen: zonder de zin zie je niets.
+    await openFoldout(page, 'Bewaarde documenten');
+    await expect(app.archiveRows).toHaveCount(0);
+    await expect(page.locator('.klantenboek-vergrendeld')).toBeVisible();
+
+    // En dan het punt van de hele oefening.
+    await openBeveiliging(page);
+    await app.passphrase.fill(ZIN);
+    await app.unlockArchive.click();
+
+    await openFoldout(page, 'Bewaarde documenten');
+    await expect(app.archiveRows).toHaveCount(1, { timeout: 30000 });
+    expect(normalise(await app.archiveRow().row.innerText())).toContain('Gevoelige Klant BV');
+    expect(normalise(await app.archiveRow().row.innerText())).toContain(nummer);
+    await expect(app.clientPicker.locator('option', { hasText: 'Gevoelige Klant BV' }))
+        .toHaveCount(1);
+});
+
+test('een versleutelde kopie gaat niet open met de verkeerde zin', async ({ page }) => {
+    const app = ui(page);
+    await app.companyName.fill('Sonsbeek Advies BV');
+    await app.clientName.fill('Gevoelige Klant BV');
+    await app.itemPrice().fill('100');
+    await app.saveDocument.click();
+    await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+    await stelZinIn(page);
+
+    const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        app.exportSettings.click(),
+    ]);
+    const stream = await download.createReadStream();
+    const stukken: Buffer[] = [];
+    for await (const s of stream!) stukken.push(s as Buffer);
+
+    page.once('dialog', (d) => d.accept());
+    await app.clearSettings.click();
+    page.once('dialog', (d) => d.accept());
+    await page.locator('input[type="file"][accept=".json"]').setInputFiles({
+        name: 'facturen_instellingen.json',
+        mimeType: 'application/json',
+        buffer: Buffer.concat(stukken),
+    });
+
+    await openBeveiliging(page);
+    await app.passphrase.fill('een heel andere zin');
+    await app.unlockArchive.click();
+
+    // De proef uit het bestand hoort dit te zien zonder aan de gegevens te komen.
+    await expect(app.securityStatus.filter({ hasText: 'klopt niet' }))
+        .toBeVisible({ timeout: 30000 });
+    await openFoldout(page, 'Bewaarde documenten');
+    await expect(app.archiveRows).toHaveCount(0);
+});
+
 test.describe('de uitleg', () => {
     test('noemt waar het risico zit en wat een zin niet oplost', async ({ page }) => {
         await openBeveiliging(page);

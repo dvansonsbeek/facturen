@@ -597,6 +597,13 @@ different code path, under the strict CSP — on one worker, with no retries, be
 it tests *is* the order of events. The main config carries `testIgnore: '**/uat/**'` so
 the journey does not also get dragged into the parallel run.
 
+**Two blind spots worth knowing about when adding tests.** `extractPdfLayout` reads the
+*text* layer, so anything drawn as vector — the payment QR — is invisible to it; the QR's
+caption is text and serves as its proxy. And the a11y sweeps enumerate the live DOM, which
+covers new fields for free but only in the state the test happens to be in: the unlock
+field and the archive dialog's contents exist only in states the default sweep never
+visits, so they have their own tests.
+
 `tests/uat/reis.spec.ts` is **one test with `test.step()` calls**, not a series of tests:
 Playwright gives every test a fresh browser context, which would wipe localStorage and
 IndexedDB between steps, and the whole point is that the state carries. It walks the path
