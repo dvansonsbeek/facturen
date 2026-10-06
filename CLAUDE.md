@@ -64,6 +64,7 @@ lib/
   foldouts.ts        which sections the user collapsed, persisted
   image.ts           downscales an uploaded logo so it fits in localStorage
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
+  payment-qr.ts      the EPC069-12 payment QR: payload + module matrix
   ubl.ts             the e-factuur: the same invoice as UBL/NLCIUS XML
 types/index.ts       Invoice, Quotation, Sender, Client, LineItem, VatScheme
 scripts/             controleer-publicatie, controleer-efactuur, statische-server
@@ -474,6 +475,39 @@ Why both layers exist, and why neither replaces the other:
 
 The script's own teeth were checked by removing `BuyerReference` from `lib/ubl.ts` and
 confirming it exits 1 naming `BR-NL-2` on every invoice it generates.
+
+## The payment QR
+
+`lib/payment-qr.ts` builds an **EPC069-12** SEPA credit-transfer code — beneficiary,
+IBAN, amount and the invoice number as the remittance — so the recipient scans instead of
+retyping, which is where payments go wrong.
+
+**Not iDEAL.** An iDEAL QR needs a PSP contract and a server that mints a code per
+transaction. EPC069-12 is *static*: it contains only what is already on the invoice, so it
+can be built here with nothing leaving the browser.
+
+**Not every Dutch bank reads it.** ING, bunq, Knab, SNS and ASN do; Rabobank and ABN AMRO
+are not on the list. So it is a convenience, never a replacement — the account details stay
+printed on the document exactly as before, and the caption says so.
+
+**It is suppressed where it would be wrong**: on a quotation (nothing to pay yet) and on a
+**credit note** (the money goes the other way, so a code inviting payment is not merely
+redundant but incorrect). Also when there is no IBAN, no amount, or an amount outside the
+specification's range.
+
+`qrcode-generator` is the only dependency added — MIT, **zero transitive deps**. The
+alternative, `qrcode`, pulls `yargs` (a CLI argument parser) into a browser bundle. It
+yields a module matrix rather than an image, so `components/QrCode.tsx` turns it into one
+SVG path that both the preview and the PDF draw — react-pdf has its own `Svg`/`Path`, so
+no canvas and no PNG anywhere, and the PDF stays sharp at any zoom.
+
+**Verified by decoding, not by looking.** Asserting that an `<svg>` exists proves nothing
+about whether a scanner can read it, and a wrong amount in a code someone scans blindly is
+worse than no code. Both the rendered preview and a really-downloaded PDF were rasterised
+and read back with an independent decoder (jsQR), and both returned the exact expected
+payment instruction. `tests/betaal-qr.spec.ts` covers the payload and the
+when-to-show rules; the decode check is a scratchpad exercise to repeat if the renderer
+changes.
 
 ## Two renderers, one document
 

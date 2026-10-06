@@ -1,7 +1,9 @@
-import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet, Svg, Path, Rect } from "@react-pdf/renderer";
 import { Invoice, Quotation } from "@/types";
 import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
+import { paymentQrMatrix } from "@/lib/payment-qr";
+import { qrPath } from "./QrCode";
 
 const COLORS = {
     primary: '#2563eb',
@@ -96,6 +98,20 @@ const styles = StyleSheet.create({
         fontFamily: 'Helvetica-Oblique',
     },
 
+    /* De betaal-QR met zijn bijschrift ernaast. */
+    qrBlok: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 20,
+    },
+
+    qrBijschrift: {
+        flex: 1,
+        fontSize: 8,
+        color: COLORS.secondary,
+    },
+
     footer: {
         marginTop: 'auto',
         paddingTop: 24,
@@ -141,6 +157,10 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
     const supplyDate = supplyDateOnDocument(data);
     const creditRef = creditReference(data);
+    const qr = isQuotation ? null : paymentQrMatrix(data as Invoice);
+    // Zelfde stille marge als op het scherm; zonder die rand vinden veel
+    // scanners de code niet terug.
+    const qrZijde = (qr?.length ?? 0) + 8;
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const invoice = data as Invoice;
     const quotation = data as Quotation;
@@ -257,6 +277,23 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                     </Text>
                 )}
 
+                {/* In de lopende inhoud en niet in de vaste voettekst: die wordt
+                    op elke pagina herhaald, en één betaalopdracht hoort één keer
+                    op een document te staan. Zo schuift hij bovendien netjes mee
+                    in plaats van over de regels heen te vallen. */}
+                {qr && (
+                    <View style={styles.qrBlok}>
+                        <Svg width={58} height={58} viewBox={`0 0 ${qrZijde} ${qrZijde}`}>
+                            <Rect x={0} y={0} width={qrZijde} height={qrZijde} fill="#ffffff" />
+                            <Path d={qrPath(qr)} fill="#000000" />
+                        </Svg>
+                        <Text style={styles.qrBijschrift}>
+                            Scan met je bankapp om de overschrijving ingevuld te krijgen. Werkt
+                            niet bij elke bank; de gegevens onderaan kun je altijd overnemen.
+                        </Text>
+                    </View>
+                )}
+
                 {hasFlowFooter && (
                     <View style={styles.footer}>
                         {!!data.notes && (
@@ -301,6 +338,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                         {!creditRef && !!invoice.bic && <Text>BIC: {invoice.bic}</Text>}
                     </View>
                 )}
+
             </Page>
         </Document>
     );

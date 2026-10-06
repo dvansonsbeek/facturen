@@ -3,6 +3,8 @@
 import { Invoice, Quotation } from "@/types";
 import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
+import { paymentQrMatrix } from "@/lib/payment-qr";
+import QrCode from "./QrCode";
 
 interface InvoicePreviewProps {
     data: Invoice | Quotation;
@@ -18,6 +20,9 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
     const supplyDate = supplyDateOnDocument(data);
     const creditRef = creditReference(data);
+    // Alleen op een factuur: een offerte vraagt nog niet om betaling, en een
+    // creditfactuur juist niet (dat zit in paymentQrMatrix zelf).
+    const qr = isQuotation ? null : paymentQrMatrix(data as Invoice);
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const bankAccount = (data as Invoice).bankAccount;
     const bankAccountDisplay = bankAccount ? formatIban(bankAccount) : IBAN_PLACEHOLDER;
@@ -170,6 +175,16 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                                 </p>
                             )}
                             {!creditRef && (data as Invoice).bic && <p>BIC: {(data as Invoice).bic}</p>}
+                        </div>
+                    )}
+                    {qr && (
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '1rem' }}>
+                            <QrCode matrix={qr} size={88} />
+                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--secondary)' }}>
+                                Scan deze code met je bankapp om de overschrijving ingevuld te
+                                krijgen. Werkt niet bij elke bank; de gegevens hierboven kun je
+                                altijd overnemen.
+                            </p>
                         </div>
                     )}
                 </div>
