@@ -2,6 +2,7 @@ import qrcode from "qrcode-generator";
 import { Invoice } from "@/types";
 import { roundToCents, summariseDocument } from "@/lib/utils";
 import { chargesVat, schemeOf } from "@/lib/vat-schemes";
+import { keurIban } from "@/lib/iban";
 
 /**
  * De betaal-QR op een factuur: EPC069-12, oftewel de SEPA-overschrijvingscode.
@@ -68,9 +69,15 @@ export const epcPayload = (data: Invoice): string | null => {
     // Een creditfactuur vraagt niet om een betaling, dus ook niet om een code.
     if (data.creditOf) return null;
 
-    const iban = (data.bankAccount ?? '').replace(/\s+/g, '').toUpperCase();
+    // Alleen een rekeningnummer dat zijn eigen controlegetal haalt. Geen code is
+    // beter dan een code met een tikfout erin: wie scant, kijkt niet meer na wat
+    // er in stond, en het geld kan bij een vreemde belanden.
+    const oordeel = keurIban(data.bankAccount ?? '');
+    if (!oordeel.ok) return null;
+    const iban = oordeel.genormaliseerd;
+
     const naam = kort(data.sender.name ?? '', MAX_NAAM);
-    if (!iban || !naam) return null;
+    if (!naam) return null;
 
     const { total } = summariseDocument(data.items, !chargesVat(schemeOf(data)));
     const bedrag = bedragVoorQr(total);

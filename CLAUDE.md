@@ -54,6 +54,7 @@ lib/
   utils.ts           formatting (currency, date, IBAN) + all VAT arithmetic
   vat-schemes.ts     the VAT regime: statement on paper + UBL category
   countries.ts       country names to ISO codes, and who is in the EU
+  iban.ts            the IBAN check digits (ISO 7064 MOD-97-10)
   theme.ts           light/dark store read via useSyncExternalStore
   settings.ts        company + payment details, persisted in localStorage
   clients.ts         the saved customer book, persisted
@@ -505,6 +506,25 @@ alternative, `qrcode`, pulls `yargs` (a CLI argument parser) into a browser bund
 yields a module matrix rather than an image, so `components/QrCode.tsx` turns it into one
 SVG path that both the preview and the PDF draw — react-pdf has its own `Svg`/`Path`, so
 no canvas and no PNG anywhere, and the PDF stays sharp at any zoom.
+
+**The IBAN is checked, and an unchecked one gets no QR** (`lib/iban.ts`). The app used to
+accept any string as an account number: `formatIban` only inserted spaces. A typo therefore
+became a payment instruction. Usually that just fails, but a shifted digit can land on a
+*valid* IBAN belonging to someone else — and nobody re-reads an account number they
+scanned. `keurIban` runs the ISO 7064 MOD-97-10 check digits plus the per-country length,
+which catches virtually every single-character slip and transposition, and `epcPayload`
+returns null when it fails: **no QR is better than a wrong one**. The form says which it is,
+and deliberately does not overclaim — valid check digits mean the number exists, not that
+it is yours. Confirming ownership needs a bank name-check service, which needs a backend.
+
+**What this does and does not defend against.** There is no man-in-the-middle on the QR
+because nothing is transmitted to build it: it is computed locally from the stored IBAN and
+drawn as vector shapes, and the CSP forbids the page making any request. The residual risks,
+in order: a typo (now checked), a malicious browser extension — which can rewrite anything
+in the page and which no web page can stop, as `SecurityPanel` says — and compromise of the
+GitHub delivery path, which rests on HTTPS and account security. The practical backstop is
+that a scan only pre-fills a transfer; the payer's bank shows them the account and amount
+before they confirm.
 
 **Verified by decoding, not by looking.** Asserting that an `<svg>` exists proves nothing
 about whether a scanner can read it, and a wrong amount in a code someone scans blindly is

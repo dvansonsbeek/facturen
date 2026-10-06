@@ -141,6 +141,51 @@ test.describe('op het document', () => {
         await expect(app.preview.locator('svg[aria-label="Betaal-QR volgens EPC069-12"]')).toHaveCount(0);
     });
 
+    /**
+     * De code en het papier moeten hetzelfde zeggen.
+     *
+     * Dit is de controle die er het meest op aankomt. De tests hierboven leggen
+     * de payload naast een vaste tekst in het testbestand — niet naast wat er op
+     * het document staat. Zou de QR ooit een ánder rekeningnummer of bedrag
+     * dragen dan wat de factuur afdrukt, dan betaalt wie scant iets anders dan
+     * wie overtypt, en dat merkt niemand tot het geld verkeerd staat.
+     *
+     * Allebei komen ze uit dezelfde waarde, dus ze kúnnen nu niet verschillen.
+     * Deze test houdt dat zo.
+     */
+    test('noemt hetzelfde rekeningnummer en bedrag als het document', async ({ page }) => {
+        const app = await vul(page);
+        await app.itemQuantity().fill('7');
+        await app.itemPrice().fill('123.45');
+
+        const opPapier = normalise(await app.preview.innerText());
+
+        // Het rekeningnummer zoals de factuur het afdrukt, in blokken van vier —
+        // met een laatste blok dat korter mag zijn: een NL-IBAN eindigt op twee.
+        const ibanOpPapier = opPapier.match(/NL\d\d(?: [A-Z0-9]{2,4})+/)?.[0];
+        expect(ibanOpPapier, 'geen rekeningnummer op het document').toBeTruthy();
+
+        // En het totaal zoals het eronder staat.
+        const totaalOpPapier = opPapier.match(/Totaal:\s*€\s*([\d.]+,\d\d)/)?.[1];
+        expect(totaalOpPapier, 'geen totaal op het document').toBeTruthy();
+
+        // Er moet ook echt een code staan, anders bewijst de vergelijking niets.
+        await expect(app.preview.locator('svg[aria-label^="Betaal-QR"]')).toBeVisible();
+
+        // Dezelfde invoer, maar langs het andere pad: de payloadbouwer in plaats
+        // van de renderer. Twee onafhankelijke routes naar hetzelfde antwoord.
+        const regels = epcPayload(factuur({
+            items: [{ id: '1', description: 'Advies', quantity: 7, unitPrice: 123.45, vatRate: 21 }],
+        }))!.split('\n');
+
+        expect(regels[6], 'de QR noemt een ander rekeningnummer dan het papier')
+            .toBe(ibanOpPapier!.replace(/\s/g, ''));
+
+        const papierAlsGetal = totaalOpPapier!.replace(/\./g, '').replace(',', '.');
+        expect(regels[7].replace('EUR', ''), 'de QR noemt een ander bedrag dan het papier')
+            .toBe(papierAlsGetal);
+    });
+
     test('verandert mee met het bedrag', async ({ page }) => {
         const app = await vul(page);
         const eerste = await app.preview.locator('svg[aria-label="Betaal-QR volgens EPC069-12"] path')
