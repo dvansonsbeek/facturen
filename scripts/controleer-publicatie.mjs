@@ -9,8 +9,39 @@
  *
  * Draait na `npm run build` en serveert out/ zelf, zonder extra pakket.
  */
+import { crc32, deflateSync } from 'node:zlib';
 import { chromium } from '@playwright/test';
 import { startServer, voorvoegsel } from './statische-server.mjs';
+
+/** Een echte PNG, zonder extra pakket; zie tests/png.ts voor dezelfde truc. */
+const pngChunk = (type, data) => {
+    const lengte = Buffer.alloc(4);
+    lengte.writeUInt32BE(data.length);
+    const naamEnData = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const controle = Buffer.alloc(4);
+    controle.writeUInt32BE(crc32(naamEnData));
+    return Buffer.concat([lengte, naamEnData, controle]);
+};
+
+const maakPng = (breedte, hoogte) => {
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(breedte, 0);
+    ihdr.writeUInt32BE(hoogte, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    const lijn = Buffer.concat([
+        Buffer.from([0]),
+        Buffer.concat(Array.from({ length: breedte }, () => Buffer.from([0, 70, 160]))),
+    ]);
+    return Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        pngChunk('IHDR', ihdr),
+        pngChunk('IDAT', deflateSync(Buffer.concat(Array.from({ length: hoogte }, () => lijn)))),
+        pngChunk('IEND', Buffer.alloc(0)),
+    ]);
+};
+
+const LOGO = maakPng(600, 200);
 
 const POORT = 4173;
 
@@ -69,6 +100,15 @@ await page.goto(`http://localhost:${POORT}${VOORVOEGSEL}/`, { waitUntil: 'networ
 // Herkenbare namen, zodat hierboven te zien is of er iets van het document
 // meelift in een verzoek naar buiten.
 await page.locator('input[placeholder="Mijn Bedrijf BV"]').fill('Sonsbeek Advies BV');
+// Met logo, want dat is een eigen pad: react-pdf start er een worker voor uit
+// een blob-URL, en dat was door het beveiligingsbeleid geblokkeerd. Download
+// PDF mislukte dus volledig zodra er een logo op stond, en geen enkele controle
+// zette er een.
+await page.locator('#bedrijf-logo').setInputFiles({
+    name: 'logo.png',
+    mimeType: 'image/png',
+    buffer: LOGO,
+});
 await page.locator('input[placeholder="Naam van de klant"]').fill('Geheimeklant BV');
 await page.locator('textarea[placeholder="Omschrijving goederen/ diensten"]').first().fill('Vertrouwelijk werk');
 await page.locator('input[placeholder="Eenheidsprijs"]').first().fill('100');

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ui, normalise, openFoldout, previewHeaders, waitForHydration } from '../helpers';
+import { makePng } from '../png';
 
 /**
  * De volledige reis door de app, tegen de gepubliceerde build.
@@ -40,6 +41,17 @@ test('de hele reis: twee klanten factureren, opruimen en versleutelen', async ({
 
     await test.step('mijn bedrijfsgegevens invullen', async () => {
         await openFoldout(page, 'Mijn Bedrijfsgegevens');
+        // Met logo, en dat is niet voor de sier: react-pdf start er een worker
+        // voor uit een blob-URL, en die werd door het beveiligingsbeleid
+        // geblokkeerd. Download PDF mislukte daardoor volledig zodra er een logo
+        // op stond — en deze reis zette er geen, net als alle andere controles.
+        await page.locator('#bedrijf-logo').setInputFiles({
+            name: 'logo.png',
+            mimeType: 'image/png',
+            buffer: makePng(600, 200),
+        });
+        await expect(app.preview.locator('img[alt="Logo"]')).toBeVisible();
+
         await app.companyName.fill('Sonsbeek Advies BV');
         await app.companyKvk.fill('87654321');
         await app.companyVat.fill('NL123456789B01');

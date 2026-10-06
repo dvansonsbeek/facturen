@@ -533,6 +533,16 @@ switches the document to an experimental pagination engine that turned a two-pag
 invoice into five with a wrong total. Stamping leaves the verified layout untouched.
 Revisit only if react-pdf fixes `render`; 4.9.0 is the latest as of October 2026.
 
+**A logo makes the PDF take a different path, and that path was broken for weeks.**
+react-pdf processes the image in a Web Worker started from a `blob:` URL. The CSP never
+set `worker-src`, so it fell back to `script-src`, which does not allow `blob:` — and
+**Download PDF failed outright whenever a logo was set**. Nothing noticed: no test, no
+`check:publicatie`, and no UAT step had ever put a logo on a document before exporting it.
+All three do now, and `tests/privacy.spec.ts` asserts the directive is present, because
+its absence fails silently by falling back rather than by erroring. When adding a feature
+that touches the PDF, ask which of these paths it takes — an empty document exercises far
+less than it looks like.
+
 **Text assertions cannot see layout.** Twice in one session a document nobody would
 send passed every text test: once the payment footer ran straight through the table
 rows, once an experimental pagination engine turned a two-page invoice into five

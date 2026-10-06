@@ -135,6 +135,21 @@ test('het gepubliceerde beleid laat niets naar het netwerk', async () => {
     expect(STRIKT_BELEID).toContain("'wasm-unsafe-eval'");
 });
 
+/**
+ * worker-src moet er expliciet in staan.
+ *
+ * Zonder die regel valt hij terug op script-src, waar blob: niet in staat — en
+ * dan mislukt Download PDF volledig zodra er een logo op het document staat,
+ * want react-pdf verwerkt de afbeelding in een worker uit een blob-URL. Dat
+ * heeft live gestaan. Alleen eigen herkomsten, geen host van buiten.
+ */
+test('het beleid staat een eigen worker toe, en niets van buiten', async () => {
+    const worker = STRIKT_BELEID.split('; ').find(r => r.startsWith('worker-src'));
+    expect(worker, 'worker-src ontbreekt en valt dan terug op script-src').toBeTruthy();
+    expect(worker).toContain('blob:');
+    expect(worker, 'worker-src noemt een host van buiten').not.toMatch(/https?:/);
+});
+
 test('de pagina draagt een beleid mee', async ({ page }) => {
     await page.goto('/');
     const policy = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');

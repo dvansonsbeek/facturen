@@ -68,6 +68,8 @@ export const ui = (page: Page) => ({
     itemPrice: (i = 0) => page.locator('input[placeholder="Eenheidsprijs"]').nth(i),
     itemVatRate: (i = 0) => page.locator('.item-row select').nth(i),
     addItem: page.getByRole('button', { name: /Item Toevoegen/ }),
+    /** Het prullenbakje van één regel. */
+    removeItem: (i = 0) => page.locator('.item-row button[title="Deze regel verwijderen"]').nth(i),
 
     // Betaalgegevens
     iban: page.locator('input[placeholder="NLxx XXXX XXXX XXXX XX"]'),

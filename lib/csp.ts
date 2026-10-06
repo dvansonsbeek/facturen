@@ -38,6 +38,16 @@ const gedeeld = [
     // geüpload logo is een data-URL, PDF-voorbeeld een blob
     `img-src 'self' data: blob:${tellerHost}`,
     "object-src 'self' blob:",
+    // Zonder deze regel valt worker-src terug op script-src, en daar staat
+    // blob: niet in. Gevolg: zodra er een logo op het document stond, mislukte
+    // Download PDF volledig — react-pdf start een worker uit een blob-URL om de
+    // afbeelding te verwerken. Dat heeft live gestaan, want geen test zette een
+    // logo vóór het exporteren.
+    //
+    // Dit verzwakt niets wezenlijk: een blob komt uit deze pagina zelf, dus wie
+    // hier een worker uit kan starten, kon al code in de pagina uitvoeren. Geen
+    // enkele herkomst van buiten komt erbij.
+    "worker-src 'self' blob:",
     "form-action 'none'",
     "base-uri 'none'",
 ];
