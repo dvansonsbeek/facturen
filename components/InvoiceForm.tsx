@@ -13,6 +13,7 @@ import {
 import { downscaleImage } from "@/lib/image";
 import { stampPageNumbers } from "@/lib/page-numbers";
 import { buildUblInvoice, ontbrekendeVelden, ublFilename } from "@/lib/ubl";
+import { inspecteerBackup, vervangingsVraag } from "@/lib/backup";
 import {
     subscribeFoldouts, readFoldouts, readServerFoldouts, writeFoldout,
 } from "@/lib/foldouts";
@@ -571,51 +572,76 @@ export default function InvoiceForm() {
         URL.revokeObjectURL(url);
     };
 
+    /**
+     * Importeren vervangt wat er in deze browser staat, dus eerst kijken en
+     * vragen, dan pas schrijven.
+     *
+     * Dit las eerder alles klakkeloos in: één verkeerd JSON-bestand uit je
+     * downloadmap wiste het archief voordat bleek dat er niets bruikbaars in
+     * stond. En er werd niet eens om bevestiging gevraagd, terwijl Wissen — niet
+     * destructiever — dat wel doet en er zelfs bij vertelt hoeveel er weggaat.
+     */
     const importSettings = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                try {
-                    const parsed = JSON.parse(event.target?.result as string);
-                    if (!parsed || typeof parsed !== 'object') throw new Error('geen object');
-                    // Oudere bestanden bevatten alleen de bedrijfsgegevens zelf,
-                    // zonder betaalgegevens of klantenboek eromheen.
-                    const { clients, numbering: reeks, documents, kluis: bestandsKluis, ...rest } =
-                        'sender' in parsed ? parsed : { sender: parsed };
-                    updateSettings(rest);
+        if (!file) return;
+        // Het veld leegmaken, anders kun je hetzelfde bestand niet nog eens kiezen.
+        e.target.value = '';
 
-                    // De kluis eerst: daarna weten de opslagen of wat er binnenkomt
-                    // versleuteld is, en met welke kop.
-                    if (bestandsKluis?.kop && bestandsKluis?.proef) {
-                        await importKluis(bestandsKluis);
-                    }
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const inspectie = inspecteerBackup(String(event.target?.result ?? ''));
+            if (!inspectie.ok) {
+                alert(
+                    'Dit bestand kan niet geïmporteerd worden:\n\n'
+                    + inspectie.problemen.map(p => `• ${p}`).join('\n')
+                    + '\n\nEr is niets gewijzigd.',
+                );
+                return;
+            }
 
-                    if (clients) {
-                        importClients(clients);
-                        setSelectedClientId('');
-                    }
-                    if (reeks && typeof reeks === 'object') {
-                        writeNumbering({ factuur: reeks.factuur, offerte: reeks.offerte });
-                    }
-                    // Het archief komt alleen mee als het bestand er een heeft;
-                    // een ouder bestand mag je bewaarde documenten niet wissen.
-                    if (Array.isArray(documents) && !await replaceDocuments(documents)) {
-                        setBewaarMelding('Het archief uit dit bestand kon niet bewaard worden.');
-                        return;
-                    }
-                    if (bestandsKluis?.kop) {
-                        setBewaarMelding(
-                            'Dit bestand is versleuteld. Voer bij Beveiliging en privacy de '
-                            + 'wachtwoordzin in die erbij hoort om je klanten en documenten te zien.',
-                        );
-                    }
-                } catch {
-                    alert("Ongeldig instellingenbestand.");
-                }
-            };
-            reader.readAsText(file);
-        }
+            if (!window.confirm(vervangingsVraag(inspectie.inhoud, {
+                documenten: documenten.length,
+                klanten: savedClients.length,
+            }))) return;
+
+            const { bestand } = inspectie;
+            if (bestand.sender || bestand.bankAccount || bestand.bic || bestand.paymentConditions) {
+                updateSettings({
+                    ...(bestand.sender ? { sender: bestand.sender as Sender } : {}),
+                    ...(bestand.bankAccount !== undefined ? { bankAccount: bestand.bankAccount } : {}),
+                    ...(bestand.bic !== undefined ? { bic: bestand.bic } : {}),
+                    ...(bestand.paymentConditions !== undefined
+                        ? { paymentConditions: bestand.paymentConditions } : {}),
+                });
+            }
+
+            // De kluis eerst: daarna weten de opslagen of wat er binnenkomt
+            // versleuteld is, en met welke kop.
+            if (bestand.kluis) await importKluis(bestand.kluis);
+
+            if (bestand.clients) {
+                importClients(bestand.clients);
+                setSelectedClientId('');
+            }
+            if (bestand.numbering) {
+                writeNumbering({
+                    factuur: bestand.numbering.factuur,
+                    offerte: bestand.numbering.offerte,
+                });
+            }
+            // Het archief komt alleen mee als het bestand er een heeft; een
+            // ouder bestand mag je bewaarde documenten niet wissen.
+            if (bestand.documents && !await replaceDocuments(bestand.documents)) {
+                setBewaarMelding('Het archief uit dit bestand kon niet bewaard worden.');
+                return;
+            }
+
+            setBewaarMelding(bestand.kluis
+                ? 'Geïmporteerd. Dit bestand is versleuteld: voer bij Beveiliging en privacy '
+                  + 'de wachtwoordzin in die erbij hoort om je klanten en documenten te zien.'
+                : 'Geïmporteerd.');
+        };
+        reader.readAsText(file);
     };
 
     /** Een klant uit het boek kiezen vult de velden van dit document. */

@@ -55,6 +55,28 @@ const SI_UBL = {
     bestand: 'si-ubl-2.0-2026-05-21.xsl',
 };
 
+/**
+ * De schema's, voor de volgordecontrole hieronder.
+ *
+ * UBL is een vaste reeks: de elementen moeten in de volgorde staan die het
+ * schema voorschrijft. Schematron kijkt daar niet naar — dat is het werk van de
+ * XSD — en een XSD-validator is hier niet beschikbaar. De volgorde is daarom
+ * twee keer met de hand nagelopen, bij het toevoegen van cac:Delivery en bij de
+ * creditnota. Dat schaalt niet: de volgende wijziging in lib/ubl.ts kan de
+ * volgorde breken terwijl de Schematron, alle tests en de publicatiecontrole
+ * groen blijven. Vandaar deze controle.
+ */
+const SCHEMAS = {
+    Invoice: {
+        url: 'https://docs.oasis-open.org/ubl/os-UBL-2.1/xsd/maindoc/UBL-Invoice-2.1.xsd',
+        bestand: 'UBL-Invoice-2.1.xsd',
+    },
+    CreditNote: {
+        url: 'https://docs.oasis-open.org/ubl/os-UBL-2.1/xsd/maindoc/UBL-CreditNote-2.1.xsd',
+        bestand: 'UBL-CreditNote-2.1.xsd',
+    },
+};
+
 const haalOp = async ({ url, bestand }) => {
     const pad = `${CACHE}${bestand}`;
     if (existsSync(pad)) return pad;
@@ -172,6 +194,61 @@ const maakFactuur = async (browser, naam, extra) => {
     return pad;
 };
 
+/**
+ * De elementvolgorde van het schema, als platte lijst.
+ *
+ * De reeks van een documenttype staat in de XSD als één rij verwijzingen; de
+ * plek in die rij is de voorgeschreven volgorde.
+ */
+const schemaVolgorde = async (wortel) => {
+    const xsd = await readFile(await haalOp(SCHEMAS[wortel]), 'utf8');
+    const begin = xsd.indexOf(`<xsd:complexType name="${wortel}Type">`);
+    const blok = xsd.slice(begin, xsd.indexOf('</xsd:complexType>', begin));
+    return [...blok.matchAll(/ref="((?:cbc|cac):[A-Za-z]+)"/g)].map((m) => m[1]);
+};
+
+/**
+ * De elementen direct onder de wortel, in de volgorde waarin ze voorkomen.
+ *
+ * Diepte meetellen is nodig: cac:PaymentTerms heeft zelf ook een cbc:Note, en
+ * die staat elders in het schema dan de cbc:Note van het document zelf.
+ */
+const hoofdelementen = (xml, wortel) => {
+    let diepte = 0;
+    const gevonden = [];
+    for (const m of xml.matchAll(/<(\/?)([A-Za-z]+:?[A-Za-z]*)([^>]*?)(\/?)>/g)) {
+        const [, sluit, naam, , zelfsluitend] = m;
+        if (naam === wortel) { diepte = sluit ? 0 : 1; continue; }
+        if (!naam.startsWith('cbc:') && !naam.startsWith('cac:')) continue;
+        if (sluit) { diepte--; continue; }
+        if (diepte === 1) gevonden.push(naam);
+        if (!zelfsluitend) diepte++;
+    }
+    return gevonden;
+};
+
+/** Loopt de volgorde na en geeft terug wat er niet klopt. */
+const volgordeProblemen = async (naam, xml) => {
+    const wortel = xml.includes('<CreditNote ') ? 'CreditNote' : 'Invoice';
+    const volgorde = await schemaVolgorde(wortel);
+
+    const problemen = [];
+    let vorige = -1;
+    let vorigeNaam = '';
+    for (const element of hoofdelementen(xml, wortel)) {
+        const plek = volgorde.indexOf(element);
+        if (plek === -1) {
+            problemen.push(`${naam} — ${element} hoort niet in een ${wortel}`);
+        } else if (plek < vorige) {
+            problemen.push(`${naam} — ${element} staat na ${vorigeNaam}, maar hoort ervóór`);
+        } else {
+            vorige = plek;
+            vorigeNaam = element;
+        }
+    }
+    return problemen;
+};
+
 /** Leest de SVRL-uitvoer met de DOMParser van de browser die al openstaat. */
 const overtredingen = (page, svrl) =>
     page.evaluate((svrl) => {
@@ -232,12 +309,16 @@ try {
         const gevonden = await overtredingen(page, await readFile(svrlPad, 'utf8'));
         await page.close();
 
-        if (gevonden.length === 0) {
+        // De volgorde is een aparte vraag: Schematron ziet hem niet.
+        const volgorde = await volgordeProblemen(naam, await readFile(xml, 'utf8'));
+
+        if (gevonden.length === 0 && volgorde.length === 0) {
             console.log(`  ${naam}: in orde`);
         } else {
             for (const p of gevonden) {
                 problemen.push(`${naam} — ${p.id}: ${p.tekst.slice(0, 160)}`);
             }
+            problemen.push(...volgorde);
         }
     }
 } finally {
@@ -246,10 +327,11 @@ try {
 }
 
 if (problemen.length > 0) {
-    console.error('\nDe e-factuur voldoet niet aan SI-UBL 2.0:');
+    console.error('\nDe e-factuur deugt niet:');
     for (const p of problemen) console.error(`  - ${p}`);
     process.exit(1);
 }
 console.log(
-    `  alle ${Object.keys(GEVALLEN).length} gevallen voldoen aan SI-UBL 2.0 (NLCIUS).`,
+    `  alle ${Object.keys(GEVALLEN).length} gevallen voldoen aan SI-UBL 2.0 (NLCIUS)`
+    + ' en staan in de volgorde van het UBL 2.1-schema.',
 );

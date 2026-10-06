@@ -239,8 +239,21 @@ export const exportDocuments = async (): Promise<RuwDocumentRecord[]> => {
     }
 };
 
-/** Voor Import: zet het archief op wat er in het bestand stond. */
+/**
+ * Voor Import: zet het archief op wat er in het bestand stond.
+ *
+ * Eerst nalopen, dan pas wissen. Andersom — en zo stond het hier — leegt een
+ * bestand met rommel erin je archief, loopt het vast op het eerste record en
+ * meld je achteraf dat het niet gelukt is, terwijl het origineel al weg is.
+ * lib/backup.ts controleert hetzelfde aan de voorkant; dit is de grendel
+ * eronder, want deze functie is ook los aan te roepen.
+ */
 export const replaceDocuments = async (records: RuwDocumentRecord[]): Promise<boolean> => {
+    const bruikbaar = Array.isArray(records) && records.every(
+        (r) => r && typeof (r as { id?: unknown }).id === 'string' && (r as { id: string }).id,
+    );
+    if (!bruikbaar) return false;
+
     try {
         await metWinkel(DOCUMENTEN, 'readwrite', (winkel) => winkel.clear());
         for (const record of records) {

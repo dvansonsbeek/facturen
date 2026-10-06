@@ -50,6 +50,7 @@ components/
 lib/
   csp.ts             the Content-Security-Policy the page ships with
   analytics.ts       the GoatCounter visit pixel, off unless configured
+  backup.ts          the Export/Import file format: builds it and vets it
   utils.ts           formatting (currency, date, IBAN) + all VAT arithmetic
   vat-schemes.ts     the VAT regime: statement on paper + UBL category
   countries.ts       country names to ISO codes, and who is in the EU
@@ -190,9 +191,13 @@ Three traps found by the official validator, not by reasoning:
   for `icp`, hence `cac:Delivery`. `Invoice.deliveryDate` is more general than that,
   though — see below.
 - **`cac:Delivery` must sit between `AccountingCustomerParty` and `PaymentMeans`.** UBL is
-  a fixed sequence and Schematron does not check order — that is the XSD's job, and we
-  have no XSD validator. Order was verified by extracting the sequence from
-  `UBL-Invoice-2.1.xsd` and confirming ours ascends monotonically.
+  a fixed sequence and **Schematron does not check order** — that is the XSD's job, and
+  there is no XSD validator here. `check:efactuur` therefore pulls the element sequence
+  out of the official `UBL-Invoice-2.1.xsd` and `UBL-CreditNote-2.1.xsd` and asserts ours
+  ascends monotonically, for every generated document. This replaced checking it by hand,
+  which had already been needed twice. Validated by moving `cac:Delivery` after
+  `PaymentMeans`: the Schematron passed all eight documents while the order check named
+  the fault exactly — which is the whole reason it exists.
 
 **One rule no validator can check:** `icp` to a Dutch client is a domestic supply, and to
 a non-EU client it is export. `ontbrekendeVelden` refuses both, because it is a fact about
@@ -629,10 +634,16 @@ Run the suite before and after any refactor. It exists precisely because
   `updateClient` / `updateItems`. The handlers are genuinely interdependent
   (`handleConvertToInvoice` touches both drafts, the numbering store and the tab
   state), so splitting them into hooks would likely cost more clarity than it buys.
-- Settings import (`importSettings`) only checks that the file parses to an object —
-  any shape beyond that is written straight into the settings store. That now includes
-  `documents` and `documentsKey`, which go into the archive through `replaceDocuments`
-  unvalidated.
+- **Import vets the whole file before touching anything** (`lib/backup.ts`). It used to
+  check only that the JSON parsed to an object and then write straight through — and
+  because `replaceDocuments` *clears before it writes*, a file containing
+  `documents: [1,2,3]` emptied the archive, failed on the first record, and reported the
+  failure after the originals were gone. One wrong file from a downloads folder was
+  enough. `inspecteerBackup` now returns either the content with a count or every problem
+  it found, `replaceDocuments` refuses a bad set before clearing, and the UI confirms
+  while naming what is about to be replaced — which **Wissen**, no more destructive,
+  already did. Only known setting keys are copied across; the rest of the file is ignored
+  rather than spread into the settings store.
 - **The archive is unencrypted unless the user sets a passphrase**, and company details,
   the customer book and the numbering are unencrypted either way. See *The optional
   passphrase* above for why, and for what encryption does and does not buy.
