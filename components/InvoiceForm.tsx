@@ -777,7 +777,34 @@ export default function InvoiceForm() {
                                         />
                                     </div>
                                 )}
+                                {/* Art. 35a lid 1 Wet OB 1968 wil de datum van de
+                                    levering of dienst op de factuur zodra die vaststaat
+                                    en afwijkt van de factuurdatum — en dat is het geval
+                                    zodra je achteraf factureert. Alleen bij een factuur:
+                                    bij een offerte is er nog niets geleverd. */}
+                                {!isQuotation && (
+                                    <div className="label-group">
+                                        <label className="label-wrap" htmlFor="leverdatum">
+                                            Datum levering/dienst
+                                        </label>
+                                        <input
+                                            id="leverdatum"
+                                            type="date"
+                                            value={invoice.deliveryDate || ''}
+                                            onChange={(e) => updateDocument({ deliveryDate: e.target.value })}
+                                            style={{ width: '100%' }}
+                                        />
+                                    </div>
+                                )}
                             </div>
+                            {!isQuotation && (
+                                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                    Vul <strong>Datum levering/dienst</strong> alleen in als je werk op
+                                    een andere datum is geleverd dan de factuurdatum — bijvoorbeeld als
+                                    je achteraf factureert. Hij komt dan op de factuur te staan, want
+                                    dat is dan verplicht.
+                                </p>
+                            )}
                             {/* Alleen voor de e-factuur, dus alleen bij een factuur. Hij
                                 staat niet op de PDF: een mens leest daar de factuur, en
                                 verwerkingsinformatie hoort daar niet op. */}
@@ -824,21 +851,15 @@ export default function InvoiceForm() {
                                         behandeling hoort dat op de factuur te staan.
                                     </p>
                                 )}
-                                {/* Alleen hier: de e-factuur van een intracommunautaire
-                                    levering moet de leverdatum noemen (BR-IC-11). */}
-                                {!isQuotation && vatScheme === 'icp' && (
-                                    <div className="label-group" style={{ marginTop: '0.75rem' }}>
-                                        <label className="label-wrap" htmlFor="leverdatum">
-                                            Leverdatum (leeg = de factuurdatum)
-                                        </label>
-                                        <input
-                                            id="leverdatum"
-                                            type="date"
-                                            value={invoice.deliveryDate || ''}
-                                            onChange={(e) => updateDocument({ deliveryDate: e.target.value })}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </div>
+                                {/* De e-factuur van een intracommunautaire levering moet
+                                    een leverdatum noemen (BR-IC-11). Het veld staat
+                                    hierboven bij de andere datums; hier alleen de hint
+                                    dat leeg laten de factuurdatum oplevert. */}
+                                {!isQuotation && vatScheme === 'icp' && !invoice.deliveryDate && (
+                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                        De e-factuur neemt de factuurdatum als leverdatum. Vul
+                                        <strong> Datum levering/dienst</strong> in als dat niet klopt.
+                                    </p>
                                 )}
                             </div>
                         </div>

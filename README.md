@@ -11,7 +11,7 @@ Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er i
 ## ✨ Features
 
 - **Facturen & Offertes**: Schakel eenvoudig tussen het maken van een factuur of een offerte.
-- **Nederlandse btw**: Tarieven van 21%, 9% en 0%, plus zes btw-behandelingen: normaal, de kleineondernemersregeling (KOR), btw verlegd, intracommunautaire levering, uitvoer buiten de EU en een nultarief om een andere reden. Bij elk daarvan laat de app de btw-bedragen weg en zet hij de juiste vermelding op het document — *0% zonder reden erbij is geen complete factuur* — en krijgt de e-factuur de bijbehorende UBL-categorie (`E`, `AE`, `K`, `G` of `Z`).
+- **Nederlandse btw**: Tarieven van 21%, 9% en 0%, plus vijf btw-behandelingen: normaal, de kleineondernemersregeling (KOR), btw verlegd, intracommunautaire levering en uitvoer buiten de EU. Bij alles behalve normaal laat de app de btw-bedragen weg en zet hij de juiste vermelding op het document — *0% zonder reden erbij is geen complete factuur* — en krijgt de e-factuur de bijbehorende UBL-categorie (`E`, `AE`, `K` of `G`). Een gewoon nultarief kies je niet apart: dat is het normale regime met 0% per regel, want dan hoort het tarief juist wél op de factuur te staan.
 - **Bedrijfsgegevens**: Velden voor btw-identificatienummer en KvK-nummer. Ze verschijnen alleen op het document als je ze invult.
 - **Regels met een eenheid**: Reken per **uur**, per **stuk**, per **dag**, per **km** of helemaal zonder eenheid voor een vast bedrag. Je mag ook je eigen eenheid typen.
 - **Doorlopende nummering**: De app onthoudt waar je gebleven was. **Volgende factuur** hoogt het nummer op en maakt het document leeg; het jaartal rolt vanzelf mee.
@@ -119,10 +119,11 @@ site zelf.
 1. **Bedrijfsgegevens**: Vul je eigen gegevens in bij "Mijn Bedrijfsgegevens", inclusief je btw-identificatienummer en KvK-nummer, en je rekeningnummer bij "Mijn Betaalgegevens". Dat hoeft maar één keer: de app onthoudt ze. Klap de secties daarna in.
 2. **Klant**: Kies een klant uit de lijst, of laat hem op "Nieuwe klant" staan en typ de gegevens. Met **Opslaan** komt hij in je klantenboek en kun je hem de volgende keer zo kiezen.
 3. **Opstellen**: Voeg regels toe met een naam, een omschrijving, een aantal en eventueel een eenheid (uur, stuk, dag). Kies per regel het btw-tarief.
-4. **BTW**: Kies bij **Btw-behandeling** wat er geldt: normaal, de kleineondernemersregeling, btw verlegd, een intracommunautaire levering, uitvoer buiten de EU of een nultarief om een andere reden. Bij alles behalve normaal laat de app de btw-bedragen weg en zet hij de vermelding die erbij hoort op het document — want 0% zonder reden erbij is geen complete factuur.
-5. **Afronden**: Vul eventueel betalingsvoorwaarden en opmerkingen in; die komen onderaan het document te staan.
-6. **Downloaden**: Zodra je tevreden bent met het live voorbeeld, klik je op **Download PDF**.
-7. **Volgende**: Klik op **Volgende factuur** om het nummer op te hogen en met een leeg document verder te gaan. Je klant blijft staan, want die factureer je vaker.
+4. **BTW**: Kies bij **Btw-behandeling** wat er geldt: normaal, de kleineondernemersregeling, btw verlegd, een intracommunautaire levering of uitvoer buiten de EU. Bij alles behalve normaal laat de app de btw-bedragen weg en zet hij de vermelding die erbij hoort op het document — want 0% zonder reden erbij is geen complete factuur. Een gewoon nultarief hoort bij *normaal*: kies dan 0% per regel, zodat het tarief op de factuur blijft staan.
+5. **Datum levering/dienst**: Vul die alleen in als je werk op een andere datum geleverd is dan de factuurdatum, bijvoorbeeld als je achteraf factureert. Hij komt dan op de factuur, want dat is dan verplicht (art. 35a lid 1 Wet OB 1968).
+6. **Afronden**: Vul eventueel betalingsvoorwaarden en opmerkingen in; die komen onderaan het document te staan.
+7. **Downloaden**: Zodra je tevreden bent met het live voorbeeld, klik je op **Download PDF**. Voor een zakelijke klant kun je daarnaast **E-factuur (UBL)** gebruiken.
+8. **Volgende**: Klik op **Volgende factuur** om het nummer op te hogen en met een leeg document verder te gaan. Je klant blijft staan, want die factureer je vaker.
 
 Werk je op meerdere apparaten? Gebruik **Export** en **Import** om je bedrijfsgegevens, klantenboek en nummering mee te nemen.
 

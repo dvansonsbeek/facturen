@@ -98,6 +98,41 @@ test('het btw-tarief per regel staat uit als er geen btw gerekend wordt', async 
     await expect(app.itemVatRate()).toBeEnabled();
 });
 
+test.describe('datum levering/dienst', () => {
+    /**
+     * Art. 35a lid 1 Wet OB 1968 wil de datum van de levering of dienst op de
+     * factuur "voor zover die datum vastgesteld en verschillend is van de
+     * uitreikingsdatum". Wie achteraf factureert heeft dat geval, en dat is de
+     * meeste zzp'ers aan het eind van de maand.
+     */
+    test('staat op het document als hij afwijkt van de factuurdatum', async ({ page }) => {
+        const app = await vul(page);
+        await app.deliveryDate.fill('2026-09-15');
+        await expect(app.preview).toContainText('Datum levering/dienst: 15-09-2026');
+    });
+
+    test('blijft weg als hij gelijk is aan de factuurdatum', async ({ page }) => {
+        const app = await vul(page);
+        const factuurdatum = await page.locator('#datum').inputValue();
+        await app.deliveryDate.fill(factuurdatum);
+
+        // Dezelfde datum twee keer noemen voegt niets toe; de wet vraagt hem
+        // juist alleen als hij verschilt.
+        expect(normalise(await app.preview.innerText())).not.toContain('Datum levering/dienst');
+    });
+
+    test('blijft weg als hij niet is ingevuld', async ({ page }) => {
+        const app = await vul(page);
+        expect(normalise(await app.preview.innerText())).not.toContain('Datum levering/dienst');
+    });
+
+    test('een offerte heeft er geen, want er is nog niets geleverd', async ({ page }) => {
+        const app = ui(page);
+        await app.tab('Offerte').click();
+        await expect(app.deliveryDate).toHaveCount(0);
+    });
+});
+
 test('het tarief per regel blijft bewaard na een rondje langs een ander regime', async ({ page }) => {
     const app = await vul(page);
     await app.itemVatRate().selectOption('9');

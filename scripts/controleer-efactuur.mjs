@@ -67,11 +67,11 @@ const haalOp = async ({ url, bestand }) => {
 };
 
 /**
- * Eén factuur per btw-behandeling, want elk regime raakt zijn eigen regels:
- * BR-S-* bij gewone tarieven, BR-E-* bij een vrijstelling, BR-AE-* bij
- * verlegging, BR-IC-* bij een intracommunautaire levering, BR-G-* bij uitvoer
- * en BR-Z-* bij het nultarief. Juist die regels eisen soms extra gegevens, en
- * dat is niet iets om zelf te verzinnen.
+ * Eén factuur per geval dat zijn eigen regels raakt: BR-S-* bij gewone
+ * tarieven, BR-E-* bij een vrijstelling, BR-AE-* bij verlegging, BR-IC-* bij
+ * een intracommunautaire levering, BR-G-* bij uitvoer, BR-Z-* bij een regel op
+ * 0%, en cac:Delivery zodra er een leverdatum op staat. Juist die regels eisen
+ * soms extra gegevens, en dat is niet iets om zelf te verzinnen.
  */
 const GEVALLEN = {
     normaal: async (page) => {
@@ -93,7 +93,12 @@ const GEVALLEN = {
         await page.locator('input[placeholder="Alleen invullen bij buitenlandse klanten"]').fill('Zwitserland');
         await page.locator('#btwRegime').selectOption('export');
     },
-    nultarief: (page) => page.locator('#btwRegime').selectOption('nultarief'),
+    // Het nultarief is geen eigen regime: het gewone regime met een regel op 0%
+    // levert categorie Z. BR-Z-* hoort dus langs dít pad getoetst te worden.
+    nultarief: (page) => page.locator('.item-row select').first().selectOption('0'),
+    // Een leverdatum hoort ook op een gewone factuur (art. 35a lid 1 Wet OB);
+    // in UBL is dat cac:Delivery, en die kent zijn eigen regels.
+    leverdatum: (page) => page.locator('#leverdatum').fill('2026-09-15'),
 };
 
 const maakFactuur = async (browser, naam, extra) => {
@@ -225,5 +230,5 @@ if (problemen.length > 0) {
     process.exit(1);
 }
 console.log(
-    `  alle ${Object.keys(GEVALLEN).length} btw-behandelingen voldoen aan SI-UBL 2.0 (NLCIUS).`,
+    `  alle ${Object.keys(GEVALLEN).length} gevallen voldoen aan SI-UBL 2.0 (NLCIUS).`,
 );

@@ -158,6 +158,31 @@ test.describe('de PDF en het voorbeeld lopen niet uit elkaar', () => {
         expect(text).toContain('121,00');
     });
 
+    /**
+     * De datum van de levering of dienst is wettelijk verplicht zodra hij
+     * afwijkt (art. 35a lid 1 Wet OB 1968), dus hij moet in de PDF staan en niet
+     * alleen in het voorbeeld — dat is precies het soort veld waar deze twee
+     * weergaven uit elkaar lopen.
+     */
+    test('noemt de datum van levering of dienst, net als het voorbeeld', async ({ page }) => {
+        const app = ui(page);
+        await app.itemPrice().fill('100');
+        await app.deliveryDate.fill('2026-09-15');
+        await expect(app.preview).toContainText('Datum levering/dienst: 15-09-2026');
+
+        const { text } = await downloadPdf(page);
+        expect(text).toContain('Datum levering/dienst: 15-09-2026');
+    });
+
+    test('laat die datum weg als hij gelijk is aan de factuurdatum', async ({ page }) => {
+        const app = ui(page);
+        await app.itemPrice().fill('100');
+        await app.deliveryDate.fill(await page.locator('#datum').inputValue());
+
+        const { text } = await downloadPdf(page);
+        expect(text).not.toContain('Datum levering/dienst');
+    });
+
     test('laat onder de KOR alle btw weg, net als het voorbeeld', async ({ page }) => {
         const app = ui(page);
         await app.itemPrice().fill('100');

@@ -234,8 +234,24 @@ test.describe('een factuur heeft geen vervaldatum', () => {
         expect(text).not.toContain('Vervaldatum');
     });
 
-    test('het formulier heeft maar één datumveld', async ({ page }) => {
-        await expect(page.locator('input[type="date"]')).toHaveCount(1);
+    /**
+     * Deze test stond er om te voorkomen dat er een vervaldatumveld terugkomt,
+     * en telde daarvoor de datumvelden. Inmiddels hoort er een tweede te staan:
+     * de datum van de levering of dienst, die de wet juist eist zodra die
+     * afwijkt van de factuurdatum. Daarom nu op naam en niet op aantal — anders
+     * verbiedt deze test elk nieuw datumveld, ook een dat er hoort te zijn.
+     */
+    test('het formulier heeft geen vervaldatumveld', async ({ page }) => {
+        const datumvelden = page.locator('input[type="date"]');
+        await expect(datumvelden).toHaveCount(2);
+        await expect(page.locator('#datum')).toHaveCount(1);
+        await expect(page.locator('#leverdatum')).toHaveCount(1);
+
+        // Geen veld dat naar een vervaldatum riekt, onder welke naam ook.
+        const namen = await datumvelden.evaluateAll(
+            (velden) => velden.map((v) => `${v.id} ${(v as HTMLInputElement).labels?.[0]?.textContent ?? ''}`),
+        );
+        expect(namen.join(' ').toLowerCase()).not.toContain('verval');
     });
 
     test('de betaaltermijn staat alleen in de betalingsvoorwaarden', async ({ page }) => {

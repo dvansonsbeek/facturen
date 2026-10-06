@@ -50,14 +50,6 @@ export interface VatSchemeInfo {
     /** De UBL-categorie (EN 16931). Null bij `normaal`: die volgt het tarief per regel. */
     ublCategory: 'E' | 'AE' | 'K' | 'G' | 'Z' | null;
     /**
-     * Of de vermelding ook als `TaxExemptionReason` in de e-factuur hoort.
-     *
-     * Niet bij het nultarief: BR-Z-10 verbiedt een reden bij categorie Z, want
-     * daar is niets om vrij te stellen — er geldt btw, tegen nul procent. De
-     * zin op het papier blijft wel staan; dat is een ander veld dan dit.
-     */
-    ublExemptionReason: boolean;
-    /**
      * Of het btw-nummer van de klant verplicht is. Bij een verlegde factuur en
      * een intracommunautaire levering wel — zowel de wet als de e-factuurregels
      * (BR-AE-*, BR-IC-*) eisen het, want zonder dat nummer kan de ontvanger de
@@ -72,7 +64,6 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
         hint: 'De gewone situatie: 21% of 9% per regel, of 0% als dat het juiste tarief is.',
         statement: '',
         ublCategory: null,
-        ublExemptionReason: false,
         requiresClientVat: false,
     },
     kor: {
@@ -81,7 +72,6 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
         statement:
             'Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).',
         ublCategory: 'E',
-        ublExemptionReason: true,
         requiresClientVat: false,
     },
     verlegd: {
@@ -89,7 +79,6 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
         hint: 'De verleggingsregeling, bijvoorbeeld bij onderaanneming in de bouw of bij uitlenen van personeel. Je klant draagt de btw af.',
         statement: 'Btw verlegd naar de afnemer. Verleggingsregeling van toepassing.',
         ublCategory: 'AE',
-        ublExemptionReason: true,
         requiresClientVat: true,
     },
     icp: {
@@ -97,7 +86,6 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
         hint: 'Levering aan een ondernemer in een ander EU-land met een geldig btw-nummer. Je klant geeft de btw in zijn eigen land aan.',
         statement: 'Intracommunautaire levering, 0% btw.',
         ublCategory: 'K',
-        ublExemptionReason: true,
         requiresClientVat: true,
     },
     export: {
@@ -105,22 +93,35 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
         hint: 'Levering aan een klant buiten de Europese Unie.',
         statement: 'Uitvoer buiten de EU, 0% btw.',
         ublCategory: 'G',
-        ublExemptionReason: true,
         requiresClientVat: false,
     },
+    /**
+     * Niet meer te kiezen, en met opzet nog aanwezig.
+     *
+     * Dit regime was er even, en het was verkeerd bedacht. Een echt nultarief
+     * is geen vrijstelling: de wet wil dan juist dát het tarief en het bedrag
+     * op de factuur staan, en dit regime verborg ze. Precies de informatie die
+     * `normaal` met een regel op 0% wél toont — met dezelfde UBL-categorie Z,
+     * want die volgt daar het tarief van de regel. De gevallen waar wél een
+     * vermelding bij hoort (verlegging, intracommunautair, uitvoer) hebben hun
+     * eigen regime hierboven, dus er bleef niets over om te dekken.
+     *
+     * Het staat er nog omdat een bewaard document deze waarde kan hebben, en
+     * een uitgereikt document moet blijven renderen zoals het is uitgereikt —
+     * dezelfde reden dat `isVatExempt` nog bestaat. Nieuwe documenten kunnen
+     * het niet krijgen: het staat niet in VAT_SCHEME_ORDER.
+     */
     nultarief: {
         label: 'Nultarief — 0% btw om een andere reden',
-        hint: 'Een echt nultarief dat niet onder de gevallen hierboven valt. Zet in Opmerkingen waarom het van toepassing is.',
+        hint: 'Niet meer te kiezen; gebruik het gewone regime met 0% per regel.',
         statement: '0% btw.',
         ublCategory: 'Z',
-        // BR-Z-10: bij het nultarief mag er geen reden staan.
-        ublExemptionReason: false,
         requiresClientVat: false,
     },
 };
 
-export const VAT_SCHEME_ORDER: VatScheme[] =
-    ['normaal', 'kor', 'verlegd', 'icp', 'export', 'nultarief'];
+/** Wat er in de keuzelijst staat, in deze volgorde. */
+export const VAT_SCHEME_ORDER: VatScheme[] = ['normaal', 'kor', 'verlegd', 'icp', 'export'];
 
 /**
  * Het regime van een document, ook als het van vóór deze keuze is.
@@ -129,8 +130,12 @@ export const VAT_SCHEME_ORDER: VatScheme[] =
  * records met alleen het oude `isVatExempt`. Die blijven zo gewoon leesbaar; de
  * migratie zit hier en niet in de opslag.
  */
-export const schemeOf = (data: Pick<Invoice | Quotation, 'vatScheme' | 'isVatExempt'>): VatScheme =>
-    data.vatScheme ?? (data.isVatExempt ? 'kor' : 'normaal');
+export const schemeOf = (data: Pick<Invoice | Quotation, 'vatScheme' | 'isVatExempt'>): VatScheme => {
+    // Een geïmporteerd bestand mag hier alles in gezet hebben, en een regime dat
+    // ooit verdwijnt mag de app niet laten omvallen op een ontbrekende tabelrij.
+    if (data.vatScheme && data.vatScheme in VAT_SCHEMES) return data.vatScheme;
+    return data.isVatExempt ? 'kor' : 'normaal';
+};
 
 /** Of er btw berekend en vermeld wordt. Alleen bij het gewone regime. */
 export const chargesVat = (scheme: VatScheme): boolean => scheme === 'normaal';

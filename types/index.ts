@@ -2,6 +2,9 @@
  * De btw-behandeling van een document. Wat elk regime betekent, welke
  * vermelding erbij hoort en welke UBL-categorie het krijgt, staat in
  * lib/vat-schemes.ts; hier alleen de namen, zodat types de bladmodule blijft.
+ *
+ * `nultarief` is niet meer te kiezen, maar staat er nog: zie VAT_SCHEMES. Een
+ * bewaard document met die waarde moet blijven renderen zoals het is uitgereikt.
  */
 export type VatScheme = 'normaal' | 'kor' | 'verlegd' | 'icp' | 'export' | 'nultarief';
 
@@ -83,12 +86,15 @@ export interface Invoice {
    */
   buyerReference?: string;
   /**
-   * Wanneer er geleverd is, als dat niet de factuurdatum is.
+   * De datum waarop de levering of de dienst heeft plaatsgevonden.
    *
-   * Alleen van belang bij een intracommunautaire levering: BR-IC-11 wil die
-   * datum (of een factuurperiode) in de e-factuur. Staat hij leeg, dan neemt
-   * de e-factuur de factuurdatum. Het veld staat daarom ook alleen in het
-   * formulier als dat regime gekozen is.
+   * Art. 35a lid 1 Wet OB 1968 wil die datum op de factuur zodra hij vaststaat
+   * én afwijkt van de factuurdatum — wat normaal is als je achteraf factureert.
+   * Daarom staat hij op het document, maar alleen als hij echt afwijkt: gelijk
+   * aan de factuurdatum is het ruis.
+   *
+   * Bij een intracommunautaire levering eist de e-factuur hem ook (BR-IC-11);
+   * leeg laten betekent daar dat de factuurdatum wordt genomen.
    */
   deliveryDate?: string;
 }

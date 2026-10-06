@@ -69,6 +69,24 @@ export const formatDate = (isoDate: string): string => {
     return `${day}-${month}-${year}`;
 };
 
+/**
+ * De datum van de levering of dienst, als die op het document hoort te staan.
+ *
+ * Art. 35a lid 1 Wet OB 1968 wil die datum op de factuur "voor zover die datum
+ * vastgesteld en verschillend is van de uitreikingsdatum" — dus precies wanneer
+ * hij afwijkt. Is hij gelijk aan de factuurdatum, dan voegt hij niets toe en
+ * laten we hem weg.
+ *
+ * Staat hier en niet in de twee renderers, zodat het voorbeeld en de PDF niet
+ * elk hun eigen versie van die regel krijgen.
+ */
+export const supplyDateOnDocument = (
+    data: { date: string; deliveryDate?: string },
+): string | null => {
+    const geleverd = (data.deliveryDate ?? '').trim();
+    return geleverd && geleverd !== data.date ? geleverd : null;
+};
+
 /** Voorbeeldnotatie van een Nederlandse IBAN: 18 tekens, in blokken van vier. */
 export const IBAN_PLACEHOLDER = 'NLxx XXXX XXXX XXXX XX';
 

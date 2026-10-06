@@ -1,6 +1,6 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { Invoice, Quotation } from "@/types";
-import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 
 const COLORS = {
@@ -139,6 +139,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
     const isVatExempt = !chargesVat(scheme);
     const statement = statementFor(scheme);
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
+    const supplyDate = supplyDateOnDocument(data);
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const invoice = data as Invoice;
     const quotation = data as Quotation;
@@ -164,6 +165,11 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                             # {isQuotation ? quotation.quotationNumber : invoice.invoiceNumber}
                         </Text>
                         <Text>Datum: {formatDate(data.date)}</Text>
+                        {/* Alleen als hij afwijkt: dan is hij verplicht (art. 35a lid 1
+                            Wet OB 1968), en gelijk aan de factuurdatum is hij ruis. */}
+                        {supplyDate && (
+                            <Text>Datum levering/dienst: {formatDate(supplyDate)}</Text>
+                        )}
                         {isQuotation && (
                             <Text>Geldig tot: {formatDate(quotation.validUntil)}</Text>
                         )}

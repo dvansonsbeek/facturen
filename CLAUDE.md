@@ -146,7 +146,15 @@ different UBL category:
 | `verlegd` | btw verlegd, verleggingsregeling | `AE` | **yes** |
 | `icp` | intracommunautaire levering | `K` | **yes** |
 | `export` | uitvoer buiten de EU | `G` | no |
-| `nultarief` | 0% btw | `Z` | no |
+
+**A plain zero rate is not a regime** — it is `normaal` with lines at 0%, which already
+shows `BTW (0%): € 0,00` and already produces UBL category `Z` via the per-rate path.
+A `nultarief` regime existed briefly and was wrong: a genuine zero rate is not an
+exemption, so the law wants the rate and the amount *shown*, and that regime hid them.
+It survives in `VAT_SCHEMES` but not in `VAT_SCHEME_ORDER`, so it cannot be chosen while
+an archived document carrying it still renders as issued — the same reason `isVatExempt`
+is still there. `schemeOf()` also falls back to `normaal` for any value it does not
+recognise, so an imported file cannot crash the app on a missing table row.
 
 This replaced a plain `isVatExempt` boolean plus a bare 0% rate, which said *nothing*
 about why there was no VAT — incomplete on paper and wrong in the XML. The regime is
@@ -173,11 +181,12 @@ VAT amounts, total equal to the subtotal, plus the statement. That is why
 Three traps found by the official validator, not by reasoning:
 
 - **`BR-Z-10` forbids an exemption reason on category `Z`.** The statement on paper and
-  the UBL `TaxExemptionReason` are *different fields*; `ublExemptionReason` says which
-  regimes may emit one.
+  the UBL `TaxExemptionReason` are *different fields*. Only the retired `nultarief`
+  regime maps to `Z`; a 0% line under `normaal` goes through the per-rate loop, which
+  never emits a reason.
 - **`BR-IC-11` and `BR-IC-12`** require an actual delivery date and a deliver-to country
-  for `icp`, hence `Invoice.deliveryDate` (shown only for that regime, defaulting to the
-  invoice date) and `cac:Delivery`.
+  for `icp`, hence `cac:Delivery`. `Invoice.deliveryDate` is more general than that,
+  though — see below.
 - **`cac:Delivery` must sit between `AccountingCustomerParty` and `PaymentMeans`.** UBL is
   a fixed sequence and Schematron does not check order — that is the XSD's job, and we
   have no XSD validator. Order was verified by extracting the sequence from
@@ -203,6 +212,19 @@ keep working. Sequence resets to `-001` when the year changes. Invoices and quot
 have separate series. The counter lives in `localStorage`, so **two devices means two
 diverging series and genuine duplicate risk** — there is no fix for that without a
 backend; Export/Import carries the counter so it travels with the rest.
+
+**The date of supply belongs on the invoice when it differs.** Art. 35a lid 1 Wet OB 1968
+wants the date the goods or service were supplied *"voor zover die datum vastgesteld en
+verschillend is van de uitreikingsdatum"* — which is the normal case the moment you
+invoice after the fact, as most freelancers do at month end. `Invoice.deliveryDate` holds
+it, and `supplyDateOnDocument()` in `lib/utils.ts` decides whether it is shown: filled
+*and* different from the invoice date. Equal to the invoice date it is noise, so it is
+suppressed. That one rule lives in `utils.ts` rather than in the renderers, so the
+preview and the PDF cannot disagree about it; both print it, and `tests/pdf.spec.ts`
+checks they match. In UBL it is `cac:Delivery/cbc:ActualDeliveryDate`, emitted whenever
+the field is set — not only for `icp`, which merely *also* requires it.
+
+Note this is a different field from a due date, and does not reopen that question:
 
 **No vervaldatum on an invoice.** Only the *factuurdatum* is legally required (art. 35a
 Wet OB 1968); the payment term is contractual and lives in `paymentConditions`. A

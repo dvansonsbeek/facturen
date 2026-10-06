@@ -199,22 +199,31 @@ const adres = (
 /**
  * Waar en wanneer er geleverd is.
  *
- * Alleen nodig bij een intracommunautaire levering: BR-IC-11 wil de
- * leverdatum (of een factuurperiode) en BR-IC-12 de landcode van de
- * bestemming. Bij de andere regimes voegt het niets toe, en wat niets toevoegt
- * laten we weg.
+ * De leverdatum (BT-72) gaat mee zodra die is ingevuld — die hoort ook op het
+ * papier (art. 35a lid 1 Wet OB 1968), dus de twee zeggen hetzelfde. Bij een
+ * intracommunautaire levering móet er een datum staan (BR-IC-11) en ook de
+ * landcode van de bestemming (BR-IC-12); leeg laten betekent daar dat de
+ * factuurdatum wordt genomen.
+ *
+ * Staat er niets in te vullen, dan blijft het hele blok weg: wat niets
+ * toevoegt hoort niet in het bestand.
  */
 const levering = (data: Invoice, scheme: VatScheme): string => {
-    if (scheme !== 'icp') return '';
-    const land = landcode(data.client.country);
+    const datum = (data.deliveryDate || '').trim();
+    if (!datum && scheme !== 'icp') return '';
+
     return [
         '<cac:Delivery>',
-        tag('cbc:ActualDeliveryDate', (data.deliveryDate || data.date).trim()),
-        '<cac:DeliveryLocation><cac:Address><cac:Country>',
-        tag('cbc:IdentificationCode', land ?? 'NL'),
-        '</cac:Country></cac:Address></cac:DeliveryLocation>',
+        // ActualDeliveryDate vóór DeliveryLocation: cac:Delivery is zelf ook
+        // een vaste reeks.
+        tag('cbc:ActualDeliveryDate', datum || data.date.trim()),
+        scheme === 'icp'
+            ? '<cac:DeliveryLocation><cac:Address><cac:Country>'
+              + tag('cbc:IdentificationCode', landcode(data.client.country) ?? 'NL')
+              + '</cac:Country></cac:Address></cac:DeliveryLocation>'
+            : '',
         '</cac:Delivery>',
-    ].join('');
+    ].filter(Boolean).join('');
 };
 
 const afzender = (data: Invoice): string => {
@@ -309,10 +318,14 @@ const btwTotalen = (items: LineItem[], scheme: VatScheme, clientVat?: string): s
         // Eén groep: de hele grondslag, nul btw, de categorie van het regime en
         // de reden erbij. Dezelfde zin als op het papier, zodat de twee niet
         // uit elkaar lopen.
-        const reden = VAT_SCHEMES[scheme].ublExemptionReason
-            ? [statementFor(scheme), clientVatStatement(scheme, clientVat)]
-                .filter(Boolean).join(' ')
-            : '';
+        // Let op BR-Z-10: bij categorie Z mág er geen reden staan. Dat raakt
+        // alleen het ingetrokken `nultarief`-regime, dat nog voor bewaarde
+        // documenten bestaat; een 0%-regel onder `normaal` loopt via de
+        // tarievenlus hieronder en krijgt daar nooit een reden mee.
+        const reden = VAT_SCHEMES[scheme].ublCategory === 'Z'
+            ? ''
+            : [statementFor(scheme), clientVatStatement(scheme, clientVat)]
+                .filter(Boolean).join(' ');
         return [
             '<cac:TaxTotal>',
             tag('cbc:TaxAmount', bedrag(0), ' currencyID="EUR"'),

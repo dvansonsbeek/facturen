@@ -1,7 +1,7 @@
 "use client";
 
 import { Invoice, Quotation } from "@/types";
-import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 
 interface InvoicePreviewProps {
@@ -16,6 +16,7 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
     const isVatExempt = !chargesVat(scheme);
     const statement = statementFor(scheme);
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
+    const supplyDate = supplyDateOnDocument(data);
     const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
     const bankAccount = (data as Invoice).bankAccount;
     const bankAccountDisplay = bankAccount ? formatIban(bankAccount) : IBAN_PLACEHOLDER;
@@ -52,6 +53,9 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                     </h1>
                     <p style={{ fontWeight: 600 }}># {isQuotation ? (data as Quotation).quotationNumber : (data as Invoice).invoiceNumber}</p>
                     <p>Datum: {formatDate(data.date)}</p>
+                    {/* Alleen als hij afwijkt: dan is hij verplicht (art. 35a lid 1
+                        Wet OB 1968), en gelijk aan de factuurdatum is hij ruis. */}
+                    {supplyDate && <p>Datum levering/dienst: {formatDate(supplyDate)}</p>}
                     {isQuotation && <p>Geldig tot: {formatDate((data as Quotation).validUntil)}</p>}
                 </div>
                 <div style={{ textAlign: 'right', flex: 1 }}>

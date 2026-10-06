@@ -301,7 +301,6 @@ test.describe('0% heeft een reden, en elke reden een eigen categorie', () => {
         { regime: 'verlegd', categorie: 'AE', zin: 'Btw verlegd' },
         { regime: 'icp', categorie: 'K', zin: 'Intracommunautaire levering' },
         { regime: 'export', categorie: 'G', zin: 'Uitvoer buiten de EU' },
-        { regime: 'nultarief', categorie: 'Z', zin: '0% btw' },
     ] as const;
 
     for (const { regime, categorie, zin } of GEVALLEN) {
@@ -329,16 +328,28 @@ test.describe('0% heeft een reden, en elke reden een eigen categorie', () => {
         });
     }
 
-    /** BR-Z-10: bij het nultarief mág er juist geen reden staan. */
-    test('het nultarief krijgt geen vrijstellingsreden mee', async ({ page }) => {
+    /**
+     * Een nultarief is géén regime meer.
+     *
+     * Het was er even, en het was verkeerd bedacht: het verborg het tarief en
+     * het bedrag die de wet bij een echt nultarief juist op de factuur wil
+     * hebben. Het gewone regime met een regel op 0% toont die wel, en levert
+     * dezelfde UBL-categorie Z. BR-Z-10 verbiedt daar een vrijstellingsreden,
+     * en die komt er langs dat pad ook niet.
+     */
+    test('een nultarief is het gewone regime met 0% per regel, niet een eigen keuze', async ({ page }) => {
         const app = await vulVolledigeFactuur(page);
-        await app.vatScheme.selectOption('nultarief');
+        await expect(app.vatScheme.locator('option[value="nultarief"]')).toHaveCount(0);
+
+        await app.itemVatRate().selectOption('0');
+        // Het tarief hoort zichtbaar te zijn — dat is precies wat het
+        // ingetrokken regime wegliet.
+        await expect(app.preview).toContainText('BTW (0%)');
 
         const uit = await ontleed(page, (await haalUbl(page)).xml);
         if ('fout' in uit) throw new Error(uit.fout);
+        expect(uit.groepen[0].categorie).toBe('Z');
         expect(uit.groepen[0].reden).toBeNull();
-        // Op het papier staat de zin wél: dat is een ander veld.
-        await expect(app.preview).toContainText('0% btw');
     });
 
     test('verlegd en icp zetten het btw-nummer van de klant op het document', async ({ page }) => {
