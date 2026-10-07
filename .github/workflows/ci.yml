@@ -10,7 +10,18 @@ on:
 
 jobs:
   controleren:
-    runs-on: ubuntu-latest
+    # Vastgezet op 24.04. Op 19 oktober 2026 verschuift ubuntu-latest naar
+    # Ubuntu 26, en `playwright install --with-deps` installeert apt-pakketten
+    # uit een lijst die Playwright per Ubuntu-versie bijhoudt. Loopt die achter
+    # op het image, dan valt die stap om — en in pages.yml houdt dat de
+    # publicatie tegen.
+    #
+    # Verhuizen doen we zelf, en deze workflow is de proef: zet hem in een pull
+    # request op ubuntu-26.04 en laat hem draaien. Hij doet alles wat eraan
+    # hangt — Playwright met zijn systeempakketten, de JRE, de Schematron, de
+    # publicatiebuild en beide UAT-reizen. Groen betekent dat pages.yml mee kan;
+    # rood kost niets, want main staat dan nog op 24.04.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
