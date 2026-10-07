@@ -21,8 +21,11 @@ This repo is a fork of [eraycode/factuurr](https://github.com/eraycode/factuurr)
 - Two remotes: `origin` is this fork at
   [dvansonsbeek/facturen](https://github.com/dvansonsbeek/facturen) (public), `upstream`
   is Eray's original. Every push to `main` publishes to
-  [dvansonsbeek.github.io/facturen](https://dvansonsbeek.github.io/facturen/) via
-  GitHub Pages, gated on the test suite. Never push to `upstream`.
+  [factuurr.nl](https://factuurr.nl/) via GitHub Pages, gated on the test suite.
+  The custom domain is set on the repo, so the site sits at the **root** and
+  `PAGES_BASE_PATH` is no longer set anywhere — `next.config.ts` then leaves
+  `basePath` and `assetPrefix` off. The old project URL redirects here. Never
+  push to `upstream`.
 - The first four commits (Feb 2026, authored by Eray) are kept intentionally as
   provenance. Do not rewrite that history.
 - The repo was published under MIT after a deliberate decision; see the licence note
@@ -599,8 +602,8 @@ npx playwright install chromium   # once, and again after upgrading @playwright/
 npm test                          # the suites, against `next dev`
 
 npm run build && npm run test:uat # the UAT journey, against the published build
-PAGES_BASE_PATH=/facturen npm run build && PAGES_BASE_PATH=/facturen npm run test:uat
-UAT_BASE_URL=https://dvansonsbeek.github.io/facturen/ npm run test:uat
+PAGES_BASE_PATH=/sub npm run build && PAGES_BASE_PATH=/sub npm run test:uat  # alleen nog als oefening
+UAT_BASE_URL=https://factuurr.nl/ npm run test:uat
 
 npm run check:efactuur            # the e-factuur through the official SI-UBL validator
 ```

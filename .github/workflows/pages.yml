@@ -52,13 +52,15 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm test
 
-      # Alleen de gepubliceerde build staat onder /facturen; lokaal en in de
-      # tests draait de app op de root. De bezoekersteller zit er om dezelfde
-      # reden alleen hier in: zonder deze variabele bouwt hij geen telpixel en
-      # blijft het beveiligingsbeleid onveranderd (zie lib/analytics.ts).
+      # Geen PAGES_BASE_PATH meer: sinds factuurr.nl een eigen domein is, staat
+      # de app op de root en niet onder /facturen. next.config.ts laat basePath
+      # en assetPrefix dan vanzelf weg — daar was die variabele voor bedoeld.
+      #
+      # De bezoekersteller zit hier wél, en alleen hier: zonder die variabele
+      # bouwt de app geen telpixel en blijft het beveiligingsbeleid onveranderd
+      # (zie lib/analytics.ts).
       - run: npm run build
         env:
-          PAGES_BASE_PATH: /facturen
           NEXT_PUBLIC_GOATCOUNTER: ${{ vars.GOATCOUNTER_CODE }}
           # De naam van de Ko-fi-pagina, zonder ko-fi.com ervoor. Niet gezet is
           # geen verwijzing; er wordt nergens een knopscript van buiten geladen,
@@ -68,27 +70,20 @@ jobs:
       # De gepubliceerde versie draait onder een strenger beveiligingsbeleid dan
       # de ontwikkelserver, dus een fout daarin merk je niet in de testsuite.
       # Deze controle opent de echte build en kijkt of de PDF het nog doet en er
-      # niets naar buiten gaat. Hetzelfde voorvoegsel als de build, anders
-      # bedient de controle een andere URL dan er gepubliceerd wordt.
+      # niets naar buiten gaat.
       - run: npm run check:publicatie
-        env:
-          PAGES_BASE_PATH: /facturen
 
       # De hele reis door de app, tegen de build die hierna gepubliceerd wordt:
       # twee klanten factureren, er een weggooien, een offerte omzetten, alles
       # versleutelen en opruimen. Vindt wat alleen in de volgorde zit.
       - name: UAT-reis op de publicatiebuild
         run: npm run test:uat
-        env:
-          PAGES_BASE_PATH: /facturen
 
       # De e-factuur door de Schematron van de Nederlandse Peppolautoriteit.
       # Onafhankelijk van onze eigen tests: die zijn door dezelfde hand
       # geschreven als lib/ubl.ts en kunnen alleen bevestigen wat daar al stond.
       - name: E-factuur tegen SI-UBL 2.0
         run: npm run check:efactuur
-        env:
-          PAGES_BASE_PATH: /facturen
 
       # _next begint met een liggend streepje en zou door Jekyll worden
       # overgeslagen. Deze actie draait geen Jekyll, maar het kost niets.
@@ -137,9 +132,9 @@ jobs:
           done
           echo "$URL gaf na vijf minuten geen 200"; exit 1
         env:
-          URL: https://dvansonsbeek.github.io/facturen/
+          URL: https://factuurr.nl/
 
       - name: UAT-reis op de gepubliceerde site
         run: npm run test:uat
         env:
-          UAT_BASE_URL: https://dvansonsbeek.github.io/facturen/
+          UAT_BASE_URL: https://factuurr.nl/

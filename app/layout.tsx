@@ -20,12 +20,13 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: 
  * metadataBase maakt de verwijzingen naar de deelafbeelding absoluut; zonder
  * basis zet Next er relatieve paden neer en daar kan een crawler niets mee.
  *
- * Let op: hier hoort alléén het domein, zonder /facturen. Next plakt het
- * basispad zelf al voor de afbeeldingsroute, dus met het pad erin krijg je
- * .../facturen/facturen/opengraph-image.png en laadt de deelafbeelding niet.
- * De volledige URL van de site staat los, voor og:url.
+ * Hier hoort alléén het domein, zonder pad. Next plakt een eventueel basispad
+ * zelf al voor de afbeeldingsroute, dus met een pad erin krijg je het twee keer
+ * en laadt de deelafbeelding niet. Sinds de site op een eigen domein staat is er
+ * geen basispad meer, maar de regel blijft gelden als dat ooit terugkomt. De
+ * volledige URL van de site staat los, voor og:url.
  */
-const origin = "https://dvansonsbeek.github.io";
+const origin = "https://factuurr.nl";
 const siteUrl = `${origin}${process.env.PAGES_BASE_PATH ?? ''}/`;
 
 const title = "Facturen & Offertes — gratis factuur maken volgens Nederlandse btw-regels";

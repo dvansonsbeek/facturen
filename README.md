@@ -1,6 +1,6 @@
 # Facturen 🚀
 
-**➡️ Direct gebruiken: [dvansonsbeek.github.io/facturen](https://dvansonsbeek.github.io/facturen/)**
+**➡️ Direct gebruiken: [factuurr.nl](https://factuurr.nl/)**
 
 Facturen maakt facturen en offertes volgens de Nederlandse btw-regels. Open de link en begin: er valt niets te installeren en niets aan te maken.
 
@@ -62,7 +62,7 @@ Een bijdrage mag, maar hoeft niet: [ko-fi.com/sonsbeek](https://ko-fi.com/sonsbe
 
 ## 🚀 Aan de slag
 
-De gepubliceerde versie staat op **[dvansonsbeek.github.io/facturen](https://dvansonsbeek.github.io/facturen/)**; elke push naar `main` publiceert hem opnieuw, mits de tests slagen. Hieronder staat hoe je hem lokaal draait.
+De gepubliceerde versie staat op **[factuurr.nl](https://factuurr.nl/)**; elke push naar `main` publiceert hem opnieuw, mits de tests slagen. Hieronder staat hoe je hem lokaal draait.
 
 ### Installatie
 
@@ -109,7 +109,7 @@ server en geen account, dus alles wat de reis aanmaakt staat in de browser van
 de test en verdwijnt ermee.
 
 ```bash
-UAT_BASE_URL=https://dvansonsbeek.github.io/facturen/ npm run test:uat
+UAT_BASE_URL=https://factuurr.nl/ npm run test:uat
 ```
 
 En de e-factuur gaat door de officiële validator van de Nederlandse

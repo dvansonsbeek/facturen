@@ -55,22 +55,19 @@ jobs:
 
       # Ook de publicatiebuild, want die faalt op dingen die `next dev` niet
       # laat zien: een statische export is een ander pad dan de dev-server.
+      #
+      # Zonder PAGES_BASE_PATH, net als bij publiceren: sinds factuurr.nl een
+      # eigen domein is staat de app op de root. Deze controle hoort te draaien
+      # tegen wat er werkelijk uitgeleverd wordt, niet tegen een voorvoegsel dat
+      # er niet meer is.
       - name: Publicatiebuild
         run: npm run build
-        env:
-          PAGES_BASE_PATH: /facturen
 
       - name: Controle op de gepubliceerde build
         run: npm run check:publicatie
-        env:
-          PAGES_BASE_PATH: /facturen
 
       - name: UAT-reis op de publicatiebuild
         run: npm run test:uat
-        env:
-          PAGES_BASE_PATH: /facturen
 
       - name: E-factuur tegen SI-UBL 2.0
         run: npm run check:efactuur
-        env:
-          PAGES_BASE_PATH: /facturen
