@@ -41,6 +41,22 @@ export const startServer = async (poort) => {
         let bestand = join(WORTEL, normalize(pad).replace(/^(\.\.[/\\])+/, ''));
         if (pad.endsWith('/')) bestand = join(bestand, 'index.html');
 
+        // Zoals Pages het doet: /voorwaarden komt uit voorwaarden.html. De
+        // statische export schrijft een route naast de map, niet erin — naast
+        // voorwaarden.html staat een map voorwaarden/ met alleen de
+        // RSC-payloads, dus zonder deze regel geeft elke route behalve de
+        // hoofdpagina een 404. Dat viel niet eerder op omdat er maar één pagina
+        // was, en het zou hier een dode verwijzing hebben opgeleverd.
+        // Let op: niet eerst kijken of `bestand` bestaat. Naast voorwaarden.html
+        // schrijft de export ook een map voorwaarden/, dus dat pad bestáát — als
+        // map, en readFile struikelt erover. Zonder extensie willen we altijd
+        // .html of /index.html, nooit het kale pad.
+        if (!extname(bestand)) {
+            bestand = existsSync(`${bestand}.html`)
+                ? `${bestand}.html`
+                : join(bestand, 'index.html');
+        }
+
         try {
             const inhoud = await readFile(bestand);
             res.writeHead(200, {

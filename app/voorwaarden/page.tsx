@@ -1,0 +1,134 @@
+import type { Metadata } from "next";
+
+/** Zie app/page.tsx: gewone verwijzingen, want het strikte beleid blokkeert de
+ *  fetch waarmee next/link navigeert. Het basispad dus zelf ervoor. */
+const BASISPAD = process.env.PAGES_BASE_PATH ?? '';
+
+export const metadata: Metadata = {
+  title: "Gebruiksvoorwaarden en privacy — Facturen & Offertes",
+  description:
+    "Waar deze app wel en niet voor bedoeld is, wie verantwoordelijk blijft voor je "
+    + "facturen, en wat er met je gegevens gebeurt.",
+};
+
+/**
+ * De gebruiksvoorwaarden, met de privacyverklaring erin.
+ *
+ * Eén pagina en niet twee: er valt zo weinig te melden — geen account, geen
+ * server, één bezoekersteller — dat splitsen beide helften leger laat lijken dan
+ * eerlijk is.
+ *
+ * Met opzet kort. Elke zin die niemand leest verdunt de zinnen die er wél toe
+ * doen, en dat zijn hier de eerste twee: dit is geen boekhoudpakket en geen
+ * belastingadvies. De app noemt wetsartikelen bij naam — de KOR van artikel 25,
+ * de nummering van artikel 35a, de e-factuur langs de Schematron van de
+ * Nederlandse Peppolautoriteit — en juist die precisie kan de indruk wekken dat
+ * wat eruit komt gegarandeerd klopt. Dat is het niet, en dat hoort ergens te
+ * staan waar een gebruiker het kan vinden.
+ */
+
+const STIJL_KOP = { fontSize: '1.1rem', marginTop: '2rem', marginBottom: '0.5rem' };
+/** globals.css zet alle marges op nul, dus alinea's hebben hier hun eigen ruimte
+ *  nodig; zonder dit plakken ze binnen een paragraaf aan elkaar vast. */
+const STIJL_P = { margin: '0 0 0.9rem' };
+
+export default function Voorwaarden() {
+  return (
+    <main className="min-h-screen" style={{ padding: '2rem 1rem 4rem' }}>
+      <article style={{ maxWidth: '70ch', margin: '0 auto', lineHeight: 1.65 }}>
+        <p style={{ fontSize: '0.9rem' }}>
+          <a href={`${BASISPAD}/`}>← Terug naar de app</a>
+        </p>
+
+        <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}>Gebruiksvoorwaarden en privacy</h1>
+        <p style={{ ...STIJL_P, color: 'var(--secondary)' }}>
+          Door deze app te gebruiken ga je hiermee akkoord. Laatst bijgewerkt op 7 oktober 2026.
+        </p>
+
+        <h2 style={STIJL_KOP}>Wat dit is, en wat niet</h2>
+        <p style={STIJL_P}>
+          Dit is een hulpmiddel om facturen en offertes mee op te maken. Het is
+          <strong> geen boekhoudpakket</strong> en <strong>geen belastingadvies</strong>. Er
+          ontstaat geen relatie van adviseur en klant, en er is niemand die meekijkt of wat je
+          maakt klopt.
+        </p>
+        <p style={STIJL_P}>
+          De app noemt Nederlandse regels bij naam en controleert de e-factuur tegen de
+          officiële validator van de Nederlandse Peppolautoriteit. Dat helpt, maar het is iets
+          anders dan een garantie dat jouw factuur juist is. Of een regeling op jouw situatie
+          van toepassing is — de kleineondernemersregeling, btw verleggen, een
+          intracommunautaire levering — kan geen programma voor je beoordelen.
+        </p>
+
+        <h2 style={STIJL_KOP}>Jij blijft verantwoordelijk voor je facturen</h2>
+        <p style={STIJL_P}>
+          Als ondernemer ben en blijf je zelf verantwoordelijk voor je facturen en je
+          administratie, en voor het bewaren daarvan. Dat volgt uit de wet (onder meer artikel
+          52 van de Algemene wet inzake rijksbelastingen en de Wet op de omzetbelasting 1968)
+          en daar verandert het gebruik van deze app niets aan. Controleer wat je verstuurt, en
+          vraag het bij twijfel aan je boekhouder of de Belastingdienst.
+        </p>
+
+        <h2 style={STIJL_KOP}>Geen garanties</h2>
+        <p style={STIJL_P}>
+          De app wordt geleverd zoals hij is, zonder enige garantie: niet op juistheid, niet op
+          geschiktheid voor een bepaald doel, en niet op beschikbaarheid. De broncode staat
+          onder de MIT-licentie, die hetzelfde zegt.
+        </p>
+
+        <h2 style={STIJL_KOP}>Aansprakelijkheid</h2>
+        <p style={STIJL_P}>
+          Voor schade die ontstaat door het gebruik van deze app — gemiste inkomsten, boetes of
+          naheffingen, of verloren gegevens — is de maker niet aansprakelijk, voor zover de wet
+          dat toelaat.
+        </p>
+
+        <h2 style={STIJL_KOP}>Je gegevens staan in je browser</h2>
+        <p style={STIJL_P}>
+          Wat je invult gaat niet naar een server. Er is geen account, geen database en geen
+          back-up buiten je eigen apparaat. Je bedrijfsgegevens, je klantenboek en je bewaarde
+          documenten staan in de opslag van deze browser, op dit apparaat.
+        </p>
+        <p style={STIJL_P}>
+          Dat heeft een keerzijde die je moet kennen: <strong>je raakt alles kwijt</strong> als
+          je de gegevens van deze site wist, je browser opnieuw installeert, in een privévenster
+          werkt, of — als je er een hebt ingesteld — je wachtwoordzin vergeet. Die zin is nergens
+          anders opgeslagen en kan niet worden hersteld. Gebruik <strong>Export</strong> om een
+          reservekopie te maken en bewaar die ergens anders. Wat de versleuteling wel en niet
+          beschermt, staat in de app zelf onder <em>Beveiliging en privacy</em>.
+        </p>
+
+        <h2 style={STIJL_KOP}>De bezoekersteller</h2>
+        <p style={STIJL_P}>
+          Er wordt geteld hoe vaak deze pagina wordt geopend, met GoatCounter. Dat gebeurt met
+          één afbeeldingsverzoek en niet met een script van buiten, juist omdat er op deze
+          pagina gegevens van jou en je klanten staan.
+        </p>
+        <p style={STIJL_P}>
+          Meegestuurd worden: welke pagina je opent, van welke website je kwam — alleen die
+          naam, niet de volledige adresregel — en je schermformaat. GoatCounter leidt daar het
+          land uit je IP-adres bij af, maar bewaart dat IP-adres niet, zet niets in je browser
+          (geen cookies, geen opslag) en houdt verder alleen aantallen per dag bij.
+          <strong> Niets van wat je invult gaat mee</strong> — geen namen, geen bedragen, geen
+          factuurgegevens. Dat kan ook niet: de functie die de telling opbouwt krijgt het
+          document niet te zien. Heb je <em>Do Not Track</em> of{' '}
+          <em>Global Privacy Control</em> aanstaan, dan wordt er niets geteld.
+        </p>
+
+        <h2 style={STIJL_KOP}>Wijzigingen, en waar de code staat</h2>
+        <p style={STIJL_P}>
+          Deze voorwaarden kunnen veranderen; bovenaan staat wanneer ze voor het laatst zijn
+          bijgewerkt. De app is open source en de volledige broncode, inclusief de geschiedenis
+          van elke wijziging, staat op{' '}
+          <a href="https://github.com/dvansonsbeek/facturen">GitHub</a>. Vragen of iets
+          gevonden dat niet klopt? Open daar een{' '}
+          <a href="https://github.com/dvansonsbeek/facturen/issues">issue</a>.
+        </p>
+
+        <p style={{ marginTop: '2.5rem', fontSize: '0.9rem' }}>
+          <a href={`${BASISPAD}/`}>← Terug naar de app</a>
+        </p>
+      </article>
+    </main>
+  );
+}

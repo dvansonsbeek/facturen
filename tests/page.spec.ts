@@ -104,14 +104,23 @@ test('noemt de Nederlandse btw-tarieven en de KOR in de tagline', async ({ page 
 });
 
 /**
- * De footer draagt alleen de privacybelofte. Toeschrijving hoort in LICENSE en
- * README; een auteursrechtregel in de interface zou bovendien een jaartal
- * nodig hebben, en dat zou in deze statisch geprerenderde pagina op het
- * bouwmoment worden gebakken en stilletjes verouderen.
+ * De footer draagt de privacybelofte en de juridische ontkenning, en verder
+ * niets. Toeschrijving hoort in LICENSE en README; een auteursrechtregel in de
+ * interface zou bovendien een jaartal nodig hebben, en dat zou in deze statisch
+ * geprerenderde pagina op het bouwmoment worden gebakken en stilletjes
+ * verouderen.
+ *
+ * Hier stond eerst dat de footer *alleen* de privacybelofte droeg en geen enkele
+ * verwijzing. Dat is losgelaten voor de gebruiksvoorwaarden: die moeten ergens
+ * te vinden zijn, en de voettekst is waar iemand ernaar zoekt. Waar die test om
+ * begonnen was verandert niet — geen auteursrecht, geen naam, geen jaartal dat
+ * veroudert — en de eis op verwijzingen is nu strakker dan ruimer: precies één,
+ * en wel die ene.
  */
-test('toont alleen de privacybelofte in de footer', async ({ page }) => {
+test('toont de privacybelofte en de voorwaarden, en geen auteursrechtregel', async ({ page }) => {
     const footer = page.locator('footer');
-    await expect(footer).toHaveText('Geen opslag op servers, alles in jouw browser.');
+    await expect(footer).toContainText('Geen opslag op servers, alles in jouw browser.');
     await expect(footer).not.toContainText('©');
-    await expect(footer.locator('a')).toHaveCount(0);
+    await expect(footer.locator('a')).toHaveCount(1);
+    await expect(footer.locator('a')).toHaveAttribute('href', /\/voorwaarden/);
 });

@@ -1,6 +1,21 @@
 import InvoiceForm from "@/components/InvoiceForm";
 import { ReceiptEuro } from "lucide-react";
 
+/**
+ * Een gewone <a> en geen next/link, met het basispad er zelf voor.
+ *
+ * next/link navigeert binnen de pagina en haalt de volgende route met fetch op.
+ * Het strikte beveiligingsbeleid staat onder `connect-src` geen enkele herkomst
+ * toe (zie lib/csp.ts) — dat is daar geen slordigheid maar het hele punt — dus
+ * die fetch wordt geweigerd en de verwijzing doet niets in de gepubliceerde
+ * versie. Een volledige paginawissel heeft die fetch niet nodig.
+ *
+ * Het basispad moet er dan wel met de hand voor: dat regelt next/link anders.
+ * Gevonden door check:publicatie, niet door de testsuite — op de
+ * ontwikkelserver staat het beleid losser en werkt next/link gewoon.
+ */
+const BASISPAD = process.env.PAGES_BASE_PATH ?? '';
+
 export default function Home() {
   return (
     <main className="min-h-screen">
@@ -22,10 +37,19 @@ export default function Home() {
 
       <InvoiceForm />
 
-      <footer style={{ padding: '4rem 0', textAlign: 'center', color: 'var(--muted)', fontSize: '0.9rem' }}>
+      <footer style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.9rem' }}>
         {/* Geen auteursrechtregel: toeschrijving staat in LICENSE en README,
             waar de MIT-licentie die ook vraagt. Dit is productinterface. */}
         <p>Geen opslag op servers, alles in jouw browser.</p>
+        {/* De twee ontkenningen staan vóór de verwijzing, en niet erin. Deze app
+            noemt wetsartikelen bij naam en toetst de e-factuur tegen de officiële
+            validator; juist dat kan de indruk wekken dat wat eruit komt
+            gegarandeerd klopt. Wie de voorwaarden nooit opent, hoort dat hier al
+            gelezen te hebben. */}
+        <p style={{ marginTop: '0.5rem' }}>
+          Geen boekhoudpakket en geen belastingadvies. Door deze app te gebruiken ga je akkoord
+          met de <a href={`${BASISPAD}/voorwaarden`}>gebruiksvoorwaarden</a>.
+        </p>
       </footer>
     </main>
   );

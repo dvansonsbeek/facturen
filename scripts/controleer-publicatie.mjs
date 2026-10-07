@@ -126,6 +126,23 @@ try {
 const voorbeeld = (await page.locator('.invoice-preview').innerText()).replace(/ /g, ' ');
 if (!voorbeeld.includes('€ 121,00')) problemen.push('het voorbeeld rekent niet goed');
 
+// De voorwaarden zijn de enige andere route, en een extra route is nu juist wat
+// bij publiceren omvalt: op de ontwikkelserver werkt hij, onder het basispad
+// geeft hij een 404. Ga er daarom heen zoals een bezoeker het doet — via de
+// verwijzing in de voettekst — in plaats van de URL zelf samen te stellen; dan
+// wordt die verwijzing meteen meegetoetst.
+await page.getByRole('link', { name: 'gebruiksvoorwaarden' }).click();
+await page.waitForLoadState('networkidle');
+
+const pad = new URL(page.url()).pathname;
+if (!pad.startsWith(`${VOORVOEGSEL}/voorwaarden`)) {
+    problemen.push(`de voorwaarden staan op een onverwacht pad: ${pad}`);
+}
+const kop = await page.locator('h1').innerText().catch(() => '');
+if (!/Gebruiksvoorwaarden/i.test(kop)) {
+    problemen.push(`de voorwaardenpagina laadde niet; de kop was "${kop.slice(0, 60)}"`);
+}
+
 await browser.close();
 server.close();
 
@@ -134,4 +151,4 @@ if (problemen.length) {
     for (const p of problemen) console.error(`  - ${p}`);
     process.exit(1);
 }
-console.log('  geen verzoeken naar buiten, niets geblokkeerd, PDF werkt.');
+console.log('  geen verzoeken naar buiten, niets geblokkeerd, PDF werkt, voorwaarden bereikbaar.');
