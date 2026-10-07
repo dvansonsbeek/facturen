@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { beleidVoorOmgeving } from "@/lib/csp";
 import VisitCounter from "@/components/VisitCounter";
+import ServiceWorker from "@/components/ServiceWorker";
 import "./globals.css";
 
 /**
@@ -80,6 +81,10 @@ export default function RootLayout({
         {/* Telt één bezoek met een afbeelding, niet met een script van buiten.
             Staat uit zonder NEXT_PUBLIC_GOATCOUNTER; zie lib/analytics.ts. */}
         <VisitCounter />
+        {/* Laat de app ook zonder netwerk openen; zie public/sw.js. Staat uit
+            buiten de gepubliceerde build, zodat de ontwikkelserver en de
+            testsuite er niets van merken. */}
+        <ServiceWorker />
       </body>
     </html>
   );

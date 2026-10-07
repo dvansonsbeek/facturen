@@ -4,6 +4,18 @@ import { useState } from "react";
 import { Lock, LockOpen, ShieldCheck } from "lucide-react";
 import type { KluisStand } from "@/lib/vault";
 
+/**
+ * De bouwdatum, als dag-maand-jaar. Komt uit next.config.ts en staat dus vast op
+ * het moment van bouwen; zonder die variabele (bijvoorbeeld in een test die de
+ * component los rendert) tonen we niets liever dan een verzonnen datum.
+ */
+const BOUWDATUM = (() => {
+    const ruw = process.env.NEXT_PUBLIC_BOUWDATUM;
+    if (!ruw) return 'onbekende datum';
+    const [jaar, maand, dag] = ruw.split('-');
+    return `${Number(dag)}-${maand}-${jaar}`;
+})();
+
 interface SecurityPanelProps {
     kluis: KluisStand;
     /** Hoeveel documenten er in het archief staan; bepaalt de waarschuwing. */
@@ -106,6 +118,27 @@ export default function SecurityPanel({
                         geen cookies gezet en je wordt niet gevolgd tussen websites. Zet je browser
                         op <em>Do Not Track</em> of <em>Global Privacy Control</em>, dan wordt er
                         niets geteld.
+                    </p>
+                </div>
+
+                {/* Welke versie je hebt. Nodig sinds de app offline werkt: dan draai
+                    je wat er in de cache staat, en dat kan maanden oud zijn. Een
+                    tekstverwerker veroudert niet, een factuurprogramma wel —
+                    btw-tarieven en de KOR-grens schuiven. Offline werken is prima,
+                    offline blijven hangen niet. */}
+                <div className="uitleg-blok">
+                    <h4>Welke versie je hebt</h4>
+                    <p>
+                        Deze app is van <strong>{BOUWDATUM}</strong>. Hij werkt ook zonder
+                        internet: de bestanden staan na je eerste bezoek op dit apparaat, dus je
+                        kunt factureren in de trein of bij een klant zonder wifi. Ben je wél
+                        online, dan haalt hij vanzelf de nieuwste versie op — je hoeft niets bij
+                        te werken.
+                    </p>
+                    <p>
+                        Houd die datum wel in de gaten als je lang offline werkt. Btw-tarieven en
+                        de regels rond de kleineondernemersregeling veranderen, en een versie van
+                        twee jaar oud weet daar niets van.
                     </p>
                 </div>
 

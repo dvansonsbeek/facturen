@@ -60,6 +60,10 @@ jobs:
         env:
           PAGES_BASE_PATH: /facturen
           NEXT_PUBLIC_GOATCOUNTER: ${{ vars.GOATCOUNTER_CODE }}
+          # De naam van de Ko-fi-pagina, zonder ko-fi.com ervoor. Niet gezet is
+          # geen verwijzing; er wordt nergens een knopscript van buiten geladen,
+          # om dezelfde reden als bij de teller (zie lib/analytics.ts).
+          NEXT_PUBLIC_KOFI: ${{ vars.KOFI_NAAM }}
 
       # De gepubliceerde versie draait onder een strenger beveiligingsbeleid dan
       # de ontwikkelserver, dus een fout daarin merk je niet in de testsuite.

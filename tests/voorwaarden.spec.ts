@@ -124,7 +124,7 @@ test.describe('de pagina zelf', () => {
             'De tekst van de voorwaarden is gewijzigd. Werk BIJGEWERKT bij in '
             + 'app/voorwaarden/page.tsx als dit een inhoudelijke wijziging is, en zet '
             + `daarna deze vingerafdruk op ${vingerafdruk}.`,
-        ).toBe('9c80be9d6bfb548a');
+        ).toBe('07344e489a1c397b');
     });
 
     test('is weer terug te verlaten', async ({ page }) => {

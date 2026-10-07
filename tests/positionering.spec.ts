@@ -58,6 +58,50 @@ test.describe('geen betaalde versie', () => {
         // En geen verdienmodel langs een andere weg.
         expect(tekst).toContain('geen advertenties');
     });
+
+    /**
+     * Een vrijwillige bijdrage spreekt "er is geen betaalde versie" niet tegen —
+     * mits erbij staat dat je er niets voor terugkrijgt. Dat zinnetje is wat het
+     * verschil maakt tussen een gift en een verkapt abonnement, dus het hoort
+     * vast te staan.
+     */
+    test('een bijdrage levert niets extra op, en dat staat er', async ({ page }) => {
+        await page.goto('/voorwaarden');
+        const tekst = normalise(await page.locator('article').innerText());
+
+        expect(tekst).toContain('vrijwillig een bijdrage');
+        expect(tekst).toContain('levert je niets extra');
+        expect(tekst).toContain('geen uitgebreidere versie');
+    });
+
+    /**
+     * Zonder NEXT_PUBLIC_KOFI hoort er geen verwijzing te staan — net als bij de
+     * teller: niet ingesteld is niet aanwezig. Zo draaien de ontwikkelserver en
+     * deze suite zonder.
+     */
+    test('zonder ingestelde naam staat er geen verwijzing', async ({ page }) => {
+        await page.goto('/');
+        await expect(page.locator('footer a[href*="ko-fi.com"]')).toHaveCount(0);
+    });
+});
+
+test.describe('welke versie je hebt', () => {
+    /**
+     * Sinds de app offline werkt, draait iemand mogelijk een versie van maanden
+     * geleden. Dat mag — het is "een versie die je hebt" — maar dan moet wel te
+     * zien zijn wélke, want btw-regels verschuiven. Zonder die datum is het geen
+     * eigendom maar een verouderde kopie.
+     */
+    test('de bouwdatum staat in de app, met de reden erbij', async ({ page }) => {
+        await page.goto('/');
+        const sectie = await openFoldout(page, 'Beveiliging en privacy');
+        const tekst = normalise(await sectie.innerText());
+
+        expect(tekst).toContain('Welke versie je hebt');
+        expect(tekst).toContain('zonder internet');
+        // De keerzijde hoort erbij: offline werken mag, offline blijven hangen niet.
+        expect(tekst).toContain('Btw-tarieven');
+    });
 });
 
 test.describe('wat een zoekresultaat laat zien', () => {

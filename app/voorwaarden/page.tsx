@@ -144,6 +144,13 @@ export default function Voorwaarden() {
           advertenties, er worden geen gegevens doorverkocht en er is geen partij die
           meekijkt; dat kan ook niet, want wat je invult verlaat deze browser niet.
         </p>
+        <p style={STIJL_P}>
+          Je kunt vrijwillig een bijdrage doen. Dat <strong>levert je niets extra&apos;s
+          op</strong> — er is geen uitgebreidere versie om naartoe te gaan, en dat is
+          precies het punt. Het verandert ook niets aan deze voorwaarden of aan wat de
+          app doet. Klik je erop, dan ga je naar een andere website; pas dáár gelden
+          hun voorwaarden en hun privacybeleid.
+        </p>
 
         <h2 style={STIJL_KOP}>Wijzigingen, en waar de code staat</h2>
         <p style={STIJL_P}>
