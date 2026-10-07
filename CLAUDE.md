@@ -859,8 +859,15 @@ Run the suite before and after any refactor. It exists precisely because
   (brace-expansion, micromatch and friends). They are dev-only, build-time ReDoS/DoS
   issues that never reach the browser, and npm's only proposed "fix" is downgrading
   `eslint-config-next` to 14.x — **do not do that.**
-- ESLint 10 and TypeScript 7 are allowed by peer ranges but untested here. Both are
-  majors; upgrade deliberately, not incidentally.
+- **ESLint 10 is in use** since October 2026 and behaves exactly as 9 did here. It did
+  *not* clear the `npm audit` findings above: those come in through
+  `eslint-config-next`, not `eslint`.
+- **TypeScript 7 is blocked, and not by us.** `tsc --noEmit` and `next build` both pass
+  on it, but `npm run lint` dies with *"typescript-eslint does not support TS 7.0"*
+  ([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)
+  tracks TS ≥ 7.1). The documented workaround is running typescript-eslint against a
+  side-by-side TS 6 API — two TypeScript installs to lint with, in exchange for compiler
+  speed on a codebase that typechecks in about a second. Revisit when 7.1 lands.
 - One lint warning remains: the `<img>` hint in `InvoicePreview`. `next/image` cannot
   help there — the logo is a browser data URL and image optimisation is off under
   static export — so the same hint in `CompanyDetails` carries an explicit disable
