@@ -386,16 +386,19 @@ one not to trim — `tests/positionering.spec.ts` asserts the caveats, not just 
 claims.
 
 **"Er is geen betaalde versie" is structural, not a promise.** MIT on a public repo
-means the last free version stays usable whatever happens later. A voluntary Ko-fi
+means the last free version stays usable whatever happens later. A voluntary
 contribution does not contradict it *provided* the page says it buys nothing extra —
 that sentence is the difference between a gift and a disguised subscription, and it is
 pinned.
 
-**The Ko-fi link is an anchor, never their button script.** Ko-fi and Buy Me a Coffee
-both offer a `<script>`. Loading one is precisely what `lib/analytics.ts` refused for
-the counter: this page holds decrypted client data and, while unlocked, the key in
-memory. A link transmits nothing until clicked. It is off without `NEXT_PUBLIC_KOFI`,
-like the counter.
+**The donation link is an anchor, never their button script.** Buy Me a Coffee and
+Ko-fi both offer a `<script>`. Loading one is precisely what `lib/analytics.ts` refused
+for the counter: this page holds decrypted client data and, while unlocked, the key in
+memory. A link transmits nothing until clicked. It is off without
+`NEXT_PUBLIC_KOFFIE`, like the counter — and the variable is named for the thing, not
+the supplier, because that supplier has already changed once (Ko-fi → Buy Me a Coffee,
+October 2026) and renaming it again would mean touching the workflow, the repo variable
+and the tests for no reason.
 
 **The terms page carries a hand-maintained date, deliberately.** Deriving `BIJGEWERKT`
 from the build would shift it on every unrelated publish, so the page would claim the

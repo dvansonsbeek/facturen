@@ -75,13 +75,16 @@ test.describe('geen betaalde versie', () => {
     });
 
     /**
-     * Zonder NEXT_PUBLIC_KOFI hoort er geen verwijzing te staan — net als bij de
-     * teller: niet ingesteld is niet aanwezig. Zo draaien de ontwikkelserver en
-     * deze suite zonder.
+     * Zonder NEXT_PUBLIC_KOFFIE hoort er geen verwijzing te staan — net als bij
+     * de teller: niet ingesteld is niet aanwezig. Zo draaien de ontwikkelserver
+     * en deze suite zonder.
      */
     test('zonder ingestelde naam staat er geen verwijzing', async ({ page }) => {
         await page.goto('/');
-        await expect(page.locator('footer a[href*="ko-fi.com"]')).toHaveCount(0);
+        await expect(page.locator('footer a[href*="buymeacoffee.com"]')).toHaveCount(0);
+        // En er wordt nooit een knopscript van buiten geladen, met of zonder naam.
+        await expect(page.locator('script[src*="buymeacoffee"], script[src*="ko-fi"]'))
+            .toHaveCount(0);
     });
 });
 

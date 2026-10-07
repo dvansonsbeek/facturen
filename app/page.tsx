@@ -19,18 +19,18 @@ import { NAAM, BASISPAD } from "@/lib/site";
  */
 
 /**
- * Een vrijwillige bijdrage, als er een Ko-fi-naam is ingesteld.
+ * Een vrijwillige bijdrage, als er een naam is ingesteld.
  *
- * Een gewone verwijzing en nadrukkelijk niet hun knopscript. Ko-fi en Buy Me a
- * Coffee bieden allebei een <script> aan, en dat is precies wat lib/analytics.ts
- * al weigerde voor de bezoekersteller: deze pagina houdt ontsleutelde
- * klantgegevens vast en, zolang het archief open staat, de sleutel in het
- * geheugen. Daar hoort geen code van buiten bij. Een verwijzing stuurt niets en
- * draait niets; hij doet pas iets als jij erop klikt.
+ * Een gewone verwijzing en nadrukkelijk niet hun knopscript. Buy Me a Coffee
+ * biedt er een aan, net als Ko-fi, en dat is precies wat lib/analytics.ts al
+ * weigerde voor de bezoekersteller: deze pagina houdt ontsleutelde klantgegevens
+ * vast en, zolang het archief open staat, de sleutel in het geheugen. Daar hoort
+ * geen code van buiten bij. Een verwijzing stuurt niets en draait niets; hij doet
+ * pas iets als jij erop klikt.
  *
- * Uit zonder NEXT_PUBLIC_KOFI, net als de teller. Geen naam, geen verwijzing.
+ * Uit zonder NEXT_PUBLIC_KOFFIE, net als de teller. Geen naam, geen verwijzing.
  */
-const KOFI = (process.env.NEXT_PUBLIC_KOFI ?? '').trim();
+const KOFFIE = (process.env.NEXT_PUBLIC_KOFFIE ?? '').trim();
 
 export default function Home() {
   return (
@@ -90,10 +90,10 @@ export default function Home() {
           Geen boekhoudpakket en geen belastingadvies. Door deze app te gebruiken ga je akkoord
           met de <a href={`${BASISPAD}/voorwaarden`}>gebruiksvoorwaarden</a>.
         </p>
-        {KOFI && (
+        {KOFFIE && (
           <p style={{ marginTop: '0.5rem' }}>
             Gratis, en dat blijft zo.{' '}
-            <a href={`https://ko-fi.com/${KOFI}`} rel="noopener noreferrer" target="_blank">
+            <a href={`https://buymeacoffee.com/${KOFFIE}`} rel="noopener noreferrer" target="_blank">
               Een kopje koffie
             </a>{' '}
             mag, maar levert je niets extra&apos;s op — er is geen uitgebreidere versie.
