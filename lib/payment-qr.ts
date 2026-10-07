@@ -19,12 +19,43 @@ import { keurIban } from "@/lib/iban";
  * de factuur staat, en is dus hier in de browser te maken zonder dat er iets
  * naar buiten gaat.
  *
- * ## Niet elke bank leest hem
+ * ## Niet elke bank leest hem, en dat verandert waarschijnlijk niet
  *
  * In Nederland ondersteunen onder meer ING, bunq, Knab, SNS en ASN de EPC-code;
- * Rabobank en ABN AMRO staan niet in die lijst. De code is dus een extra
- * gemak, geen vervanging van de betaalgegevens — die staan daarom gewoon op het
- * document, precies zoals eerst.
+ * Rabobank, ABN AMRO, Triodos en RegioBank niet. Dat zijn geen kleine partijen:
+ * Rabobank en ABN AMRO zijn samen ruim 60% van de markt, dus de meeste klanten
+ * kunnen hem niet scannen.
+ *
+ * De reden is niet technisch maar commercieel. EPC069-12 is een aanbeveling van
+ * de European Payments Council, geen verplichting, en een bank verdient er niets
+ * aan. In Duitsland, Oostenrijk en België sloeg hij aan omdat daar geen sterk
+ * eigen alternatief was; Nederland had iDEAL, van de banken zelf, en daar ging
+ * het geld heen.
+ *
+ * Wachten op de rest heeft weinig zin. De markt zit midden in de overstap van
+ * iDEAL naar Wero (European Payments Initiative): alle Nederlandse banken zijn
+ * sinds oktober 2026 aangesloten en de migratie moet eind 2027 klaar zijn. Het
+ * budget van de banken ligt dus voor jaren vast op een regeling die ze zelf
+ * bezitten; reken er niet op dat ze daarnaast een gratis standaard oppakken.
+ *
+ * Wero zelf is hier geen uitweg, om dezelfde reden als iDEAL: het vraagt een
+ * contract met een betaaldienstverlener en een server die per transactie een
+ * code maakt. Een server betekent dat factuurgegevens de browser verlaten, en
+ * dat is precies wat deze app niet doet. De code is daarom een extra gemak en
+ * geen vervanging: de betaalgegevens staan gewoon op het document, en wie bij de
+ * Rabobank zit typt ze over zoals iedereen deed voordat deze code bestond.
+ *
+ * ## Wat de bank van de betaler er zelf tegenover zet
+ *
+ * Sinds 9 oktober 2025 is de IBAN-Naamcontrole (Verification of Payee) verplicht
+ * bij elke digitale overboeking in alle 41 SEPA-landen. Voordat de betaler
+ * bevestigt — gescand of overgetypt — legt zijn eigen bank de naam naast het
+ * rekeningnummer en zegt of het klopt.
+ *
+ * Dat maakt de controle in lib/iban.ts niet overbodig; ze zitten aan
+ * verschillende kanten van de keten. Die van ons vangt een tikfout op het moment
+ * dat je hem maakt, voordat er een factuur de deur uit is. De naamcontrole vangt
+ * hem bij de betaler, met jouw klant die naar een waarschuwing over jou kijkt.
  *
  * ## Waar hij níet op hoort
  *
