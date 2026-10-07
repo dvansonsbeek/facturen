@@ -162,6 +162,43 @@ test.describe('het logo weghalen', () => {
         page.getByRole('button', { name: 'Verwijderen' })
             .and(page.locator('[title="Dit logo van je documenten halen"]'));
 
+    /**
+     * Dezelfde opmaak als de andere verwijderknoppen.
+     *
+     * Deze stond op losse inline-stijlen en pakte daardoor alleen de kale
+     * button-reset mee — geen achtergrond, geen padding, geen afronding. Hij zag
+     * eruit als tekst met een prullenbakje ervoor, tussen knoppen die wél een
+     * knop waren.
+     *
+     * Getoetst op de berékende opmaak en niet op de klassenaam: het gaat erom
+     * dat hij er hetzelfde uitziet, niet dat er toevallig hetzelfde woord in de
+     * class staat.
+     */
+    test('ziet eruit als de andere verwijderknoppen', async ({ page }) => {
+        await kiesLogo(page, 600, 200);
+        await page.locator('input[placeholder="Naam van de klant"]').fill('Klant BV');
+        await page.getByRole('button', { name: /Opslaan|Bijwerken/ }).click();
+
+        const opmaakVan = (titel: string) =>
+            page.locator(`button[title="${titel}"]`).first().evaluate((el) => {
+                const s = getComputedStyle(el);
+                return {
+                    achtergrond: s.backgroundColor,
+                    kleur: s.color,
+                    padding: s.padding,
+                    radius: s.borderRadius,
+                    grootte: s.fontSize,
+                };
+            });
+
+        const logo = await opmaakVan('Dit logo van je documenten halen');
+        const klant = await opmaakVan('Deze klant uit je klantenboek verwijderen');
+
+        expect(logo).toEqual(klant);
+        // En niet per ongeluk allebei onopgemaakt: een knop hoort een vlak te zijn.
+        expect(logo.achtergrond).not.toBe('rgba(0, 0, 0, 0)');
+    });
+
     test('de knop verschijnt pas als er een logo staat', async ({ page }) => {
         await openFoldout(page, 'Mijn Bedrijfsgegevens');
         await expect(verwijderKnop(page)).toHaveCount(0);

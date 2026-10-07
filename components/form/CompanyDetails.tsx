@@ -48,16 +48,23 @@ export default function CompanyDetails({
                                 bestandsnaam erin staan, dan levert hetzelfde bestand opnieuw
                                 kiezen geen change-gebeurtenis op — en krijg je het logo dat je
                                 net weghaalde dus niet meer terug. */}
+                            {/* Dezelfde opmaak als de andere verwijderknoppen in dit
+                                formulier — het klantenboek en het archief gebruiken
+                                allebei premium-btn compact. Deze stond op losse
+                                inline-stijlen en pakte daardoor alleen de kale
+                                button-reset mee: geen achtergrond, geen padding, geen
+                                afronding. Hij zag eruit als tekst met een prullenbakje
+                                ervoor in plaats van als een knop. */}
                             <button
                                 type="button"
+                                className="premium-btn compact"
                                 title="Dit logo van je documenten halen"
                                 onClick={() => {
                                     onLogoRemove();
                                     if (bestandsveld.current) bestandsveld.current.value = '';
                                 }}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
                             >
-                                <Trash2 size={14} /> Verwijderen
+                                <Trash2 size={14} /> <span>Verwijderen</span>
                             </button>
                         </div>
                     )}
