@@ -72,24 +72,35 @@ const lineCount = (page: import('@playwright/test').Page, selector: string) =>
         return Math.round(el.getBoundingClientRect().height / lineHeight);
     });
 
+/**
+ * De ondertitel bestaat uit twee alinea's: de zin die zegt wat het is, en
+ * daaronder kleiner de belofte dat er niets de browser verlaat. Vandaar
+ * first-of-type — zonder die begrenzing wijst 'header p' naar allebei.
+ */
+const TAGLINE = 'header p:first-of-type';
+
 test.describe('de tagline', () => {
     /**
      * Stond eerder op max-width 600px terwijl de zin er 724px nodig heeft: hij
      * brak dus af op elk scherm, ook op een breedbeeldmonitor.
+     *
+     * Dit is ook de reden dat de ondertitel uit twee alinea's bestaat en niet uit
+     * één lange zin: alles bij elkaar wordt langer dan 83 tekens, en dan past het
+     * niet meer op de smalle laptop hieronder.
      */
     test('past op één regel op een normaal scherm', async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 900 });
-        expect(await lineCount(page, 'header p')).toBe(1);
+        expect(await lineCount(page, TAGLINE)).toBe(1);
     });
 
     test('past ook op een smalle laptop op één regel', async ({ page }) => {
         await page.setViewportSize({ width: 820, height: 900 });
-        expect(await lineCount(page, 'header p')).toBe(1);
+        expect(await lineCount(page, TAGLINE)).toBe(1);
     });
 
     test('breekt af op een telefoon, zonder horizontaal te scrollen', async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
-        expect(await lineCount(page, 'header p')).toBeGreaterThan(1);
+        expect(await lineCount(page, TAGLINE)).toBeGreaterThan(1);
 
         const overflow = await page.evaluate(() =>
             document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -98,9 +109,23 @@ test.describe('de tagline', () => {
     });
 });
 
-test('noemt de Nederlandse btw-tarieven en de KOR in de tagline', async ({ page }) => {
-    await expect(page.locator('header p')).toContainText('Nederlandse btw-tarieven');
-    await expect(page.locator('header p')).toContainText('KOR');
+/**
+ * De ondertitel draagt vier beloften, en alle vier horen vastgezet: wat het
+ * kost, voor welke markt het is, dat de e-factuur erin zit, en dat er niets de
+ * browser verlaat. Die laatste is de sterkste die deze app heeft en stond
+ * eerder alleen in de voettekst.
+ */
+test('noemt in de tagline wat het kost, voor wie het is, en wat er niet gebeurt', async ({ page }) => {
+    const kop = page.locator('header');
+    await expect(kop).toContainText('Gratis');
+    await expect(kop).toContainText('Nederlandse btw-tarieven');
+    await expect(kop).toContainText('KOR');
+    // De e-factuur is de meest onderscheidende functie en stond nergens boven de vouw.
+    await expect(kop).toContainText('e-facturen');
+    // En de sterkste belofte, die eerder alleen in de voettekst stond.
+    await expect(kop).toContainText('alles blijft in je eigen browser');
+    // Het woord dat eruit moest: als enige op deze pagina niet na te gaan.
+    await expect(kop).not.toContainText('Razendsnel');
 });
 
 /**

@@ -29,9 +29,25 @@ export default function Home() {
         {/* Breedtelimiet in ch, niet in px: die schaalt mee met de lettergrootte
             hierboven en houdt een regel leesbaar kort. Ruim genoeg voor deze zin,
             zodat hij op één regel past zodra het scherm dat toelaat; op smalle
-            schermen breekt hij vanzelf af. */}
+            schermen breekt hij vanzelf af.
+
+            Er stond "razendsnel": het enige oncontroleerbare woord op een pagina
+            die het verder van precisie moet hebben. Daarvoor in de plaats staat
+            er nu wat het kost en dat de e-factuur erin zit.
+
+            Twee elementen en niet één lange zin. Alles in één alinea proppen
+            maakt hem langer dan 83 tekens, en dan breekt hij ook op een normale
+            laptop af — precies wat de tests hieronder in tests/page.spec.ts
+            tegenhouden, want dat is hier een keer misgegaan. Opgemeten, niet
+            geschat. */}
         <p style={{ color: 'var(--secondary)', fontSize: 'clamp(0.9rem, 3vw, 1.1rem)', maxWidth: 'min(100%, 90ch)', margin: '0 auto' }}>
-          Razendsnel facturen en offertes, met Nederlandse btw-tarieven en KOR-ondersteuning.
+          Gratis facturen, offertes en e-facturen met de Nederlandse btw-tarieven en de KOR.
+        </p>
+        {/* De sterkste belofte die deze app heeft, en hij stond alleen in de
+            voettekst — waar niemand komt voordat hij al besloten heeft te
+            blijven. Kleiner gezet: het is de onderbouwing, niet de kop. */}
+        <p style={{ color: 'var(--muted)', fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)', maxWidth: 'min(100%, 90ch)', margin: '0.4rem auto 0' }}>
+          Geen account en geen server: alles blijft in je eigen browser.
         </p>
       </header>
 
