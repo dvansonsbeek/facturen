@@ -2,11 +2,16 @@
 
 **➡️ Direct gebruiken: [dvansonsbeek.github.io/facturen](https://dvansonsbeek.github.io/facturen/)**
 
-Facturen is een razendsnelle, privacy-vriendelijke web-applicatie voor het genereren van professionele facturen en offertes, specifiek ontworpen voor de Nederlandse markt.
+Facturen maakt facturen en offertes volgens de Nederlandse btw-regels. Open de link en begin: er valt niets te installeren en niets aan te maken.
 
-Je hoeft niets te installeren en niets aan te maken: open de link en begin. Er is geen server, dus alles wat je invult blijft in je eigen browser.
+Het verschil met een boekhoudpakket zit niet in wat het kan, maar in waar je gegevens staan. Er is geen server en geen account, dus wat je invult blijft in je eigen browser — en dat heeft vier gevolgen die de moeite waard zijn:
 
-> *In English: a client-side invoice and quotation generator for the Dutch market — Dutch VAT rates (21/9/0%), the six Dutch VAT treatments (standard, small-business exemption, reverse charge, intra-EU supply, export, zero rate), KvK and VAT numbers, selectable-text PDF export, and e-invoicing as UBL/NLCIUS validated against the official Schematron. No backend, no accounts; everything stays in the browser. The interface and the rest of this README are in Dutch, because its users are.*
+- **Geen account.** Geen e-mailadres, geen wachtwoord, geen onboarding. Je bent binnen twintig seconden aan het factureren.
+- **Geen betaalde versie.** Geen proefperiode die afloopt en geen functie die later achter een abonnement verdwijnt. Dat is geen belofte maar een gevolg: de code staat onder de MIT-licentie, dus mocht dit ooit veranderen, dan kan iedereen de laatste vrije versie blijven gebruiken — of hem zelf ergens neerzetten.
+- **Geen verwerker.** Zet je je klantgegevens in een online pakket, dan is die leverancier een *verwerker* in de zin van de AVG: je hebt een verwerkersovereenkomst nodig en een datalek bij hen is ook jouw datalek. Hier is er voor wat je invult geen verwerker — niemand om iets mee af te spreken, en niemand die je klantenbestand kan kwijtraken. Jij blijft wél zelf verantwoordelijk voor wat er op dit apparaat staat; daar is de wachtwoordzin voor.
+- **Geen lock-in.** **Export** geeft je alles in één bestand terug: je bedrijfsgegevens, je klantenboek, je archief en je nummering. Stoppen met deze app kost je niets.
+
+> *In English: a client-side invoice and quotation generator for the Dutch market — Dutch VAT rates (21/9/0%), the five Dutch VAT treatments (standard, small-business exemption, reverse charge, intra-EU supply, export), KvK and VAT numbers, selectable-text PDF export, and e-invoicing as UBL/NLCIUS validated against the official Schematron. No backend, no accounts; everything stays in the browser. The interface and the rest of this README are in Dutch, because its users are.*
 
 ## ✨ Features
 

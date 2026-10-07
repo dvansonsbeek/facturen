@@ -28,10 +28,17 @@ const origin = "https://dvansonsbeek.github.io";
 const siteUrl = `${origin}${process.env.PAGES_BASE_PATH ?? ''}/`;
 
 const title = "Facturen & Offertes — gratis factuur maken volgens Nederlandse btw-regels";
+/**
+ * Wat een zoekresultaat laat zien, en dus waarop iemand besluit te klikken.
+ *
+ * Eerst wat het is, dan waarom het anders is. Dat laatste staat met opzet in
+ * gevolgen en niet in eigenschappen: "privacyvriendelijk" zegt niemand iets,
+ * "geen account, geen abonnement" wel.
+ */
 const description =
-  "Maak gratis facturen en offertes met de Nederlandse btw-tarieven 21%, 9% en 0% "
-  + "en ondersteuning voor de kleineondernemersregeling (KOR). Voor zzp'ers en kleine "
-  + "bedrijven. Geen account en geen server: alles blijft in je eigen browser.";
+  "Facturen en offertes volgens de Nederlandse btw-regels, met KOR en e-factuur "
+  + "(UBL/NLCIUS). Geen account, geen abonnement, geen server — je klantgegevens "
+  + "blijven in je eigen browser.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(origin),

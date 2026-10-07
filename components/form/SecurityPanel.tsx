@@ -109,6 +109,31 @@ export default function SecurityPanel({
                     </p>
                 </div>
 
+                {/* Wat "er is geen server" betekent voor de gebruiker zélf, en niet
+                    alleen hoe het technisch zit. Dit is het verschil dat deze app van
+                    een boekhoudpakket onderscheidt op een manier die er juridisch toe
+                    doet, en het stond nergens. Bewust mét de grens erbij: wat hier
+                    wegvalt is de verwerker, niet de verantwoordelijkheid. */}
+                <div className="uitleg-blok">
+                    <h4>Wat dat juridisch betekent</h4>
+                    <p>
+                        Zet je je klantgegevens in een online boekhoudpakket, dan is die
+                        leverancier een <strong>verwerker</strong> in de zin van de AVG. Je hebt
+                        dan een verwerkersovereenkomst nodig, je bent medeverantwoordelijk voor
+                        wat hun onderaannemers doen, en een datalek bij hen is ook jouw datalek.
+                    </p>
+                    <p>
+                        Hier is er voor wat je invult <strong>geen verwerker</strong>. Er is
+                        niemand om een overeenkomst mee te sluiten, en niemand die jouw
+                        klantenbestand kan kwijtraken — omdat niemand het heeft.
+                    </p>
+                    <p>
+                        Wat níet verdwijnt: jij blijft zelf verantwoordelijk voor de gegevens van
+                        je klanten, nu op dit apparaat. Een gestolen laptop zonder wachtwoordzin
+                        is nog steeds een datalek. Daar is de versleuteling hieronder voor.
+                    </p>
+                </div>
+
                 <div className="uitleg-blok">
                     <h4>Waar het risico dan zit</h4>
                     <p>

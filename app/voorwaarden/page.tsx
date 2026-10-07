@@ -131,6 +131,20 @@ export default function Voorwaarden() {
           <em>Global Privacy Control</em> aanstaan, dan wordt er niets geteld.
         </p>
 
+        <h2 style={STIJL_KOP}>Er is geen betaalde versie</h2>
+        <p style={STIJL_P}>
+          Geen proefperiode die afloopt, geen functie die later achter een abonnement
+          verdwijnt, en niets dat je eerst gratis mag gebruiken om er daarna aan vast te
+          zitten. Dat is geen belofte maar een gevolg: de code staat onder de
+          MIT-licentie op GitHub, dus mocht dit ooit veranderen, dan kan iedereen de
+          laatste vrije versie blijven gebruiken — of hem zelf ergens neerzetten.
+        </p>
+        <p style={STIJL_P}>
+          Er wordt ook niets aan je verdiend langs een andere weg. Er zijn geen
+          advertenties, er worden geen gegevens doorverkocht en er is geen partij die
+          meekijkt; dat kan ook niet, want wat je invult verlaat deze browser niet.
+        </p>
+
         <h2 style={STIJL_KOP}>Wijzigingen, en waar de code staat</h2>
         <p style={STIJL_P}>
           Deze voorwaarden kunnen veranderen; bovenaan staat wanneer ze voor het laatst zijn
