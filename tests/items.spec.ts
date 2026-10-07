@@ -144,3 +144,84 @@ test.describe('eenheid per regel', () => {
         expect(opties).toContain('km');
     });
 });
+
+/**
+ * De opmaak van een regel, en niet wat erin staat.
+ *
+ * Hier ging het mis zonder dat één test het zag: de eenheid kwam erbij in
+ * .mobile-split, dat op display: contents staat, dus zijn drie velden zijn zélf
+ * rasteritems. Er waren daarmee zes items en vijf kolommen. Alles schoof een
+ * plek op — de btw-keuzelijst belandde in de kolom van 40px die voor het knopje
+ * was, en het prullenbakje viel naar een tweede regel onder de beschrijving.
+ *
+ * Tekstasserties zien zoiets niet. Deze toetsen daarom posities, in de geest van
+ * tests/pdf-layout.spec.ts.
+ */
+test.describe('de opmaak van een regel', () => {
+    test.use({ viewport: { width: 1400, height: 900 } });
+
+    /**
+     * De controle die er het meest toe doet, want hij pint het verband dat brak:
+     * evenveel kolommen als rasteritems. Zet iemand er een veld bij zonder een
+     * kolom, dan gaat deze rood in plaats van dat er stilletjes iets afvalt.
+     */
+    test('heeft net zoveel kolommen als velden', async ({ page }) => {
+        const meting = await page.locator('.item-row').first().evaluate((el) => {
+            const stijl = getComputedStyle(el);
+            if (stijl.display !== 'grid') return null;
+            // display: contents maakt van de kínderen rasteritems, niet van het
+            // element zelf — precies wat hier over het hoofd werd gezien.
+            const tel = (node: Element): number => [...node.children].reduce(
+                (n, kind) => n + (getComputedStyle(kind).display === 'contents' ? tel(kind) : 1),
+                0,
+            );
+            return { kolommen: stijl.gridTemplateColumns.split(/\s+/).length, items: tel(el) };
+        });
+
+        expect(meting, 'de regel staat niet als raster; is de containervraag gewijzigd?').not.toBeNull();
+        expect(meting!.items).toBe(meting!.kolommen);
+    });
+
+    test('zet het prullenbakje op dezelfde regel als de velden', async ({ page }) => {
+        const rij = page.locator('.item-row').first();
+        const velden = await rij.locator('> div').first().boundingBox();
+        const knop = await rij.getByRole('button', { name: /verwijderen/i }).boundingBox();
+
+        // Binnen de verticale grenzen van de regel, en niet eronder.
+        expect(knop!.y).toBeGreaterThanOrEqual(velden!.y);
+        expect(knop!.y).toBeLessThan(velden!.y + velden!.height);
+    });
+
+    /**
+     * Geen veld zo smal dat je niet meer ziet wat je invult. De btw-keuzelijst
+     * was teruggebracht tot 40px — breed genoeg voor een pijltje en verder niets.
+     */
+    test('houdt elk veld breed genoeg om te lezen', async ({ page }) => {
+        const breedtes = await page.locator('.item-row').first()
+            .locator('input, select')
+            .evaluateAll((velden) => velden.map((v) => ({
+                plek: v.getAttribute('placeholder') ?? v.tagName.toLowerCase(),
+                breedte: Math.round(v.getBoundingClientRect().width),
+            })));
+
+        expect(breedtes.length).toBeGreaterThan(3);
+        for (const veld of breedtes) {
+            expect(veld.breedte, `${veld.plek} is maar ${veld.breedte}px breed`)
+                .toBeGreaterThan(50);
+        }
+    });
+
+    /**
+     * En op een smalle kolom valt hij terug op onder elkaar. Dat is geen gebrek
+     * maar de bedoeling: vanaf 1024px staat het formulier naast het voorbeeld in
+     * een kolom van ongeveer 356px, en vijf velden naast elkaar passen daar niet.
+     * Daarom kijkt de opmaak naar de ruimte in het formulier en niet naar het
+     * venster.
+     */
+    test('en stapelt ze als het formulier te smal is', async ({ page }) => {
+        await page.setViewportSize({ width: 1024, height: 900 });
+        const display = await page.locator('.item-row').first()
+            .evaluate((el) => getComputedStyle(el).display);
+        expect(display).toBe('flex');
+    });
+});

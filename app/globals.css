@@ -178,6 +178,9 @@ h4 {
   width: 100%;
   min-width: 0;
   overflow-x: hidden;
+  /* Zodat een regel kan vragen hoeveel ruimte er in dit formulier is in plaats
+     van hoe breed het venster is; zie .responsive-item-row. */
+  container-type: inline-size;
 }
 
 .main-grid {
@@ -292,10 +295,29 @@ h4 {
   gap: 1rem;
 }
 
-@media (min-width: 768px) {
+/* Een regel op één lijn, maar alleen als er plek voor is.
+
+   Op de breedte van het vénster afgaan werkte hier niet. Vanaf 1024px staat het
+   formulier naast het voorbeeld in een kolom van minmax(400px, 1fr), dus daar is
+   een regel juist smáller dan op een telefoon in liggende stand: gemeten 356px
+   bij een venster van 1024, tegen 638px bij een venster van 768. Een regel die
+   zich naar het venster richt, wordt dan precies op de verkeerde plek platgedrukt
+   — het prijsveld hield 37px over.
+
+   Een containervraag kijkt naar de ruimte die er werkelijk is. Zie
+   .form-section, die zich daarvoor als container opgeeft. */
+@container (min-width: 500px) {
+  /* Zes kolommen, en tel ze na als je er een veld bij zet: naam, aantal,
+     eenheid, prijs, btw, prullenbak.
+
+     .mobile-split hieronder staat op display: contents, dus zijn drie velden
+     zijn hier zélf rasteritems — niet één. Toen de eenheid erbij kwam schoof
+     daardoor alles een plek op: de btw-keuzelijst belandde in de kolom van
+     40px die voor het knopje bedoeld was, en het knopje viel naar een tweede
+     regel onder de beschrijving. */
   .responsive-item-row {
     display: grid !important;
-    grid-template-columns: 4fr 1fr 2fr 1.5fr 40px !important;
+    grid-template-columns: 3fr 1fr 1.35fr 1.35fr 1.7fr 40px !important;
     padding: 0 !important;
     border: none !important;
     margin-bottom: 1rem !important;
