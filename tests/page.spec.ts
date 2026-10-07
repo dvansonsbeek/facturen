@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { ui } from './helpers';
 
 /** De pagina zelf: titel, tagline en footer. */
 
@@ -78,6 +79,60 @@ const lineCount = (page: import('@playwright/test').Page, selector: string) =>
  * first-of-type — zonder die begrenzing wijst 'header p' naar allebei.
  */
 const TAGLINE = 'header p:first-of-type';
+
+/**
+ * Past het vel in zijn kolom?
+ *
+ * Het voorbeeld is een A4 op ware grootte (800px bij 96dpi) en de kolom ernaast
+ * is smaller zolang het venster dat is. Zonder verkleinen viel er bij 1280px
+ * 188px weg — en dat is precies de rechterkolom met Subtotaal, BTW en Totaal.
+ * Een factuur waarvan je de bedragen niet ziet.
+ *
+ * Er was ooit een --preview-scale voor bedacht, in zes mediaquery's op 1 gezet,
+ * maar de bijbehorende transform stond er nooit. Geen enkele test keek ernaar,
+ * want ze lezen allemaal tekst — en tekst is er gewoon, ook als hij buiten beeld
+ * staat.
+ */
+test.describe('het voorbeeld past in zijn kolom', () => {
+    for (const breedte of [1280, 1440, 1680]) {
+        test(`bij ${breedte}px staat het hele vel in beeld`, async ({ page }) => {
+            await page.setViewportSize({ width: breedte, height: 900 });
+
+            const over = await page.locator('.preview-section').evaluate(
+                (el) => Math.round(el.scrollWidth - el.clientWidth),
+            );
+            expect(over, 'het vel wordt afgekapt; de bedragenkolom valt weg').toBe(0);
+        });
+    }
+
+    /**
+     * Sterker dan "er is geen overloop": staat het bedrag er ook echt binnen?
+     * Dit is wat een gebruiker mist als het misgaat.
+     */
+    test('en het totaal staat binnen de rand, niet erbuiten', async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 900 });
+        const app = ui(page);
+        await app.itemPrice().fill('100');
+
+        const sectie = await page.locator('.preview-section').boundingBox();
+        const totaal = await app.preview.locator('text=/Totaal:/').last().boundingBox();
+
+        expect(totaal!.x + totaal!.width).toBeLessThanOrEqual(sectie!.x + sectie!.width);
+    });
+
+    /**
+     * Op een telefoon juist níet verkleinen. 800px naar 390px is bijna
+     * halveren, en dan is de factuur onleesbaar; daar is horizontaal schuiven
+     * over een leesbaar vel de betere ruil. Vandaar dat het verkleinen pas
+     * vanaf de tweekolomsindeling aan staat.
+     */
+    test('op een telefoon blijft het vel op ware grootte', async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const zoom = await page.locator('.preview-wrapper .invoice-preview')
+            .evaluate((el) => getComputedStyle(el).zoom);
+        expect(['1', 'normal']).toContain(zoom);
+    });
+});
 
 test.describe('de tagline', () => {
     /**

@@ -91,11 +91,16 @@ a:hover {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Mobile scaling for preview */
+/* Het voorbeeld: een A4 op ware grootte, 800px breed bij 96dpi.
+
+   Er stond hier een --preview-scale die in zes mediaquery's op 1 werd gezet, plus
+   een transform-origin en een transform: none. Geen van alle deed iets: er was
+   nergens een transform: scale(). Het verkleinen was duidelijk bedoeld en nooit
+   aangesloten, en ondertussen werd het vel gewoon afgekapt — bij 1280px viel er
+   188px weg, en net dát is de kolom met Subtotaal, BTW en Totaal. */
 .preview-wrapper {
   --preview-width: 800px;
   --preview-height: 1100px;
-  --preview-scale: 1;
   width: max-content;
   height: auto;
   margin: 0 auto;
@@ -108,7 +113,6 @@ a:hover {
 .preview-wrapper .invoice-preview {
   width: var(--preview-width);
   min-height: var(--preview-height);
-  transform-origin: top center;
 }
 
 .preview-section {
@@ -117,48 +121,33 @@ a:hover {
   touch-action: pan-x pan-y;
 }
 
-@media (max-width: 1200px) {
-  .preview-wrapper {
-    --preview-scale: 1;
-  }
-}
+/* Alleen waar het formulier naast het voorbeeld staat. Op een telefoon zou
+   verkleinen het vel onleesbaar maken — 800px naar 390px is bijna halvering —
+   en daar is horizontaal schuiven over een leesbaar vel de betere ruil. Vandaar
+   al het touch-action- en overscroll-werk hierboven.
 
-@media (max-width: 1024px) {
-  .preview-wrapper {
-    --preview-scale: 1;
+   zoom en geen transform: zoom telt mee in de opmaak, dus de omhulling krimpt
+   mee en er blijft geen lege ruimte onder het vel staan. Een transform laat het
+   vak op zijn volle hoogte staan.
+
+   min(1, …) verkleint alleen: groter dan A4 heeft geen zin. De deling van een
+   lengte door een lengte levert een getal op (CSS Values 4); kan een browser dat
+   niet, dan is de regel ongeldig en staat het vel er weer op ware grootte bij —
+   precies zoals het hiervoor stond, dus niemand gaat erop achteruit. */
+@media (min-width: 1024px) {
+  .preview-section {
+    container-type: inline-size;
+  }
+
+  .preview-wrapper .invoice-preview {
+    zoom: min(1, 100cqw / var(--preview-width));
   }
 }
 
 @media (max-width: 768px) {
-  .preview-wrapper {
-    --preview-scale: 1;
-  }
-
   .preview-section {
     padding: 0.5rem !important;
     position: static !important;
-  }
-}
-
-@media (max-width: 700px) {
-  .preview-wrapper {
-    overflow-x: auto;
-  }
-
-  .preview-wrapper .invoice-preview {
-    transform: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .preview-wrapper {
-    --preview-scale: 1;
-  }
-}
-
-@media (max-width: 380px) {
-  .preview-wrapper {
-    --preview-scale: 1;
   }
 }
 
