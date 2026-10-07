@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { NAAM } from "@/lib/site";
 
 /**
  * Zodat de app op een telefoon als snelkoppeling op het beginscherm kan.
@@ -14,8 +15,8 @@ export const dynamic = "force-static";
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: "Facturen & Offertes",
-        short_name: "Facturen",
+        name: NAAM,
+        short_name: NAAM,
         description:
             "Gratis facturen en offertes maken volgens Nederlandse btw-regels. "
             + "Alles blijft in je eigen browser.",

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { beleidVoorOmgeving } from "@/lib/csp";
-import { HERKOMST, SITE_URL } from "@/lib/site";
+import { HERKOMST, SITE_URL, NAAM } from "@/lib/site";
 import VisitCounter from "@/components/VisitCounter";
 import ServiceWorker from "@/components/ServiceWorker";
 import ThemeApplier from "@/components/ThemeApplier";
@@ -31,7 +31,9 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: 
 const origin = HERKOMST;
 const siteUrl = SITE_URL;
 
-const title = "Facturen & Offertes — gratis factuur maken volgens Nederlandse btw-regels";
+/* Naam voorop, beschrijving erachter: zo staat er in een zoekresultaat zowel
+   waarop iemand je terugzoekt als waarvoor het dient. */
+const title = `${NAAM} — gratis facturen en offertes volgens Nederlandse btw-regels`;
 /**
  * Wat een zoekresultaat laat zien, en dus waarop iemand besluit te klikken.
  *
@@ -61,7 +63,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "nl_NL",
     url: siteUrl,
-    siteName: "Facturen & Offertes",
+    siteName: NAAM,
     title,
     description,
   },
@@ -86,7 +88,7 @@ export const metadata: Metadata = {
 const gestructureerdeGegevens = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Facturen & Offertes',
+  name: NAAM,
   url: siteUrl,
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Elke browser',

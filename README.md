@@ -1,8 +1,8 @@
-# Facturen 🚀
+# Factuurr 🚀
 
 **➡️ Direct gebruiken: [factuurr.nl](https://factuurr.nl/)**
 
-Facturen maakt facturen en offertes volgens de Nederlandse btw-regels. Open de link en begin: er valt niets te installeren en niets aan te maken.
+Factuurr maakt facturen en offertes volgens de Nederlandse btw-regels. Open de link en begin: er valt niets te installeren en niets aan te maken.
 
 Het verschil met een boekhoudpakket zit niet in wat het kan, maar in waar je gegevens staan. Er is geen server en geen account, dus wat je invult blijft in je eigen browser — en dat heeft vier gevolgen die de moeite waard zijn:
 
@@ -18,7 +18,7 @@ Een bijdrage mag, maar hoeft niet: [ko-fi.com/sonsbeek](https://ko-fi.com/sonsbe
 
 ## ✨ Features
 
-- **Facturen & Offertes**: Schakel eenvoudig tussen het maken van een factuur of een offerte.
+- **Facturen en offertes**: Schakel eenvoudig tussen het maken van een factuur of een offerte.
 - **Nederlandse btw**: Tarieven van 21%, 9% en 0%, plus vijf btw-behandelingen: normaal, de kleineondernemersregeling (KOR), btw verlegd, intracommunautaire levering en uitvoer buiten de EU. Bij alles behalve normaal laat de app de btw-bedragen weg en zet hij de juiste vermelding op het document — *0% zonder reden erbij is geen complete factuur* — en krijgt de e-factuur de bijbehorende UBL-categorie (`E`, `AE`, `K` of `G`). Een gewoon nultarief kies je niet apart: dat is het normale regime met 0% per regel, want dan hoort het tarief juist wél op de factuur te staan.
 - **Bedrijfsgegevens**: Velden voor btw-identificatienummer en KvK-nummer. Ze verschijnen alleen op het document als je ze invult.
 - **Regels met een eenheid**: Reken per **uur**, per **stuk**, per **dag**, per **km** of helemaal zonder eenheid voor een vast bedrag. Je mag ook je eigen eenheid typen.

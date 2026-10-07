@@ -17,8 +17,19 @@ Only the theme and the last-seen build are cosmetic. See *State lives in four pl
 ## Provenance and repo rules
 
 This repo is a fork of [eraycode/factuurr](https://github.com/eraycode/factuurr), a
-**Belgian** invoice generator, adapted to Dutch invoicing law and renamed from
-*Factuurr* to *Facturen*.
+**Belgian** invoice generator, adapted to Dutch invoicing law.
+
+**On the name.** It was renamed from *Factuurr* to *Facturen* when the fork was made,
+and renamed **back to Factuurr** in October 2026 — a deliberate reversal, not drift.
+*Facturen* is unusable as a name: it is one of the most generic words in Dutch, so
+nobody who wanted the app back could ever find it. Meanwhile `factuurr.nl` was bought
+and the word appeared **nowhere** on the site except inside URLs, so a visitor could
+use the app for days without once reading what it is called. The name now lives in
+`lib/site.ts` as `NAAM` and `tests/page.spec.ts` holds the seven places that must agree.
+
+This does re-use the upstream project's name. That was weighed and chosen; the licence
+attribution in `LICENSE` and the provenance commits are what credit Eray's work, and
+they are untouched. Still: do not contact the original author.
 
 - Two remotes: `origin` is this fork at
   [dvansonsbeek/facturen](https://github.com/dvansonsbeek/facturen) (public), `upstream`

@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-
 /** Zie app/page.tsx: gewone verwijzingen, want het strikte beleid blokkeert de
  *  fetch waarmee next/link navigeert. Het basispad dus zelf ervoor. */
-const BASISPAD = process.env.PAGES_BASE_PATH ?? '';
+import { NAAM, BASISPAD } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Gebruiksvoorwaarden en privacy — Facturen & Offertes",
+  title: `Gebruiksvoorwaarden en privacy — ${NAAM}`,
   description:
     "Waar deze app wel en niet voor bedoeld is, wie verantwoordelijk blijft voor je "
     + "facturen, en wat er met je gegevens gebeurt.",

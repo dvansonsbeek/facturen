@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ui } from './helpers';
+import { NAAM } from '../lib/site';
 
 /** De pagina zelf: titel, tagline en footer. */
 
@@ -7,9 +8,44 @@ test.beforeEach(async ({ page }) => {
     await page.goto('/');
 });
 
-test('draagt de naam Facturen', async ({ page }) => {
-    await expect(page).toHaveTitle(/^Facturen/);
-    await expect(page.locator('header h1')).toHaveText('Facturen & Offertes');
+/**
+ * De naam, overal dezelfde.
+ *
+ * Hij heette "Facturen & Offertes" en dat is als naam onbruikbaar: "facturen" is
+ * een van de meest algemene woorden die er zijn, dus wie de app later terugzoekt
+ * vindt hem nooit. Ondertussen stond "Factuurr" alleen in het webadres en in geen
+ * enkel zichtbaar woord — je kon de app dagen gebruiken zonder de naam ooit te
+ * lezen.
+ *
+ * Hij stond op zeven plaatsen los ingetypt. Deze test legt ze tegen elkaar in
+ * plaats van de naam nog een achtste keer op te schrijven: verandert hij, dan
+ * moet hij overal meeveranderen.
+ */
+test.describe('de naam', () => {
+    test('staat in de kop en vooraan de titel', async ({ page }) => {
+        await expect(page.locator('header h1')).toHaveText(NAAM);
+        await expect(page).toHaveTitle(new RegExp(`^${NAAM}`));
+    });
+
+    test('en in og:site_name, het manifest en de gestructureerde gegevens', async ({ page }) => {
+        const siteName = await page.locator('meta[property="og:site_name"]').getAttribute('content');
+        expect(siteName).toBe(NAAM);
+
+        const href = await page.locator('link[rel="manifest"]').getAttribute('href');
+        const manifest = await (await page.request.get(href!)).json();
+        expect(manifest.name).toBe(NAAM);
+        expect(manifest.short_name).toBe(NAAM);
+
+        const gegevens = JSON.parse(
+            await page.locator('script[type="application/ld+json"]').innerText(),
+        );
+        expect(gegevens.name).toBe(NAAM);
+    });
+
+    test('en achter de titel van de voorwaarden', async ({ page }) => {
+        await page.goto('/voorwaarden');
+        await expect(page).toHaveTitle(new RegExp(`${NAAM}$`));
+    });
 });
 
 /**
@@ -21,7 +57,7 @@ test.describe('deelgegevens', () => {
         page.locator(selector).getAttribute('content');
 
     test('heeft een titel en omschrijving voor sociale media', async ({ page }) => {
-        expect(await meta(page, 'meta[property="og:title"]')).toContain('Facturen');
+        expect(await meta(page, 'meta[property="og:title"]')).toContain(NAAM);
         expect(await meta(page, 'meta[property="og:description"]')).toContain('KOR');
         expect(await meta(page, 'meta[name="twitter:card"]')).toBe('summary_large_image');
     });
@@ -39,7 +75,8 @@ test.describe('deelgegevens', () => {
     test('biedt een manifest voor op het beginscherm', async ({ page }) => {
         const href = await page.locator('link[rel="manifest"]').getAttribute('href');
         const manifest = await (await page.request.get(href!)).json();
-        expect(manifest.name).toBe('Facturen & Offertes');
+        // De naam zelf staat hierboven onder 'de naam'; hier gaat het om de rest.
+        expect(manifest.display).toBe('standalone');
         expect(manifest.icons.length).toBeGreaterThan(0);
     });
 });

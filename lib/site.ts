@@ -12,6 +12,21 @@
  * sitemap en de verwijzingen in de voettekst meebewegen.
  */
 
+/**
+ * Hoe de app heet.
+ *
+ * Was "Facturen & Offertes", en dat is als naam onbruikbaar: "facturen" is een van
+ * de meest algemene woorden die er zijn, dus wie de app later terugzoekt vindt
+ * hem nooit. Ondertussen stond "Factuurr" alleen in het webadres en in geen enkel
+ * zichtbaar woord — je kon de app dagen gebruiken zonder de naam ooit te lezen,
+ * en dan onthoud je hem ook niet.
+ *
+ * Eén constante, omdat de naam op zeven plaatsen stond: titel, kop, manifest,
+ * og:site_name, gestructureerde gegevens, de voorwaarden en de README. Zie
+ * tests/page.spec.ts, dat ze tegen elkaar legt.
+ */
+export const NAAM = 'Factuurr';
+
 /** Leeg zolang de app op de root van zijn eigen domein staat. */
 export const BASISPAD = process.env.PAGES_BASE_PATH ?? '';
 

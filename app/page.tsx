@@ -1,6 +1,7 @@
 import InvoiceForm from "@/components/InvoiceForm";
 import VersieMelding from "@/components/VersieMelding";
 import { ReceiptEuro } from "lucide-react";
+import { NAAM, BASISPAD } from "@/lib/site";
 
 /**
  * Een gewone <a> en geen next/link, met het basispad er zelf voor.
@@ -11,11 +12,11 @@ import { ReceiptEuro } from "lucide-react";
  * die fetch wordt geweigerd en de verwijzing doet niets in de gepubliceerde
  * versie. Een volledige paginawissel heeft die fetch niet nodig.
  *
- * Het basispad moet er dan wel met de hand voor: dat regelt next/link anders.
- * Gevonden door check:publicatie, niet door de testsuite — op de
- * ontwikkelserver staat het beleid losser en werkt next/link gewoon.
+ * Het basispad moet er dan wel met de hand voor (BASISPAD uit lib/site.ts): dat
+ * regelt next/link anders. Gevonden door check:publicatie, niet door de
+ * testsuite — op de ontwikkelserver staat het beleid losser en werkt next/link
+ * gewoon.
  */
-const BASISPAD = process.env.PAGES_BASE_PATH ?? '';
 
 /**
  * Een vrijwillige bijdrage, als er een Ko-fi-naam is ingesteld.
@@ -39,7 +40,11 @@ export default function Home() {
           <div style={{ background: 'var(--primary)', padding: '0.5rem', borderRadius: '10px' }}>
             <ReceiptEuro color="white" size={24} />
           </div>
-          <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', margin: 0 }}>Facturen &amp; Offertes</h1>
+          {/* De naam, en niet meer de omschrijving: die staat eronder in de
+              ondertitel. Zo lees je bij elk bezoek hoe de app heet, want anders
+              onthoud je hem niet en zoek je hem later op "facturen" — waarmee je
+              hem nooit terugvindt. */}
+          <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', margin: 0 }}>{NAAM}</h1>
         </div>
         {/* Breedtelimiet in ch, niet in px: die schaalt mee met de lettergrootte
             hierboven en houdt een regel leesbaar kort. Ruim genoeg voor deze zin,
