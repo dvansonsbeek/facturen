@@ -662,7 +662,7 @@ Run the suite before and after any refactor. It exists precisely because
 
 ## Known gaps and deliberate decisions
 
-- `InvoiceForm.tsx` is ~770 lines: roughly 540 of state and handlers, 230 of
+- `InvoiceForm.tsx` is ~1040 lines: roughly 705 of state and handlers, 335 of
   composition. The company, payment, client and archive sections were extracted to
   `components/form/`; *Algemene Informatie*, Items and the action buttons were left
   in place because pulling out another ~50 lines behind a props interface buys little.

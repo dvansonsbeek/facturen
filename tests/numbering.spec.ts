@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, previewText } from './helpers';
+import { ui, previewText, waitForHydration } from './helpers';
 
 const jaar = new Date().toISOString().slice(0, 4);
 
@@ -21,6 +21,36 @@ test('onthoudt het nummer na herladen', async ({ page }) => {
     await app.documentNumber.fill(`${jaar}-042`);
     await page.reload();
     await expect(app.documentNumber).toHaveValue(`${jaar}-042`);
+});
+
+/**
+ * Een nieuwe reeks per jaar.
+ *
+ * readNumbering geeft de standaard van het lopende jaar zodra het bewaarde jaar
+ * een ander is. Dat gebeurt bij de eerste factuur van januari, en geen van de
+ * twaalf nummertests stak ooit een jaargrens over.
+ *
+ * Het jaar komt uit localStorage en niet uit een verzette klok, omdat dit is wat
+ * er op 2 januari werkelijk in de browser staat: de stand van vorig jaar.
+ */
+test('een bewaarde reeks van vorig jaar begint opnieuw bij 001', async ({ page }) => {
+    await page.addInitScript(() => {
+        localStorage.setItem('facturen.nummering', JSON.stringify({
+            jaar: '2019', factuur: '2019-042', offerte: 'OFF-2019-007',
+        }));
+    });
+    await page.goto('/');
+
+    // Eerst hydrateren, en dat is hier niet optioneel: readServerNumbering geeft
+    // de standaard van het lopende jaar, dus vóór hydratatie staat het goede
+    // antwoord er al om de verkeerde reden. Zonder deze regel zou de test ook
+    // slagen als de jaarwissel stuk was.
+    await waitForHydration(page);
+
+    const app = ui(page);
+    await expect(app.documentNumber).toHaveValue(`${jaar}-001`);
+    await app.tab('Offerte').click();
+    await expect(app.documentNumber).toHaveValue(`OFF-${jaar}-001`);
 });
 
 test.describe('volgende factuur', () => {
