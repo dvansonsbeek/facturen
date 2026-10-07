@@ -10,6 +10,9 @@ Het verschil met een boekhoudpakket zit niet in wat het kan, maar in waar je geg
 - **Geen betaalde versie.** Geen proefperiode die afloopt en geen functie die later achter een abonnement verdwijnt. Dat is geen belofte maar een gevolg: de code staat onder de MIT-licentie, dus mocht dit ooit veranderen, dan kan iedereen de laatste vrije versie blijven gebruiken — of hem zelf ergens neerzetten.
 - **Geen verwerker.** Zet je je klantgegevens in een online pakket, dan is die leverancier een *verwerker* in de zin van de AVG: je hebt een verwerkersovereenkomst nodig en een datalek bij hen is ook jouw datalek. Hier is er voor wat je invult geen verwerker — niemand om iets mee af te spreken, en niemand die je klantenbestand kan kwijtraken. Jij blijft wél zelf verantwoordelijk voor wat er op dit apparaat staat; daar is de wachtwoordzin voor.
 - **Geen lock-in.** **Export** geeft je alles in één bestand terug: je bedrijfsgegevens, je klantenboek, je archief en je nummering. Stoppen met deze app kost je niets.
+- **Werkt offline.** Na je eerste bezoek staan de bestanden op je apparaat: factureren in de trein of bij een klant zonder wifi kan gewoon. Ben je online, dan haal je vanzelf de nieuwste versie op — en de app zegt het als hij is bijgewerkt.
+
+Een bijdrage mag, maar hoeft niet: [ko-fi.com/sonsbeek](https://ko-fi.com/sonsbeek). Het levert je niets extra's op — er is geen uitgebreidere versie om naartoe te gaan, en dat is precies het punt.
 
 > *In English: a client-side invoice and quotation generator for the Dutch market — Dutch VAT rates (21/9/0%), the five Dutch VAT treatments (standard, small-business exemption, reverse charge, intra-EU supply, export), KvK and VAT numbers, selectable-text PDF export, and e-invoicing as UBL/NLCIUS validated against the official Schematron. No backend, no accounts; everything stays in the browser. The interface and the rest of this README are in Dutch, because its users are.*
 

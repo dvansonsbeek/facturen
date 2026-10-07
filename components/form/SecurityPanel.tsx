@@ -3,18 +3,10 @@
 import { useState } from "react";
 import { Lock, LockOpen, ShieldCheck } from "lucide-react";
 import type { KluisStand } from "@/lib/vault";
+import { BOUWVERSIE, alsDatum } from "@/lib/versie";
 
-/**
- * De bouwdatum, als dag-maand-jaar. Komt uit next.config.ts en staat dus vast op
- * het moment van bouwen; zonder die variabele (bijvoorbeeld in een test die de
- * component los rendert) tonen we niets liever dan een verzonnen datum.
- */
-const BOUWDATUM = (() => {
-    const ruw = process.env.NEXT_PUBLIC_BOUWDATUM;
-    if (!ruw) return 'onbekende datum';
-    const [jaar, maand, dag] = ruw.split('-');
-    return `${Number(dag)}-${maand}-${jaar}`;
-})();
+/** Dezelfde bron als de melding bovenaan de pagina; zie lib/versie.ts. */
+const BOUWDATUM = alsDatum(BOUWVERSIE);
 
 interface SecurityPanelProps {
     kluis: KluisStand;

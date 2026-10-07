@@ -1,4 +1,5 @@
 import InvoiceForm from "@/components/InvoiceForm";
+import VersieMelding from "@/components/VersieMelding";
 import { ReceiptEuro } from "lucide-react";
 
 /**
@@ -63,6 +64,10 @@ export default function Home() {
         <p style={{ color: 'var(--muted)', fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)', maxWidth: 'min(100%, 90ch)', margin: '0.4rem auto 0' }}>
           Geen account en geen server: alles blijft in je eigen browser.
         </p>
+        {/* Eenmalig, als de app sinds je vorige bezoek is bijgewerkt. Online
+            gebeurt dat vanzelf — zo bereikt een herstelde fout iedereen — maar
+            dan hoort het wel gezegd te worden. */}
+        <VersieMelding />
       </header>
 
       <InvoiceForm />

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFoldout, normalise } from './helpers';
+import { openFoldout, normalise, waitForHydration } from './helpers';
 
 /**
  * De beloften waarop deze app zich onderscheidt.
@@ -92,6 +92,58 @@ test.describe('welke versie je hebt', () => {
      * zien zijn wélke, want btw-regels verschuiven. Zonder die datum is het geen
      * eigendom maar een verouderde kopie.
      */
+    const VERSIESLEUTEL = 'facturen.laatstGezienVersie';
+
+    /**
+     * Online haalt de app vanzelf de nieuwste versie op, en dat is met opzet: zo
+     * bereikt een herstelde fout iedereen, wat bij een factuurprogramma zwaarder
+     * weegt dan voorspelbaarheid. De keerzijde is dat hij onder je handen
+     * verandert, en dat hoort gezegd te worden.
+     */
+    test('zegt het als de app sinds je vorige bezoek is bijgewerkt', async ({ page }) => {
+        await page.addInitScript(([sleutel]) => {
+            localStorage.setItem(sleutel, '2019-03-04');
+        }, [VERSIESLEUTEL]);
+        await page.goto('/');
+        await waitForHydration(page);
+
+        const melding = page.locator('header p[role="status"]');
+        await expect(melding).toContainText('bijgewerkt naar de versie van');
+        await expect(melding).toContainText('4-03-2019');
+    });
+
+    /**
+     * Eén keer, niet elke keer: bij het lezen is de nieuwe versie al vastgelegd.
+     *
+     * Hier geen addInitScript zoals hierboven — die draait bij élke navigatie,
+     * dus ook bij de herlaadbeurt, en zet de oude versie dan opnieuw klaar. Dan
+     * blijft de melding staan en lijkt de app stuk terwijl de test dat zelf doet.
+     * Daarom via evaluate: één keer, na het eerste bezoek.
+     */
+    test('en daarna niet meer', async ({ page }) => {
+        await page.goto('/');
+        await waitForHydration(page);
+        await page.evaluate(
+            ([sleutel]) => localStorage.setItem(sleutel, '2019-03-04'),
+            [VERSIESLEUTEL],
+        );
+
+        await page.reload();
+        await waitForHydration(page);
+        await expect(page.locator('header p[role="status"]')).toBeVisible();
+
+        await page.reload();
+        await waitForHydration(page);
+        await expect(page.locator('header p[role="status"]')).toHaveCount(0);
+    });
+
+    /** Een eerste bezoek is geen wijziging; dan is er niets te melden. */
+    test('zegt niets bij een eerste bezoek', async ({ page }) => {
+        await page.goto('/');
+        await waitForHydration(page);
+        await expect(page.locator('header p[role="status"]')).toHaveCount(0);
+    });
+
     test('de bouwdatum staat in de app, met de reden erbij', async ({ page }) => {
         await page.goto('/');
         const sectie = await openFoldout(page, 'Beveiliging en privacy');
