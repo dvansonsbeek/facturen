@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   description:
     "Waar deze app wel en niet voor bedoeld is, wie verantwoordelijk blijft voor je "
     + "facturen, en wat er met je gegevens gebeurt.",
+  alternates: { canonical: '/voorwaarden' },
 };
 
 /**

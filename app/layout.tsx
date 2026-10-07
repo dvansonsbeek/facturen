@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { beleidVoorOmgeving } from "@/lib/csp";
+import { HERKOMST, SITE_URL } from "@/lib/site";
 import VisitCounter from "@/components/VisitCounter";
 import ServiceWorker from "@/components/ServiceWorker";
 import ThemeApplier from "@/components/ThemeApplier";
@@ -27,8 +28,8 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: 
  * geen basispad meer, maar de regel blijft gelden als dat ooit terugkomt. De
  * volledige URL van de site staat los, voor og:url.
  */
-const origin = "https://factuurr.nl";
-const siteUrl = `${origin}${process.env.PAGES_BASE_PATH ?? ''}/`;
+const origin = HERKOMST;
+const siteUrl = SITE_URL;
 
 const title = "Facturen & Offertes — gratis factuur maken volgens Nederlandse btw-regels";
 /**
@@ -47,6 +48,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(origin),
   title,
   description,
+  /* De eigen URL, zodat een zoekmachine weet welke de echte is. Dat weegt nu
+     zwaarder dan anders: de site stond tot vandaag op
+     dvansonsbeek.github.io/facturen en is daar waarschijnlijk geïndexeerd. De
+     301 doet het meeste werk, maar dit zegt het nog eens met zoveel woorden. */
+  alternates: { canonical: '/' },
   keywords: [
     "factuur maken", "gratis factuur", "factuurgenerator", "offerte maken",
     "zzp factuur", "btw", "KOR", "kleineondernemersregeling", "Nederland",
@@ -66,6 +72,40 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Gestructureerde gegevens voor zoekmachines.
+ *
+ * In gewone tekst staat al dat het gratis is; dit zegt het in een vorm die een
+ * zoekmachine kan gebruiken in plaats van moet raden. Voor een gratis app die
+ * het opneemt tegen betaalde pakketten is dat het verschil tussen "staat ergens
+ * in de tekst" en "is een eigenschap van dit product".
+ *
+ * Geen naam van een maker erin, net als in LICENSE: dat is een bewuste keuze en
+ * geen omissie. De verwijzing naar de broncode doet hetzelfde werk.
+ */
+const gestructureerdeGegevens = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Facturen & Offertes',
+  url: siteUrl,
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Elke browser',
+  inLanguage: 'nl-NL',
+  description,
+  isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  license: 'https://opensource.org/licenses/MIT',
+  codeRepository: 'https://github.com/dvansonsbeek/facturen',
+  featureList: [
+    'Facturen en offertes volgens de Nederlandse btw-tarieven (21%, 9%, 0%)',
+    'Kleineondernemersregeling (KOR)',
+    'E-factuur als UBL volgens NLCIUS (SI-UBL 2.0)',
+    'Creditfacturen',
+    'Betaal-QR volgens EPC069-12',
+    'Werkt offline, zonder account en zonder server',
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -77,6 +117,13 @@ export default function RootLayout({
         {/* Zie lib/csp.ts voor wat dit beleid doet en waarom het tijdens
             ontwikkelen losser staat dan in de gepubliceerde versie. */}
         <meta httpEquiv="Content-Security-Policy" content={beleidVoorOmgeving()} />
+        {/* Een gegevensblok en geen script dat draait: type ld+json wordt niet
+            uitgevoerd. Het staat hier en niet in metadata, omdat Next daar geen
+            plek voor heeft. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(gestructureerdeGegevens) }}
+        />
       </head>
       <body>
         {/* Zet het thema op <html>, en wel op élke pagina. Stond eerder in
