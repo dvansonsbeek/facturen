@@ -216,9 +216,16 @@ test.describe('verwijzingen en thema', () => {
         await page.getByRole('link', { name: 'gebruiksvoorwaarden' }).click();
         await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
-        const achtergrond = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-        expect(achtergrond, 'de voorwaarden staan nog op het lichte thema')
-            .not.toBe('rgb(248, 250, 252)');
+        // Met poll en niet met één meting: body heeft een overgang van 0,3s op
+        // background-color, dus vlak na het zetten van data-theme is de
+        // berekende kleur nog onderweg. Lokaal haalde dat het net; op een
+        // tragere machine stond er drie keer achter elkaar nog de lichte kleur.
+        await expect.poll(
+            () => page.evaluate(() => getComputedStyle(document.body).backgroundColor),
+            { message: 'de voorwaarden staan nog op het lichte thema' },
+        ).toBe('rgb(2, 6, 23)');
+
+        // De kleur van een verwijzing kent die overgang niet, dus die mag in één keer.
         expect(await kleurVan(page, 'article a')).not.toBe(BROWSERBLAUW);
     });
 });
