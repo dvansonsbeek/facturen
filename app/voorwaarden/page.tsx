@@ -27,6 +27,20 @@ export const metadata: Metadata = {
  * staan waar een gebruiker het kan vinden.
  */
 
+/**
+ * Wanneer deze tekst voor het laatst inhoudelijk veranderde.
+ *
+ * Met de hand, en dat is een keuze. Afleiden uit het bouwmoment zou hem bij elke
+ * publicatie opschuiven — ook bij een wijziging die hier niets mee te maken heeft
+ * — en dan beweert de pagina dat de voorwaarden veranderd zijn terwijl er niets
+ * aan gewijzigd is. Een datum die liegt is erger dan een datum die oud is.
+ *
+ * Bijwerken dus zodra de tekst hieronder inhoudelijk wijzigt. Een spelfout is
+ * dat niet. tests/voorwaarden.spec.ts houdt een vingerafdruk van de tekst bij en
+ * gaat rood zodra die verandert, juist om deze regel niet te laten vergeten.
+ */
+const BIJGEWERKT = '7 oktober 2026';
+
 const STIJL_KOP = { fontSize: '1.1rem', marginTop: '2rem', marginBottom: '0.5rem' };
 /** globals.css zet alle marges op nul, dus alinea's hebben hier hun eigen ruimte
  *  nodig; zonder dit plakken ze binnen een paragraaf aan elkaar vast. */
@@ -42,7 +56,7 @@ export default function Voorwaarden() {
 
         <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)' }}>Gebruiksvoorwaarden en privacy</h1>
         <p style={{ ...STIJL_P, color: 'var(--secondary)' }}>
-          Door deze app te gebruiken ga je hiermee akkoord. Laatst bijgewerkt op 7 oktober 2026.
+          Door deze app te gebruiken ga je hiermee akkoord. Laatst bijgewerkt op {BIJGEWERKT}.
         </p>
 
         <h2 style={STIJL_KOP}>Wat dit is, en wat niet</h2>

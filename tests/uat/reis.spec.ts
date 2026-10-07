@@ -317,6 +317,36 @@ test('de hele reis: twee klanten factureren, opruimen en versleutelen', async ({
         await expect(app.archiveRowFor(nummerB).row).toHaveCount(0);
     });
 
+    await test.step('de gebruiksvoorwaarden zijn vanaf de site te openen', async () => {
+        /**
+         * Helemaal achteraan, en niet zomaar: deze stap verlaat de pagina. Doe je
+         * dat halverwege, dan is de sleutel uit het geheugen weg — die wordt
+         * nergens bewaard — en staat het archief ineens op slot in een stap die
+         * daar niet over gaat.
+         *
+         * Waarom hij hier hoort: dit is de enige andere route, en een tweede
+         * route is precies wat bij publiceren omvalt. Op de ontwikkelserver
+         * werkt hij, onder het basispad geeft hij een 404, en next/link liep
+         * hier stuk op het strikte beleid. check:publicatie kijkt daarnaar,
+         * maar tegen een lokale build; deze stap doet het tegen de site zoals
+         * hij er echt staat.
+         */
+        const verwijzing = page.getByRole('link', { name: 'gebruiksvoorwaarden' });
+        await expect(verwijzing).toBeVisible();
+        await verwijzing.click();
+
+        await expect(page.getByRole('heading', { level: 1 })).toContainText('Gebruiksvoorwaarden');
+        const tekst = normalise(await page.locator('article').innerText());
+        expect(tekst).toContain('geen boekhoudpakket');
+        expect(tekst).toContain('geen belastingadvies');
+        expect(tekst).toContain('Laatst bijgewerkt op');
+
+        // En weer terug: een pagina waar je niet uit komt is ook een fout.
+        await page.getByRole('link', { name: /Terug naar de app/ }).first().click();
+        await waitForHydration(page);
+        await expect(app.preview).toBeVisible();
+    });
+
     await test.step('Wissen ruimt alles op', async () => {
         page.once('dialog', (d) => d.accept());
         await app.clearSettings.click();

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { normalise } from './helpers';
 
@@ -94,6 +95,36 @@ test.describe('de pagina zelf', () => {
         await expect(page.getByRole('link', { name: 'issue' })).toBeVisible();
         const tekst = await page.locator('article').innerText();
         expect(tekst).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    });
+
+    /**
+     * De datum bovenaan staat met de hand in de code, en dat is met reden: zie
+     * BIJGEWERKT in app/voorwaarden/page.tsx. Het nadeel van met de hand is dat
+     * je het vergeet — je herschrijft een alinea en de pagina beweert nog steeds
+     * dat er sinds oktober niets veranderd is.
+     *
+     * Deze test houdt daarom een vingerafdruk bij van de tekst zónder die
+     * datumregel. Verandert er iets aan de inhoud, dan gaat hij rood en moet je
+     * twee dingen doen: de datum bijwerken en de vingerafdruk hieronder. Alleen
+     * de datum bijwerken kan zonder dat deze test klaagt, want die zit er niet
+     * in — dat mag ook, dat is nooit een vergissing.
+     */
+    test('de tekst is niet veranderd zonder dat de datum is bijgewerkt', async ({ page }) => {
+        const ruw = normalise(await page.locator('article').innerText());
+        const zonderDatum = ruw
+            .split('\n')
+            .filter((regel) => !regel.includes('Laatst bijgewerkt op'))
+            .join('\n')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const vingerafdruk = createHash('sha256').update(zonderDatum).digest('hex').slice(0, 16);
+        expect(
+            vingerafdruk,
+            'De tekst van de voorwaarden is gewijzigd. Werk BIJGEWERKT bij in '
+            + 'app/voorwaarden/page.tsx als dit een inhoudelijke wijziging is, en zet '
+            + `daarna deze vingerafdruk op ${vingerafdruk}.`,
+        ).toBe('5de4b6cc0e5c0036');
     });
 
     test('is weer terug te verlaten', async ({ page }) => {
