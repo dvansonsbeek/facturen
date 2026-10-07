@@ -6,11 +6,13 @@ A client-side invoice and quotation generator for the **Dutch** market. No backe
 no database, no accounts: everything lives in the browser.
 
 Plenty *is* persisted, all of it on the device: company and payment details, the
-customer book, the running document numbers and which sections you collapsed in
-`localStorage`; the archive of issued documents in IndexedDB; and, if you set a
-passphrase, the key header beside it. Only the theme is cosmetic. See *State lives in
-four places* and *The archive* below — the privacy claim is "it never leaves this
-browser", not "it is not written down".
+customer book, the running document numbers, which sections you collapsed and which
+build you last saw in `localStorage`; the archive of issued documents in IndexedDB;
+and, if you set a passphrase, the key header beside it. Since the service worker, the
+**whole application** is in Cache Storage as well, so it starts without a network.
+Only the theme and the last-seen build are cosmetic. See *State lives in four places*,
+*The archive* and *Offline, and which version you have* below — the privacy claim is
+"it never leaves this browser", not "it is not written down".
 
 ## Provenance and repo rules
 
@@ -39,8 +41,13 @@ This repo is a fork of [eraycode/factuurr](https://github.com/eraycode/factuurr)
 
 ```
 app/                 layout + page shell (server components, 2-space indent)
+  voorwaarden/       gebruiksvoorwaarden + privacy, the only other route
 components/
   InvoiceForm.tsx    the container: all form state, handlers and composition
+  ThemeApplier.tsx   puts data-theme on <html>, on every page
+  ServiceWorker.tsx  registers public/sw.js, published build only
+  VersieMelding.tsx  says once when the app was updated under you
+  VisitCounter.tsx   the GoatCounter pixel; renders nothing
   form/              presentational sections, props in, callbacks out
     CompanyDetails.tsx   Mijn Bedrijfsgegevens (foldout)
     PaymentDetails.tsx   Mijn Betaalgegevens (foldout, invoice only)
@@ -59,6 +66,7 @@ lib/
   countries.ts       country names to ISO codes, and who is in the EU
   iban.ts            the IBAN check digits (ISO 7064 MOD-97-10)
   theme.ts           light/dark store read via useSyncExternalStore
+  versie.ts          the build date, and whether it changed since your last visit
   settings.ts        company + payment details, persisted in localStorage
   clients.ts         the saved customer book, persisted
   numbering.ts       the running invoice/quotation numbers, persisted
@@ -71,9 +79,11 @@ lib/
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
   payment-qr.ts      the EPC069-12 payment QR: payload + module matrix
   ubl.ts             the e-factuur: the same invoice as UBL/NLCIUS XML
+public/sw.js         the service worker: makes the app start without a network
 types/index.ts       Invoice, Quotation, Sender, Client, LineItem, VatScheme
 scripts/             controleer-publicatie, controleer-efactuur, statische-server
 tests/               Playwright end-to-end specs
+tests/uat/           reis.spec.ts (the journey) + offline.spec.ts, published build only
 ```
 
 `Quotation extends Omit<Invoice, 'invoiceNumber'>` and adds `quotationNumber` and
@@ -101,7 +111,13 @@ tests/               Playwright end-to-end specs
   because the preview already shows who the document is for. Saving folds them away
   again. Deleting a customer from the book leaves the document's client untouched —
   you may be halfway through an invoice to them.
-- **Per browser** (`lib/theme.ts`, `lib/foldouts.ts`): theme, collapsed sections.
+- **Per browser** (`lib/theme.ts`, `lib/foldouts.ts`, `lib/versie.ts`): theme, collapsed
+  sections, the build you last saw. The theme is *applied* by
+  `components/ThemeApplier.tsx` in the layout, not by `InvoiceForm` — it used to be in
+  the form, and since the form only exists on the home page, the voorwaarden route was
+  permanently light. The toggle button stays in the form; that is a control, this is
+  applying the choice. A useful side effect: `waitForHydration` keys on `data-theme`, so
+  it now works on that route too.
 - **Issued, and therefore frozen** (`lib/documents.ts`): the archive. See below — it
   is the one store that is append-only and the one that is not in `localStorage`.
 
@@ -336,6 +352,111 @@ filled into the form. The README and `SecurityPanel.tsx` say plainly that counti
 happens — an app that asks for trust reports its own telemetry rather than waiting to be
 found out.
 
+## What the app claims, and why those sentences are load-bearing
+
+`app/voorwaarden/page.tsx` (the only other route), the footer in `app/page.tsx`, the
+*Beveiliging en privacy* panel — and `tests/positionering.spec.ts`, which exists so
+none of it quietly disappears.
+
+**The positioning is the consequences, not the word "privacy".** Nobody chooses a tool
+because it is privacy-friendly. They choose it because there is no account to make, no
+subscription to lose, nothing to export when they leave — and, the strongest and least
+obvious one, **no verwerker**. Put client data in a hosted bookkeeping package and that
+supplier is a processor under the AVG: you need a verwerkersovereenkomst, you inherit
+their sub-processors, and a breach at their end is your breach. Here there is nobody to
+sign anything with. Competitors cannot copy that without abandoning their business
+model, which is what makes it worth saying.
+
+**Every such claim ships with its limit, and the limits are tested too.** What
+disappears is the processor, not the responsibility: that moves to the device, and a
+stolen laptop without a passphrase is still a data breach. `SecurityPanel` already does
+this for encryption. A claim that reads better once the caveat is trimmed is exactly the
+one not to trim — `tests/positionering.spec.ts` asserts the caveats, not just the
+claims.
+
+**"Er is geen betaalde versie" is structural, not a promise.** MIT on a public repo
+means the last free version stays usable whatever happens later. A voluntary Ko-fi
+contribution does not contradict it *provided* the page says it buys nothing extra —
+that sentence is the difference between a gift and a disguised subscription, and it is
+pinned.
+
+**The Ko-fi link is an anchor, never their button script.** Ko-fi and Buy Me a Coffee
+both offer a `<script>`. Loading one is precisely what `lib/analytics.ts` refused for
+the counter: this page holds decrypted client data and, while unlocked, the key in
+memory. A link transmits nothing until clicked. It is off without `NEXT_PUBLIC_KOFI`,
+like the counter.
+
+**The terms page carries a hand-maintained date, deliberately.** Deriving `BIJGEWERKT`
+from the build would shift it on every unrelated publish, so the page would claim the
+terms changed when they had not — a date that lies is worse than one that is old, the
+same reasoning that keeps a copyright year out of the footer. Because hand-maintained
+means forgettable, `tests/voorwaarden.spec.ts` fingerprints the page text *excluding*
+the date line: change the wording and it goes red naming the new fingerprint; bump only
+the date and it stays quiet, since that is never a mistake.
+
+**A second route is what breaks on publication**, so `check:publicatie` walks to it via
+the footer link rather than building the URL, and the UAT journey visits it against the
+real site. Both earned it: `next/link` navigates by fetch, which the strict
+`connect-src` forbids, so the link worked in development and was **dead once published**
+— hence plain `<a>` with the base path applied by hand. And `scripts/statische-server.mjs`
+could not serve an extensionless path at all, because with one page it had never been
+asked to.
+
+## Offline, and which version you have
+
+`public/sw.js` (the worker), `components/ServiceWorker.tsx` (registration),
+`lib/versie.ts` + `components/VersieMelding.tsx` (which build you are on).
+
+Without it every start was a round trip to the host, which is odd for an app whose
+data is already on the device — only the *program* needed the network. For most sites
+offline support is a half-measure: the shell loads and the data is missing, because the
+data lives on a server. Here there is no server, so **the shell is the product**.
+Archive, preview, PDF and e-factuur all run in the browser; cache the files and you
+have the whole thing.
+
+**Online always wins, and that is a compliance decision, not a performance one.** The
+document is fetched network-first, and everything under `/_next/static/` is
+content-hashed, so a new build simply has new filenames. There is deliberately **no
+"new version available" button and no frozen-by-default mode**, tempting as the
+owned-software framing is. A frozen version keeps producing *wrong invoices after the
+fix has shipped* — this repo produced three such bugs in a single day (the missing
+`worker-src` killing Download PDF with a logo, a converted quotation charging 21% on a
+KOR invoice, every Belgian client labelled Dutch in the e-factuur). The people least
+likely to notice such a bug are also the least likely to press an update button.
+
+**Never `skipWaiting()` with an automatic reload.** The draft you are typing lives in
+`useState`, not storage, so a refresh nobody asked for throws away a half-written
+invoice.
+
+**Install precaches the referenced assets, and that is not optional.** A worker only
+starts intercepting once it is active, by which time the bundle requests have already
+gone straight past it. Caching only the HTML meant offline worked from the *second*
+visit — which the test caught. `install` therefore pulls both routes and greps their
+HTML for `/_next/static/` URLs. A regex rather than a build-time manifest: three lines
+here against an extra build step.
+
+**Registration is production-only**, gated like the visit counter. In development a
+worker fights hot reload, and in the suite it would drag state between tests that must
+start clean. That is why the offline test lives in `playwright.productie.config.ts` —
+the behaviour does not exist anywhere else. It asserts that with the network cut you
+can still produce a *correct* invoice, not merely that a worker is registered.
+
+**The build date is shown because the app can now be old.** A text editor from 1995
+does not rot; an invoicing tool does — VAT rates move, the KOR threshold moves,
+EN 16931 carries a year, and e-invoicing is compulsory from 1 July 2030.
+`NEXT_PUBLIC_BOUWDATUM` comes from `next.config.ts`, appears in *Beveiliging en
+privacy*, and `VersieMelding` says once when the build changed since your last visit.
+Silent updates are safe; silent updates you cannot *see* are not.
+
+`lib/versie.ts` follows the usual store shape, and must: a `useEffect` + `setState`
+would trip `react-hooks/set-state-in-effect`, and `readServerVersie` returns null
+because the server cannot know what you saw last time.
+
+**If it ever has to be undone**, deleting `sw.js` is not enough — browsers keep running
+the installed copy. Publish a worker whose `install` calls
+`self.registration.unregister()` and clears the caches. Worth knowing before it is
+needed.
+
 ## The optional passphrase
 
 `lib/crypto.ts` (primitives), `lib/vault.ts` (the key and who uses it), `lib/idb.ts`
@@ -462,7 +583,9 @@ the real meaning.
 
 **The official Schematron runs too, and it is not the same thing as our own tests.**
 `npm run check:efactuur` (`scripts/controleer-efactuur.mjs`) drives the built app,
-downloads one invoice per VAT regime — six of them — and puts each through the
+downloads **eight** documents — one per VAT regime, plus one carrying a delivery date
+and one credit note, since those take different paths through `lib/ubl.ts` — and puts
+each through the
 Nederlandse Peppolautoriteit's compiled SI-UBL 2.0 stylesheet with Saxon-HE. It fires
 **86 rules** on a normal invoice. Both artefacts are permissively licensed (the
 validation repo is MIT, Stichting Simplerinvoicing; Saxon-HE is MPL-2.0), pinned to an
@@ -601,9 +724,12 @@ depended on the user's screen.
 npx playwright install chromium   # once, and again after upgrading @playwright/test
 npm test                          # the suites, against `next dev`
 
-npm run build && npm run test:uat # the UAT journey, against the published build
-PAGES_BASE_PATH=/sub npm run build && PAGES_BASE_PATH=/sub npm run test:uat  # alleen nog als oefening
-UAT_BASE_URL=https://factuurr.nl/ npm run test:uat
+npm run build && npm run test:uat # the journey + the offline spec, published build
+UAT_BASE_URL=https://factuurr.nl/ npm run test:uat   # the same, against the live site
+
+# Only as a rehearsal: the site has run at the domain root since factuurr.nl, so
+# PAGES_BASE_PATH is no longer set anywhere. Worth keeping working in case it moves.
+PAGES_BASE_PATH=/sub npm run build && PAGES_BASE_PATH=/sub npm run test:uat
 
 npm run check:efactuur            # the e-factuur through the official SI-UBL validator
 ```
@@ -619,6 +745,11 @@ against `next dev`, in parallel, each test in a clean browser.
 different code path, under the strict CSP — on one worker, with no retries, because what
 it tests *is* the order of events. The main config carries `testIgnore: '**/uat/**'` so
 the journey does not also get dragged into the parallel run.
+
+`tests/uat/` now holds **two** specs. `offline.spec.ts` is deliberately separate rather
+than another step in the journey: cutting the network mid-journey would silently change
+what every later step is testing. It belongs here and nowhere else, because the service
+worker is only registered in the published build.
 
 **Two blind spots worth knowing about when adding tests.** `extractPdfLayout` reads the
 *text* layer, so anything drawn as vector — the payment QR — is invisible to it; the QR's
@@ -662,11 +793,29 @@ Run the suite before and after any refactor. It exists precisely because
   4 elsewhere). Match the file you are editing; do not reformat wholesale.
 - Vanilla CSS with custom properties in `app/globals.css`. No Prettier, no Tailwind.
 - Styling is mostly inline `style={{}}` objects. That is the existing idiom.
+- **Links get their colour from `--primary`.** There was no `a` rule at all for a long
+  time, so links were the browser's `#0000EE` — invisible on the dark background, and
+  merely unnoticed on the light one. Inside `.invoice-preview` this is automatically
+  right, because that subtree resets `--primary` to its light value: the preview is
+  paper.
+- **A line item asks how wide *it* is, not how wide the window is.** `.item-row` uses an
+  `@container` query against `.form-section`, because from 1024px the form sits beside
+  the preview in a `minmax(400px, 1fr)` column — so a row is *narrower* there (~356px)
+  than on a 768px phone in landscape (~638px). A viewport media query crushes it at
+  exactly the wrong size.
+- **Count the columns when you add a field to a row.** `.mobile-split` is
+  `display: contents`, so its three fields are grid items in their own right, not one.
+  Adding the unit field gave six items against five columns: everything shifted one
+  place, the VAT select landed in the 40px column meant for the delete button, and the
+  button dropped to a second line. `tests/items.spec.ts` now asserts columns equal items,
+  which is the relationship that actually broke.
 
 ## Known gaps and deliberate decisions
 
-- `InvoiceForm.tsx` is ~1040 lines: roughly 705 of state and handlers, 335 of
-  composition. The company, payment, client and archive sections were extracted to
+- `InvoiceForm.tsx` is about 1050 lines, roughly two thirds state and handlers and one
+  third composition. (Deliberately rounded: the exact figure was corrected twice in one
+  day and drifted again within hours, which says more about citing exact counts than
+  about the file.) The company, payment, client and archive sections were extracted to
   `components/form/`; *Algemene Informatie*, Items and the action buttons were left
   in place because pulling out another ~50 lines behind a props interface buys little.
   Only **one** `isQuotation` branch remains, inside `updateDocument` itself, and it is
