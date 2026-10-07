@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Plus, Download, FileText, FileCode, Briefcase, Upload, Moon, Sun, Trash2, Save } from "lucide-react";
 import { Invoice, Quotation, LineItem, Sender, Client, VatScheme } from "@/types";
 import { chargesVat, schemeOf, VAT_SCHEMES, VAT_SCHEME_ORDER } from "@/lib/vat-schemes";
@@ -101,11 +101,10 @@ const getInitialDates = () => {
 
 export default function InvoiceForm() {
     const [isQuotation, setIsQuotation] = useState(false);
+    // Alleen om te weten welk pictogram het knopje moet tonen. Het thema op
+    // <html> zetten gebeurt in components/ThemeApplier.tsx, zodat ook pagina's
+    // zonder dit formulier — de voorwaarden — het meekrijgen.
     const theme = useSyncExternalStore(subscribeTheme, readTheme, readServerTheme);
-
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-    }, [theme]);
 
     const toggleTheme = () => {
         writeTheme(theme === 'light' ? 'dark' : 'light');

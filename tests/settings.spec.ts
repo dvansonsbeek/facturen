@@ -169,3 +169,56 @@ test('onthoudt het gekozen thema na herladen', async ({ page }) => {
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
+
+/**
+ * Verwijzingen en het thema.
+ *
+ * Twee dingen die alleen in het donker opvielen. Verwijzingen hadden nooit een
+ * eigen kleur en kregen dus #0000EE van de browser — tegen een achtergrond van
+ * #020617 vrijwel onleesbaar, en in het licht valt dat niet op. En het thema
+ * werd gezet vanuit InvoiceForm, dat alleen op de hoofdpagina staat: wie in het
+ * donker op de voorwaarden klikte, kreeg een wit scherm.
+ *
+ * Getoetst op de berékende kleur en niet op de regel in het stijlblad, want het
+ * gaat erom wat de bezoeker ziet.
+ */
+test.describe('verwijzingen en thema', () => {
+    const kleurVan = (page: import('@playwright/test').Page, selector: string) =>
+        page.locator(selector).first().evaluate((el) => getComputedStyle(el).color);
+
+    /** De standaardkleur van de browser; precies wat er niet moet staan. */
+    const BROWSERBLAUW = 'rgb(0, 0, 238)';
+
+    test('een verwijzing volgt het thema en niet de standaard van de browser', async ({ page }) => {
+        const licht = await kleurVan(page, 'footer a');
+        expect(licht).not.toBe(BROWSERBLAUW);
+
+        await page.locator('button')
+            .filter({ has: page.locator('svg.lucide-moon, svg.lucide-sun') }).first().click();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+        const donker = await kleurVan(page, 'footer a');
+        expect(donker).not.toBe(BROWSERBLAUW);
+        // En het is niet dezelfde kleur als in het licht: dat zou betekenen dat
+        // hij de variabele niet volgt.
+        expect(donker).not.toBe(licht);
+    });
+
+    /**
+     * De voorwaarden hebben geen InvoiceForm, en kregen het thema daardoor
+     * nooit. Nu zet components/ThemeApplier.tsx het vanuit de omhulling.
+     */
+    test('de voorwaardenpagina krijgt hetzelfde thema mee', async ({ page }) => {
+        await page.locator('button')
+            .filter({ has: page.locator('svg.lucide-moon, svg.lucide-sun') }).first().click();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+        await page.getByRole('link', { name: 'gebruiksvoorwaarden' }).click();
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+        const achtergrond = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+        expect(achtergrond, 'de voorwaarden staan nog op het lichte thema')
+            .not.toBe('rgb(248, 250, 252)');
+        expect(await kleurVan(page, 'article a')).not.toBe(BROWSERBLAUW);
+    });
+});

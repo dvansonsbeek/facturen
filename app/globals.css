@@ -42,6 +42,23 @@
   margin: 0;
 }
 
+/* Verwijzingen hadden helemaal geen eigen kleur en kregen dus die van de
+   browser: #0000EE. Tegen de donkere achtergrond (#020617) is dat vrijwel
+   onleesbaar; in het lichte thema valt het alleen niet op, en daarom stond het
+   er zo lang. --primary kent beide thema's al, dus die volgt vanzelf mee.
+
+   Binnen het documentvoorbeeld klopt dit ook: .invoice-preview zet --primary
+   terug op de lichte waarde, want dat is papier en blijft donkere inkt op wit. */
+a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--primary-hover);
+}
+
 .container {
   width: 100%;
   max-width: 1400px;

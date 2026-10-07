@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import { beleidVoorOmgeving } from "@/lib/csp";
 import VisitCounter from "@/components/VisitCounter";
 import ServiceWorker from "@/components/ServiceWorker";
+import ThemeApplier from "@/components/ThemeApplier";
 import "./globals.css";
 
 /**
@@ -78,6 +79,9 @@ export default function RootLayout({
         <meta httpEquiv="Content-Security-Policy" content={beleidVoorOmgeving()} />
       </head>
       <body>
+        {/* Zet het thema op <html>, en wel op élke pagina. Stond eerder in
+            InvoiceForm, waardoor de voorwaardenpagina altijd licht bleef. */}
+        <ThemeApplier />
         {children}
         {/* Telt één bezoek met een afbeelding, niet met een script van buiten.
             Staat uit zonder NEXT_PUBLIC_GOATCOUNTER; zie lib/analytics.ts. */}
