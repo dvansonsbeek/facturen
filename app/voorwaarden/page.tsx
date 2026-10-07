@@ -79,8 +79,10 @@ export default function Voorwaarden() {
         <h2 style={STIJL_KOP}>Aansprakelijkheid</h2>
         <p style={STIJL_P}>
           Voor schade die ontstaat door het gebruik van deze app — gemiste inkomsten, boetes of
-          naheffingen, of verloren gegevens — is de maker niet aansprakelijk, voor zover de wet
-          dat toelaat.
+          naheffingen, of verloren gegevens — zijn de auteurs en rechthebbenden niet
+          aansprakelijk, voor zover de wet dat toelaat. Dat is dezelfde beperking als in de
+          MIT-licentie waaronder de broncode staat; wie het betreft staat in het
+          LICENSE-bestand daarbij.
         </p>
 
         <h2 style={STIJL_KOP}>Je gegevens staan in je browser</h2>

@@ -150,6 +150,93 @@ test('zegt het als het logo niet bewaard kan worden', async ({ page }) => {
     await expect(ui(page).preview.locator('img[alt="Logo"]')).toBeVisible();
 });
 
+/**
+ * Een logo weghalen.
+ *
+ * Kon niet: je kon er wel een ander voor in de plaats zetten, maar niet terug
+ * naar geen logo. Voor wie er per ongeluk een koos, of van huisstijl wisselt,
+ * was dat een doodlopende weg.
+ */
+test.describe('het logo weghalen', () => {
+    const verwijderKnop = (page: import('@playwright/test').Page) =>
+        page.getByRole('button', { name: 'Verwijderen' })
+            .and(page.locator('[title="Dit logo van je documenten halen"]'));
+
+    test('de knop verschijnt pas als er een logo staat', async ({ page }) => {
+        await openFoldout(page, 'Mijn Bedrijfsgegevens');
+        await expect(verwijderKnop(page)).toHaveCount(0);
+
+        await kiesLogo(page, 600, 200);
+        await expect(verwijderKnop(page)).toBeVisible();
+    });
+
+    test('haalt het logo van het document én uit de opslag', async ({ page }) => {
+        const app = ui(page);
+        await kiesLogo(page, 600, 200);
+        await expect(app.preview.locator('img[alt="Logo"]')).toBeVisible();
+
+        await verwijderKnop(page).click();
+
+        await expect(app.preview.locator('img[alt="Logo"]')).toHaveCount(0);
+        await expect(verwijderKnop(page)).toHaveCount(0);
+        expect(await bewaardLogo(page)).toBeFalsy();
+    });
+
+    test('en het blijft weg na een herlaadbeurt', async ({ page }) => {
+        const app = ui(page);
+        await kiesLogo(page, 600, 200);
+        await verwijderKnop(page).click();
+        await expect(app.preview.locator('img[alt="Logo"]')).toHaveCount(0);
+
+        await page.reload();
+        await openFoldout(page, 'Mijn Bedrijfsgegevens');
+        await expect(app.preview.locator('img[alt="Logo"]')).toHaveCount(0);
+    });
+
+    /**
+     * De valkuil waar deze knop op stuk kon lopen. Een <input type="file">
+     * onthoudt het gekozen bestand; wordt dat veld niet leeggemaakt, dan levert
+     * hetzelfde bestand opnieuw kiezen in een echte browser geen
+     * change-gebeurtenis op, en krijg je het logo dat je net weghaalde nooit
+     * meer terug.
+     *
+     * We toetsen dat op het veld zelf en niet door opnieuw te kiezen. Playwright
+     * zet de bestandslijst rechtstreeks en stuurt die gebeurtenis altijd mee,
+     * ook als het veld nog gevuld is — opnieuw kiezen zou hier dus net zo goed
+     * slagen zónder dat het veld wordt leeggemaakt, en dan bewijst de test
+     * niets. De lege waarde is wél precies wat de fout voorkomt.
+     */
+    test('maakt het bestandsveld leeg, anders kun je hetzelfde bestand niet terugzetten', async ({ page }) => {
+        const app = ui(page);
+        await kiesLogo(page, 600, 200);
+        expect(await page.locator('#bedrijf-logo').inputValue()).not.toBe('');
+
+        await verwijderKnop(page).click();
+
+        expect(await page.locator('#bedrijf-logo').inputValue()).toBe('');
+        // En hetzelfde bestand gaat er daarna weer in.
+        await kiesLogo(page, 600, 200);
+        await expect(app.preview.locator('img[alt="Logo"]')).toBeVisible();
+    });
+
+    /** De waarschuwing ging over een bestand dat er niet meer is. */
+    test('een waarschuwing over het oude bestand verdwijnt mee', async ({ page }) => {
+        await openFoldout(page, 'Mijn Bedrijfsgegevens');
+        await page.locator('#bedrijf-logo').setInputFiles({
+            name: 'nietEenPlaatje.png',
+            mimeType: 'image/png',
+            buffer: Buffer.from('dit is geen PNG'),
+        });
+        await expect(page.locator('p[role="status"]', { hasText: 'niet als afbeelding' })).toBeVisible();
+
+        // Nu een logo dat wél deugt, en dat weer weghalen.
+        await kiesLogo(page, 600, 200);
+        await verwijderKnop(page).click();
+
+        await expect(page.locator('p[role="status"]', { hasText: 'niet als afbeelding' })).toHaveCount(0);
+    });
+});
+
 test('een bestand dat geen afbeelding is levert een nette melding', async ({ page }) => {
     await openFoldout(page, 'Mijn Bedrijfsgegevens');
     await page.locator('#bedrijf-logo').setInputFiles({

@@ -1,11 +1,15 @@
 "use client";
 
+import { useRef } from "react";
+import { Trash2 } from "lucide-react";
 import { Sender } from "@/types";
 
 interface CompanyDetailsProps {
     sender: Sender;
     onChange: (patch: Partial<Sender>) => void;
     onLogoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    /** Haalt het logo weg. Alleen zichtbaar zolang er een logo staat. */
+    onLogoRemove: () => void;
     /** Melding als het logo niet bewaard kon worden; null als er niets aan de hand is. */
     logoWarning: string | null;
     open: boolean;
@@ -14,8 +18,11 @@ interface CompanyDetailsProps {
 
 /** Je eigen bedrijfsgegevens. Horen bij jou, niet bij een document. */
 export default function CompanyDetails({
-    sender, onChange, onLogoChange, logoWarning, open, onToggle,
+    sender, onChange, onLogoChange, onLogoRemove, logoWarning, open, onToggle,
 }: CompanyDetailsProps) {
+    // Nodig om het bestandsveld mee leeg te maken bij Verwijderen; zie daar.
+    const bestandsveld = useRef<HTMLInputElement>(null);
+
     return (
         <details className="foldout" open={open} onToggle={(e) => onToggle(e.currentTarget.open)}>
             <summary><h3>Mijn Bedrijfsgegevens</h3></summary>
@@ -23,7 +30,7 @@ export default function CompanyDetails({
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', border: '2px dashed var(--border)', borderRadius: 'var(--radius)' }}>
                     <div style={{ flex: 1 }}>
                         <label htmlFor="bedrijf-logo" style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>Logo Uploaden</label>
-                        <input id="bedrijf-logo" type="file" accept="image/*" onChange={onLogoChange} style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem' }} />
+                        <input ref={bestandsveld} id="bedrijf-logo" type="file" accept="image/*" onChange={onLogoChange} style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem' }} />
                         {logoWarning && (
                             <p role="status" style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--error)' }}>
                                 {logoWarning}
@@ -31,11 +38,28 @@ export default function CompanyDetails({
                         )}
                     </div>
                     {sender.logoUrl && (
-                        /* Een gewone <img>: het logo is een data-URL uit de browser van de
-                           gebruiker, en daar kan next/image niets mee. Bovendien staat
-                           beeldoptimalisatie uit bij een statische export. */
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={sender.logoUrl} alt="Logo" style={{ height: '50px', maxWidth: '100px', objectFit: 'contain' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                            {/* Een gewone <img>: het logo is een data-URL uit de browser van de
+                                gebruiker, en daar kan next/image niets mee. Bovendien staat
+                                beeldoptimalisatie uit bij een statische export. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={sender.logoUrl} alt="Logo" style={{ height: '50px', maxWidth: '100px', objectFit: 'contain' }} />
+                            {/* Het bestandsveld moet mee leeggemaakt worden. Blijft de gekozen
+                                bestandsnaam erin staan, dan levert hetzelfde bestand opnieuw
+                                kiezen geen change-gebeurtenis op — en krijg je het logo dat je
+                                net weghaalde dus niet meer terug. */}
+                            <button
+                                type="button"
+                                title="Dit logo van je documenten halen"
+                                onClick={() => {
+                                    onLogoRemove();
+                                    if (bestandsveld.current) bestandsveld.current.value = '';
+                                }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
+                            >
+                                <Trash2 size={14} /> Verwijderen
+                            </button>
+                        </div>
                     )}
                 </div>
                 <div>

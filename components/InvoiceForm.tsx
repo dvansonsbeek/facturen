@@ -350,6 +350,17 @@ export default function InvoiceForm() {
         }
     };
 
+    /**
+     * Haalt het logo van je documenten af.
+     *
+     * Ook de waarschuwing eraf: die ging over het bestand dat er nu niet meer
+     * is, en zou anders blijven staan bij een logo dat weg is.
+     */
+    const handleLogoRemove = () => {
+        setLogoWaarschuwing(null);
+        updateSender({ logoUrl: '' });
+    };
+
     const sanitizeFilename = (name: string) => name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
     /**
@@ -768,6 +779,7 @@ export default function InvoiceForm() {
                         sender={currentData.sender}
                         onChange={updateSender}
                         onLogoChange={handleLogoUpload}
+                        onLogoRemove={handleLogoRemove}
                         logoWarning={logoWaarschuwing}
                         open={foldouts.bedrijfsgegevens}
                         onToggle={(open) => writeFoldout('bedrijfsgegevens', open)}
