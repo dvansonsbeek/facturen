@@ -146,7 +146,7 @@ test.describe('velden inklappen bij een bewaarde klant', () => {
         await expect(app.clientName).toBeVisible();
         await expect(app.clientName).toHaveValue('Jansen Bouw BV');
         await expect(app.clientPicker).toHaveValue('');
-        expect(await previewText(page)).toContain('Jansen Bouw BV');
+        await expect(ui(page).preview).toContainText('Jansen Bouw BV');
     });
 });
 
@@ -160,7 +160,7 @@ test('bewerken zonder opslaan verandert de bewaarde klant niet', async ({ page }
 
     await app.editClient.click();
     await app.clientCity.fill('Tijdelijk Adres');
-    expect(await previewText(page)).toContain('Tijdelijk Adres');
+    await expect(ui(page).preview).toContainText('Tijdelijk Adres');
 
     // Opnieuw kiezen haalt de bewaarde versie terug.
     await app.clientPicker.selectOption('');

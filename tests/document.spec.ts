@@ -146,7 +146,7 @@ test.describe('opmerkingen', () => {
     test('zijn te typen en komen op het document', async ({ page }) => {
         const app = ui(page);
         await app.notes.fill('Bedankt voor de samenwerking.');
-        expect(await previewText(page)).toContain('Opmerkingen: Bedankt voor de samenwerking.');
+        await expect(ui(page).preview).toContainText('Opmerkingen: Bedankt voor de samenwerking.');
     });
 
     /**
@@ -160,7 +160,7 @@ test.describe('opmerkingen', () => {
         await app.tab('Offerte').click();
 
         await expect(app.notes).toHaveValue('Deze offerte is 30 dagen geldig.');
-        expect(await previewText(page)).toContain('Deze offerte is 30 dagen geldig.');
+        await expect(ui(page).preview).toContainText('Deze offerte is 30 dagen geldig.');
     });
 
     test('een ingevulde notitie gaat wel mee naar het andere documenttype', async ({ page }) => {
@@ -175,7 +175,7 @@ test.describe('opmerkingen', () => {
 test('betalingsvoorwaarden zijn te wijzigen', async ({ page }) => {
     const app = ui(page);
     await app.paymentConditions.fill('Binnen 30 dagen na factuurdatum.');
-    expect(await previewText(page)).toContain('Binnen 30 dagen na factuurdatum.');
+    await expect(ui(page).preview).toContainText('Binnen 30 dagen na factuurdatum.');
 });
 
 test.describe('standaard documentnummer', () => {
@@ -208,7 +208,7 @@ test.describe('datums op het document', () => {
     test('een offerte toont tot wanneer hij geldig is', async ({ page }) => {
         const app = ui(page);
         await app.tab('Offerte').click();
-        expect(await previewText(page)).toContain(`Geldig tot: ${dutch(iso(30))}`);
+        await expect(ui(page).preview).toContainText(`Geldig tot: ${dutch(iso(30))}`);
     });
 });
 
@@ -241,7 +241,7 @@ test.describe('offerte omzetten naar factuur', () => {
         await expect(app.preview.locator('h1')).toHaveText('FACTUUR');
         await expect(app.clientName).toHaveValue('Jansen Bouw BV');
         await expect(app.itemPrice(0)).toHaveValue('500');
-        expect(await previewText(page)).toContain(`Conform offerte ${offerteNummer}.`);
+        await expect(ui(page).preview).toContainText(`Conform offerte ${offerteNummer}.`);
     });
 
     test('laat de offertetekst niet op de factuur staan', async ({ page }) => {
@@ -354,24 +354,24 @@ test.describe('IBAN op het document', () => {
     test('groepeert een aaneengetypte IBAN in blokken van vier', async ({ page }) => {
         const app = ui(page);
         await app.iban.fill('NL91ABNA0417164300');
-        expect(await previewText(page)).toContain('NL91 ABNA 0417 1643 00');
+        await expect(ui(page).preview).toContainText('NL91 ABNA 0417 1643 00');
     });
 
     test('laat een al gegroepeerde IBAN ongemoeid', async ({ page }) => {
         const app = ui(page);
         await app.iban.fill('NL91 ABNA 0417 1643 00');
-        expect(await previewText(page)).toContain('NL91 ABNA 0417 1643 00');
+        await expect(ui(page).preview).toContainText('NL91 ABNA 0417 1643 00');
     });
 
     test('maakt kleine letters hoofdletters', async ({ page }) => {
         const app = ui(page);
         await app.iban.fill('nl91abna0417164300');
-        expect(await previewText(page)).toContain('NL91 ABNA 0417 1643 00');
+        await expect(ui(page).preview).toContainText('NL91 ABNA 0417 1643 00');
     });
 
     test('toont het voorbeeldnummer zolang er niets is ingevuld', async ({ page }) => {
         await expect(ui(page).iban).toHaveValue('');
-        expect(await previewText(page)).toContain('NLxx XXXX XXXX XXXX XX');
+        await expect(ui(page).preview).toContainText('NLxx XXXX XXXX XXXX XX');
     });
 });
 
@@ -381,7 +381,7 @@ test('noemt rekeningnummer, bedrijfsnaam en factuurnummer in de betaalregel', as
     await app.companyName.fill('Sonsbeek Advies BV');
     await app.documentNumber.fill('2026-042');
 
-    expect(await previewText(page)).toContain(
+    await expect(ui(page).preview).toContainText(
         'Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar rekeningnummer '
         + 'NL91 ABNA 0417 1643 00 ten name van Sonsbeek Advies BV. '
         + 'Vermeld hierbij a.u.b. het factuurnummer: 2026-042. '
@@ -404,5 +404,5 @@ test('zet rekeningnummer, bedrijfsnaam en factuurnummer vet', async ({ page }) =
 test('toont het documentnummer op het document', async ({ page }) => {
     const app = ui(page);
     await app.documentNumber.fill('2026-042');
-    expect(await previewText(page)).toContain('2026-042');
+    await expect(ui(page).preview).toContainText('2026-042');
 });

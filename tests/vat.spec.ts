@@ -100,7 +100,7 @@ test.describe('kleineondernemersregeling', () => {
 
     test('vermeldt de vrijstelling op het document', async ({ page }) => {
         await ui(page).vatScheme.selectOption('kor');
-        expect(await previewText(page)).toContain(
+        await expect(ui(page).preview).toContainText(
             'Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).',
         );
     });
@@ -121,6 +121,6 @@ test.describe('kleineondernemersregeling', () => {
         await app.vatScheme.selectOption('normaal');
 
         await expect(app.itemVatRate()).toHaveValue('21');
-        expect(await previewText(page)).toContain('BTW (21%):');
+        await expect(ui(page).preview).toContainText('BTW (21%):');
     });
 });

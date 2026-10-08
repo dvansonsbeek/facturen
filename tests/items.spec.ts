@@ -120,7 +120,7 @@ test.describe('eenheid per regel', () => {
         const app = ui(page);
         await app.itemQuantity(0).fill('120');
         await app.itemUnit(0).fill('km');
-        expect(await previewText(page)).toContain('120 km');
+        await expect(ui(page).preview).toContainText('120 km');
     });
 
     test('verandert niets aan de berekening', async ({ page }) => {

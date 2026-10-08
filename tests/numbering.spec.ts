@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, previewText, waitForHydration } from './helpers';
+import { ui, waitForHydration } from './helpers';
 
 const jaar = new Date().toISOString().slice(0, 4);
 
@@ -58,7 +58,7 @@ test.describe('volgende factuur', () => {
         const app = ui(page);
         await app.nextDocument.click();
         await expect(app.documentNumber).toHaveValue(`${jaar}-002`);
-        expect(await previewText(page)).toContain(`${jaar}-002`);
+        await expect(ui(page).preview).toContainText(`${jaar}-002`);
     });
 
     test('houdt de breedte van de cijfers aan', async ({ page }) => {
