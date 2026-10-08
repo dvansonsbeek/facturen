@@ -967,13 +967,24 @@ Run the suite before and after any refactor. It exists precisely because
   field already used, so one locator matched two inputs. Hang test selectors on the `id`
   or on something structural (`list="eenheden"`), not on wording that layout work will
   rewrite. `tests/helpers.ts` says this at each converted line.
-- **Beware a `@media` block that only lowers specificity.** `@media (min-width: 768px)
-  { .row-label { display: none } }` never hid anything, because `.form-section .row-label`
-  outweighs it and a media query adds no weight. It sat there long enough that the column
-  floors above were first computed on the belief that labels vanish at desktop and the
-  placeholder is the field's only name. Both that rule and the `.responsive-item-row > *`
-  order reset were the same mistake; measure the computed style rather than reading the
-  stylesheet.
+- **A rule inside `@media` or `@container` carries no extra weight, and three dead rules
+  in one day came from forgetting it.** `.item-row`'s stacked-mode rules are written
+  `.responsive-item-row .x` (0,2,0), so anything in the container query written as bare
+  `.x` (0,1,0) silently loses to them — an at-rule is not a tie-breaker. The three:
+  - `.responsive-item-row > *` meant to reset `order` in grid mode. The name landed in
+    column 4 and the VAT select and bin fell to a third line.
+  - `@media (min-width: 768px) { .row-label { display: none } }` never hid a label. The
+    column floors above were first computed on the belief that it did, and that the
+    placeholder is therefore a field's only name at desktop.
+  - `.item-verwijderen { align-self: end }`, so the bin sat at the row *top*, exactly
+    0.00px from the name cell. Locally that tie read as "not above"; on the build server
+    different font metrics tipped it 0.2–0.9px the other way and the layout test failed
+    there while staying green here. With the rule actually applying, the gap is 20px and
+    the assertion has room.
+
+  Not one of the three was visible by reading the stylesheet; each was found by measuring
+  the computed style or the geometry. When a CSS rule seems not to take, check what wins
+  before changing the value.
 
 ## Known gaps and deliberate decisions
 

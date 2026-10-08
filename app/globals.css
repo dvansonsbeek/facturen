@@ -420,8 +420,16 @@ h4 {
   }
 
   /* Onderaan de eerste regel, bij de velden waar hij bij hoort — niet
-     halverwege de beschrijving eronder. */
-  .item-verwijderen {
+     halverwege de beschrijving eronder.
+
+     Met .responsive-item-row ervoor, want anders verliest deze regel (0,1,0)
+     van de align-self: flex-start van onder elkaar (0,2,0) en doet hij niets.
+     Dat was precies wat er gebeurde: het knopje stond in het raster op 0,00px
+     van de naamcel in plaats van 20px eronder, en die gelijkstand viel op de
+     bouwserver de verkeerde kant op — daar ging de test erover stuk terwijl
+     hij hier groen bleef. Derde keer deze dag dat een regel zonder genoeg
+     gewicht stilletjes niets deed; meet de berekende stijl. */
+  .responsive-item-row .item-verwijderen {
     align-self: end;
   }
 }
