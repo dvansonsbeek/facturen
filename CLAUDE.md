@@ -199,14 +199,39 @@ they are, not from what you sold; a half-intracommunautaire invoice does not exi
 from before the regime existed keep working without ever being rewritten. Everything else
 asks `schemeOf()`.
 
-**Every path that copies a document must carry the regime, via `schemeOf()`.** There are
-three — `handleToggleType`, `handleConvertToInvoice`, `handleDuplicateDocument` — and when
-the regime was introduced all three were missed: they still copied `isVatExempt`, which is
-`false` on any new document, so switching tabs, converting a quotation or duplicating an
-archived invoice silently reset the regime to `normaal` and put 21% VAT on a document that
-must not carry any. Nothing in the existing suite noticed, because every KOR test set the
-regime and then looked at the same document. `tests/vat-scheme-carry.spec.ts` covers all
-three plus the per-line rate being disabled, and each assertion was seen to fail first.
+### Adding a field to a document? Four paths, every time
+
+This is the rule, not an anecdote about VAT. A new field on `Invoice` is only half
+written when the form holds it. **Four handlers in `InvoiceForm.tsx` decide what survives**,
+and each has to be considered separately:
+
+| Handler | What it must do |
+|---|---|
+| `handleToggleType` | carry it between factuur and offerte |
+| `handleConvertToInvoice` | carry it from an accepted quotation onto the invoice |
+| `handleDuplicateDocument` | take it **from the archived document**, not from the current draft |
+| `handleNextDocument` | decide deliberately whether to clear it |
+
+It has now happened twice, identically.
+
+**The VAT regime.** All three copying paths still copied `isVatExempt`, which is `false` on
+any new document, so switching tabs, converting a quotation or duplicating an archived
+invoice silently reset the regime to `normaal` and put 21% VAT on a document that must not
+carry any. Nothing in the suite noticed, because every KOR test set the regime and then
+looked at the same document. `tests/vat-scheme-carry.spec.ts` covers all three plus the
+per-line rate being disabled, and each assertion was seen to fail first.
+
+**The discount**, months later, in exactly the same way. Worst case: quote €500 with €50
+off, the client accepts, you convert — and the invoice charges €605 instead of €544,50, more
+than you offered. `handleNextDocument` is the opposite case and must *clear* it: a discount
+is an agreement about this job, not a standing setting, so carrying it forward would
+silently undercharge.
+
+**A test for this passes for the wrong reason unless you force it.** The duplicate test was
+green while `handleDuplicateDocument` ignored the field entirely — the current draft still
+held the value, so it proved nothing. Clearing the draft first (via *Volgende factuur*) is
+what makes it meaningful, and doing that is what revealed that *Volgende factuur* cleared
+nothing either.
 
 Every non-`normaal` regime looks **identical** on the document — lines excluding VAT, no
 VAT amounts, total equal to the subtotal, plus the statement. That is why
@@ -227,12 +252,42 @@ Three traps found by the official validator, not by reasoning:
   out of the official `UBL-Invoice-2.1.xsd` and `UBL-CreditNote-2.1.xsd` and asserts ours
   ascends monotonically, for every generated document. This replaced checking it by hand,
   which had already been needed twice. Validated by moving `cac:Delivery` after
-  `PaymentMeans`: the Schematron passed all eight documents while the order check named
+  `PaymentMeans`: the Schematron passed every document while the order check named
   the fault exactly — which is the whole reason it exists.
 
 **One rule no validator can check:** `icp` to a Dutch client is a domestic supply, and to
 a non-EU client it is export. `ontbrekendeVelden` refuses both, because it is a fact about
 the transaction rather than about the file — the same blind spot as `E` versus `Z`.
+
+### Discount is on the total, and that is a VAT problem
+
+`Invoice.discount` is `{ soort: 'bedrag' | 'procent'; waarde: number }` — one discount over
+the whole document, not per line. That was a deliberate choice: what people ask for is
+*"€ 50 eraf omdat het uitliep"*, not a different price per item. A percentage is taken over
+the subtotal **excluding** VAT; over the VAT-inclusive amount it would reduce the VAT itself,
+which is not what a discount does.
+
+**The hard part is apportionment.** With 21% and 9% lines on one invoice, the discount must
+be split over both rates — taking it all off one rate makes the VAT wrong. But rounding each
+share independently leaves cents adrift, and then the printed VAT lines do not add up to the
+printed total: exactly the failure `roundToCents` exists to prevent. So
+`grondslagNaKorting` rounds every rate except the one with the **largest base**, which
+absorbs the remainder — smallest proportional distortion, and the sum is exact to the cent.
+
+**`summariseDocument` returns `vatBases`** (the per-rate base *after* discount) precisely so
+the e-factuur does not recompute the split. Two places doing the same division is how paper
+and XML drift apart.
+
+**The subtotal returns under KOR when a discount exists.** It is suppressed there because
+without VAT it is the same number as the total and therefore noise — but with a discount it
+is not the same number any more, and without it you cannot see what the discount came off.
+
+**In UBL it is one `cac:AllowanceCharge` per tax category**, not a single figure: EN 16931
+requires the recipient to reconcile each base to its rate. `LineExtensionAmount` stays the
+sum of the lines (`BR-CO-10`), the discount sits in `AllowanceTotalAmount` and is subtracted
+in `TaxExclusiveAmount` (`BR-CO-13`). None of that is something our own tests can judge, so
+`check:efactuur` carries a ninth case — two rates plus a deliberately unround €33,33, so the
+split has to absorb a cent — and the official validator passes it.
 
 **Rounding.** `lib/utils.ts` rounds at every step via `roundToCents` (half away from
 zero). VAT is summed per rate over the whole base and rounded once per rate, the way a
@@ -318,6 +373,16 @@ Three paths must clear or carry `creditOf` deliberately: *Volgende factuur* clea
 you would silently credit the same invoice twice), converting a quotation clears it, and
 duplicating a credit note carries it. Same class of bug as the regime migration, so
 `tests/creditnota.spec.ts` covers all three.
+
+**Searching it is not a nicety.** The archive was the one part of the app that got *worse*
+the more you used it: everything in one list, newest first, nothing else. Fine at ten
+documents, unusable at three hundred — and three hundred is where you end up, because the
+terms page itself says to keep seven years. One field matches number, client, type, amount
+and the date in **both** forms, since it is stored as `2026-10-08` and shown as `08-10-2026`
+and someone typing "2026" means both. It appears only from six documents: below that you can
+see everything and a search box is clutter. The "1 van 7 documenten" count is load-bearing —
+without it a filtered list reads like an archive something has vanished from, which is the
+wrong fright to give someone about their own invoices.
 
 Deletion *is* allowed, with a confirmation. Data you cannot get back out of your own
 browser is a worse outcome than data you can delete by accident; Export carries the
@@ -597,9 +662,9 @@ the real meaning.
 
 **The official Schematron runs too, and it is not the same thing as our own tests.**
 `npm run check:efactuur` (`scripts/controleer-efactuur.mjs`) drives the built app,
-downloads **eight** documents — one per VAT regime, plus one carrying a delivery date
-and one credit note, since those take different paths through `lib/ubl.ts` — and puts
-each through the
+downloads **nine** documents — one per VAT regime, plus one carrying a delivery date, one
+with a discount over two VAT rates, and one credit note, since those take different paths
+through `lib/ubl.ts` — and puts each through the
 Nederlandse Peppolautoriteit's compiled SI-UBL 2.0 stylesheet with Saxon-HE. It fires
 **86 rules** on a normal invoice. Both artefacts are permissively licensed (the
 validation repo is MIT, Stichting Simplerinvoicing; Saxon-HE is MPL-2.0), pinned to an
@@ -772,6 +837,22 @@ covers new fields for free but only in the state the test happens to be in: the 
 field and the archive dialog's contents exist only in states the default sweep never
 visits, so they have their own tests.
 
+**A one-shot read is not an assertion.** `expect(await previewText(page)).toContain(x)` looks
+exactly once: if React has not painted yet, it fails, and no timeout can help because nothing
+retries. `await expect(app.preview).toContainText(x)` polls. The suite flaked for days on
+this and the cause was only found by deliberately oversubscribing — `--workers=16` on 16
+cores — where the error showed the preview still reading the value from *before* the input.
+The seventeen that read the preview straight after typing were converted; **roughly a hundred
+one-shot reads remain**, so if flakes return at normal worker counts, that is where to look.
+Negative assertions stay one-shot on purpose: a retrying *"does not contain"* can pass before
+the change has happened at all.
+
+Timeouts are set deliberately in `playwright.config.ts`: **60s per test, 10s per assertion**.
+Playwright's defaults are 30s and 5s, and ten assertions across three specs had already been
+patched by hand to 10s or 30s — which is the signal the default did not fit. The per-test
+default also made those local patches meaningless: a 30s `expect` inside a 30s test can never
+reach its own limit.
+
 `tests/uat/reis.spec.ts` is **one test with `test.step()` calls**, not a series of tests:
 Playwright gives every test a fresh browser context, which would wipe localStorage and
 IndexedDB between steps, and the whole point is that the state carries. It walks the path
@@ -812,6 +893,16 @@ Run the suite before and after any refactor. It exists precisely because
   merely unnoticed on the light one. Inside `.invoice-preview` this is automatically
   right, because that subtree resets `--primary` to its light value: the preview is
   paper.
+- **Touch rules go behind `@media (pointer: coarse)`, never a width breakpoint.** A 1180px
+  iPad has the same finger as a phone; a narrow window on a laptop does not. Two standards
+  live there, and both were broken until `tests/responsief.spec.ts` went looking:
+  **44×44** minimum tap targets (Apple HIG; Material says 48dp, so 44 is the floor of the
+  two) — the compact buttons were 25px — and **16px minimum on inputs**, because Safari on
+  iOS zooms the page in when you focus anything smaller *and does not zoom back out*. The
+  base rule already said 16px with that very comment, and `.item-row` overrode it three
+  rules later; with `html` at 14px below 520px that came out at 12.6px. Desktop is
+  deliberately untouched — 25px is fine with a mouse, and forcing 44px there would sprawl
+  the form.
 - **A line item asks how wide *it* is, not how wide the window is.** `.item-row` uses an
   `@container` query against `.form-section`, because from 1024px the form sits beside
   the preview in a `minmax(400px, 1fr)` column — so a row is *narrower* there (~356px)
