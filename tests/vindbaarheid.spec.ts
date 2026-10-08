@@ -42,6 +42,40 @@ test.describe('sitemap.xml', () => {
     });
 });
 
+/**
+ * Het tabbladicoon, in twee smaken en om twee verschillende redenen.
+ *
+ * Een browser leest de <link rel="icon"> uit de HTML en krijgt dan de SVG: die
+ * is scherp op elke maat en is het icoon waar het ontwerp om draait. Maar een
+ * hoop gereedschap leest de HTML helemaal niet en vraagt gewoon /favicon.ico
+ * op het hoofdadres — crawlers, feedlezers, dingen die een verwijzing uitpakken.
+ * Dat gaf een 404, en daarom staat er nu ook een .ico.
+ *
+ * Hij staat in public/ en niet in app/, en dat is het hele punt: in app/ zou
+ * Next er een tweede <link> bij zetten en gaan browsers kiezen. Zo blijft de
+ * kop onveranderd en is de .ico er puur voor wie hem blind ophaalt.
+ */
+test.describe('het tabbladicoon', () => {
+    test('de SVG is wat de pagina zelf aanwijst', async ({ page }) => {
+        await page.goto('/');
+        const iconen = page.locator('link[rel="icon"]');
+        await expect(iconen).toHaveCount(1);
+        expect(await iconen.getAttribute('type')).toBe('image/svg+xml');
+    });
+
+    test('en /favicon.ico bestaat voor wie de HTML niet leest', async ({ page }) => {
+        const antwoord = await page.request.get('/favicon.ico');
+        expect(antwoord.status()).toBe(200);
+
+        // Echt een icoonbestand en niet een 200 met een foutpagina erin: de
+        // kopregels van een ICO zijn 00 00 (gereserveerd) en 01 00 (type 1),
+        // gevolgd door het aantal maten dat erin zit.
+        const bytes = await antwoord.body();
+        expect([...bytes.subarray(0, 4)]).toEqual([0, 0, 1, 0]);
+        expect(bytes.readUInt16LE(4)).toBeGreaterThanOrEqual(1);
+    });
+});
+
 test.describe('de eigen URL', () => {
     test('de hoofdpagina wijst naar zichzelf', async ({ page }) => {
         await page.goto('/');

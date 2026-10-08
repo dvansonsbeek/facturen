@@ -10,7 +10,8 @@
     "test": "playwright test",
     "test:uat": "playwright test -c playwright.productie.config.ts",
     "check:publicatie": "node scripts/controleer-publicatie.mjs",
-    "check:efactuur": "node scripts/controleer-efactuur.mjs"
+    "check:efactuur": "node scripts/controleer-efactuur.mjs",
+    "maak:favicon": "node scripts/maak-favicon.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

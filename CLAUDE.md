@@ -91,8 +91,10 @@ lib/
   payment-qr.ts      the EPC069-12 payment QR: payload + module matrix
   ubl.ts             the e-factuur: the same invoice as UBL/NLCIUS XML
 public/sw.js         the service worker: makes the app start without a network
+public/favicon.ico   the .ico fallback, generated from app/icon.svg
 types/index.ts       Invoice, Quotation, Sender, Client, LineItem, VatScheme
-scripts/             controleer-publicatie, controleer-efactuur, statische-server
+scripts/             controleer-publicatie, controleer-efactuur, statische-server,
+                     maak-favicon
 tests/               Playwright end-to-end specs
 tests/uat/           reis.spec.ts (the journey) + offline.spec.ts, published build only
 ```
@@ -1017,6 +1019,26 @@ Run the suite before and after any refactor. It exists precisely because
   user had opened renders closed for one frame, and a click in that window toggles the
   DOM behind React's back — which is exactly how three encryption tests failed before
   the helper existed.
+- **The tab icon exists twice, and the `.ico` is deliberately *not* in `app/`.**
+  `app/icon.svg` is what the page declares, so browsers get a mark that is sharp at any
+  size. But plenty of tooling never reads the HTML and simply fetches `/favicon.ico` —
+  crawlers, feed readers, link unfurlers — which returned 404. `public/favicon.ico` fills
+  that in as a plain static file. Put in `app/` instead, Next would emit a *second*
+  `<link rel="icon">` and leave browsers to choose; in `public/` the emitted head is
+  byte-identical and the `.ico` serves only whoever asks for it blindly.
+  `npm run maak:favicon` regenerates it from the SVG with the Chromium Playwright already
+  provides, assembling the ICO container by hand — no new dependency, and `qrcode`'s
+  lesson about what a convenience package drags in applies here too. It is **not**
+  automatic: the file is committed, so changing `app/icon.svg` without re-running leaves
+  the two out of step. `tests/vindbaarheid.spec.ts` guards that it is *there* and is a
+  real ICO, not that it is *current*.
+- **GitHub Actions were all several majors behind** and were upgraded in October 2026:
+  checkout/setup-node to v7, setup-java to v6, cache to v6, configure-pages to v6,
+  upload-pages-artifact to v5, deploy-pages to v5. That cleared the Node 20 deprecation
+  warnings. One genuine trap in there: **`upload-pages-artifact` from v4 excludes
+  dotfiles**, which would have silently dropped the `out/.nojekyll` the build creates, so
+  `include-hidden-files: true` is set explicitly and must stay. Harmless here (the Actions
+  deploy path runs no Jekyll) but the kind of thing that disappears without an error.
 - `npm audit` reports a handful of high-severity issues in the ESLint toolchain
   (brace-expansion, micromatch and friends). They are dev-only, build-time ReDoS/DoS
   issues that never reach the browser, and npm's only proposed "fix" is downgrading

@@ -3,6 +3,11 @@
   het ontwerp. De paden komen uit lucide (ISC); zie app/page.tsx voor het icoon
   in de interface. Het vierkant is 32x32 met het 24x24-raster van lucide erin
   gecentreerd op een schaal van 0.72.
+
+  Verander je dit, draai dan `npm run maak:favicon`: public/favicon.ico wordt
+  hieruit getekend en loopt anders stilzwijgend uit de pas. Die .ico is er voor
+  gereedschap dat de HTML niet leest en botweg /favicon.ico ophaalt; browsers
+  krijgen deze SVG via de <link rel="icon">.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <rect width="32" height="32" rx="7" fill="#2563eb"/>
