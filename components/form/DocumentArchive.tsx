@@ -32,12 +32,44 @@ interface DocumentArchiveProps {
  * dat het voorbeeld meebewoog. Wil je er echt iets aan veranderen, dan is dat
  * een nieuw document — vandaar Dupliceren.
  */
+/**
+ * Alles waarop je een bewaard document zou kunnen terugzoeken, als één regel.
+ *
+ * Bewust ook de datum in twee vormen: hij staat als 2026-10-08 in de opslag maar
+ * als 08-10-2026 op het scherm, en iemand die "2026" of "10-2026" intikt bedoelt
+ * allebei hetzelfde. Zo vindt één zoekveld een nummer, een klant, een jaar, een
+ * bedrag én het soort document, zonder dat je eerst moet kiezen waarop je zoekt.
+ */
+const doorzoekbaar = (bewaard: BewaardDocument) => [
+    soortLabel(bewaard.soort),
+    bewaard.nummer,
+    bewaard.klant,
+    bewaard.datum,
+    formatDate(bewaard.datum),
+    formatCurrency(bewaard.totaal),
+].join(' ').toLowerCase();
+
+/**
+ * Vanaf hoeveel documenten het zoekveld verschijnt.
+ *
+ * Bij een handvol zie je alles in één oogopslag en is een zoekveld alleen maar
+ * rommel. Het punt van zoeken komt pas als de lijst niet meer op het scherm
+ * past — en dat gebeurt vanzelf, want de wet vraagt zeven jaar bewaren.
+ */
+const ZOEKVELD_VANAF = 6;
+
 export default function DocumentArchive({
     documenten, opslagWerkt, vergrendeld, open, onToggle,
     onDuplicate, onDelete, onDownload, onDownloadUbl, onCredit,
 }: DocumentArchiveProps) {
     const [bekeken, setBekeken] = useState<BewaardDocument | null>(null);
+    const [zoek, setZoek] = useState('');
     const venster = useRef<HTMLDialogElement>(null);
+
+    const zoekterm = zoek.trim().toLowerCase();
+    const zichtbaar = zoekterm
+        ? documenten.filter((bewaard) => doorzoekbaar(bewaard).includes(zoekterm))
+        : documenten;
 
     // showModal() geeft Escape en het vasthouden van de focus gratis; dat is
     // precies het gedrag dat je anders zelf moet nabouwen.
@@ -81,8 +113,41 @@ export default function DocumentArchive({
                         een factuur of offerte vast te leggen.
                     </p>
                 ) : (
+                    <>
+                        {documenten.length >= ZOEKVELD_VANAF && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <label htmlFor="archief-zoeken" className="row-label">
+                                    Zoeken in je archief
+                                </label>
+                                <input
+                                    id="archief-zoeken"
+                                    type="search"
+                                    placeholder="Nummer, klant, jaar of bedrag"
+                                    value={zoek}
+                                    onChange={(e) => setZoek(e.target.value)}
+                                    style={{ width: '100%' }}
+                                />
+                                {/* Zeg hoeveel er zijn overgebleven. Zonder dat telling
+                                    lijkt een gefilterde lijst op een archief waar iets
+                                    uit verdwenen is, en dat is precies de verkeerde
+                                    schrik bij een map met je eigen facturen. */}
+                                {zoekterm !== '' && (
+                                    <p role="status" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                        {zichtbaar.length} van {documenten.length} documenten
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {zichtbaar.length === 0 ? (
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>
+                                Niets gevonden voor <strong>{zoek.trim()}</strong>. Je archief
+                                heeft {documenten.length} documenten; maak het zoekveld leeg om
+                                ze allemaal te zien.
+                            </p>
+                        ) : (
                     <ul className="archief-lijst">
-                        {documenten.map((bewaard) => (
+                        {zichtbaar.map((bewaard) => (
                             <li key={bewaard.id} className="archief-regel">
                                 <div className="archief-omschrijving">
                                     <strong>{soortLabel(bewaard.soort)} {bewaard.nummer}</strong>
@@ -123,6 +188,8 @@ export default function DocumentArchive({
                             </li>
                         ))}
                     </ul>
+                        )}
+                    </>
                 )}
             </div>
         </details>

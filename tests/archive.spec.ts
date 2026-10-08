@@ -232,6 +232,124 @@ test('Wissen noemt het aantal bewaarde documenten en verwijdert ze', async ({ pa
     await expect(app.archiveRows).toHaveCount(0);
 });
 
+/**
+ * Zoeken in het archief.
+ *
+ * Het archief groeide alleen maar: alles stond onder elkaar, nieuwste eerst, en
+ * verder niets. Bij tien documenten gaat dat prima en bij driehonderd niet meer
+ * — en driehonderd is waar je uitkomt, want de voorwaarden zeggen zelf dat je
+ * zeven jaar moet bewaren. Dit is het enige onderdeel van de app dat juist
+ * slechter werd naarmate je hem meer gebruikte.
+ */
+test.describe('zoeken in het archief', () => {
+    /** Bewaart er een paar achter elkaar, met oplopende nummers. */
+    const bewaarEenAantal = async (page: import('@playwright/test').Page, aantal: number) => {
+        const app = ui(page);
+        await app.companyName.fill('Sonsbeek Advies BV');
+
+        const nummers: string[] = [];
+        for (let i = 0; i < aantal; i++) {
+            await app.clientName.fill(i === 0 ? 'Jansen Bouw BV' : `Klant ${i}`);
+            await app.itemPrice().fill(`${100 + i}`);
+            nummers.push(await app.documentNumber.inputValue());
+
+            await app.saveDocument.click();
+            await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+
+            if (i < aantal - 1) {
+                page.once('dialog', (d) => d.accept());
+                await app.nextDocument.click();
+            }
+        }
+        return { app, nummers };
+    };
+
+    /**
+     * Bij een handvol is een zoekveld alleen maar rommel; je ziet alles al
+     * staan. Daarom verschijnt hij pas als de lijst te lang wordt om in één
+     * oogopslag te overzien.
+     */
+    test('het veld komt pas als er genoeg te zoeken valt', async ({ page }) => {
+        const app = ui(page);
+        await app.clientName.fill('Klant BV');
+        await app.itemPrice().fill('100');
+        await app.saveDocument.click();
+        await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+
+        await openArchief(page);
+        await expect(app.archiveRows).toHaveCount(1);
+        await expect(page.locator('#archief-zoeken')).toHaveCount(0);
+    });
+
+    test('op klantnaam', async ({ page }) => {
+        const { app } = await bewaarEenAantal(page, 6);
+        await openArchief(page);
+        await expect(app.archiveRows).toHaveCount(6);
+
+        await page.locator('#archief-zoeken').fill('jansen');
+
+        await expect(app.archiveRows).toHaveCount(1);
+        await expect(app.archiveRows.first()).toContainText('Jansen Bouw BV');
+    });
+
+    test('op nummer', async ({ page }) => {
+        const { app, nummers } = await bewaarEenAantal(page, 6);
+        await openArchief(page);
+
+        await page.locator('#archief-zoeken').fill(nummers[3]);
+
+        await expect(app.archiveRows).toHaveCount(1);
+        await expect(app.archiveRows.first()).toContainText(nummers[3]);
+    });
+
+    /** Het jaar staat op het scherm als 08-10-2026 en in de opslag als
+     *  2026-10-08; wie "2026" intikt bedoelt allebei. */
+    test('op jaartal', async ({ page }) => {
+        const { app } = await bewaarEenAantal(page, 6);
+        await openArchief(page);
+
+        await page.locator('#archief-zoeken').fill(new Date().getFullYear().toString());
+        await expect(app.archiveRows).toHaveCount(6);
+    });
+
+    /**
+     * Zonder telling lijkt een gefilterde lijst op een archief waar documenten
+     * uit verdwenen zijn — precies de verkeerde schrik bij je eigen facturen.
+     */
+    test('zegt hoeveel er van hoeveel over zijn', async ({ page }) => {
+        await bewaarEenAantal(page, 6);
+        await openArchief(page);
+
+        await page.locator('#archief-zoeken').fill('jansen');
+        await expect(page.locator('p[role="status"]', { hasText: 'van 6 documenten' })).toBeVisible();
+    });
+
+    test('en zegt het netjes als er niets bij zit', async ({ page }) => {
+        const { app } = await bewaarEenAantal(page, 6);
+        // Begrensd tot deze sectie: er staan vier foldouts op de pagina en
+        // '.foldout-body' wijst dus naar alle vier.
+        const sectie = await openArchief(page);
+
+        await page.locator('#archief-zoeken').fill('bestaatniet');
+
+        await expect(app.archiveRows).toHaveCount(0);
+        await expect(sectie).toContainText('Niets gevonden');
+        // En het archief zelf is er nog; dat moet er duidelijk bij staan.
+        await expect(sectie).toContainText('6 documenten');
+    });
+
+    test('leegmaken brengt alles terug', async ({ page }) => {
+        const { app } = await bewaarEenAantal(page, 6);
+        await openArchief(page);
+
+        await page.locator('#archief-zoeken').fill('jansen');
+        await expect(app.archiveRows).toHaveCount(1);
+
+        await page.locator('#archief-zoeken').fill('');
+        await expect(app.archiveRows).toHaveCount(6);
+    });
+});
+
 test('een offerte wordt als offerte bewaard', async ({ page }) => {
     const app = ui(page);
     await app.tab('Offerte').click();
