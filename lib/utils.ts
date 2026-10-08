@@ -1,3 +1,5 @@
+import type { Discount } from "@/types";
+
 export const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('nl-BE', {
         style: 'currency',
@@ -124,14 +126,110 @@ export const formatIban = (iban: string): string =>
  * tarief is. Zowel het scherm als de PDF leiden hun opstelling hiervan af,
  * zodat beide dezelfde regel volgen.
  */
+/**
+ * De korting in euro's, hoe hij ook is ingevuld.
+ *
+ * Begrensd op het subtotaal: meer korting dan er te betalen valt bestaat niet.
+ * Een document dat geld de andere kant op stuurt is een creditfactuur, en dat
+ * is een eigen documentsoort met een eigen verwijzing naar het origineel.
+ */
+export const discountAmount = (subtotal: number, discount?: Discount): number => {
+    if (!discount || subtotal <= 0) return 0;
+
+    const ruw = discount.soort === 'procent'
+        ? (subtotal * Math.min(Math.max(discount.waarde, 0), 100)) / 100
+        : Math.max(discount.waarde, 0);
+
+    return roundToCents(Math.min(ruw, subtotal));
+};
+
+/**
+ * De grondslag per tarief ná korting, zó verdeeld dat de som exact klopt.
+ *
+ * Dit is het lastige stukje van een korting op het totaal. Staan er regels van
+ * 21% en 9% op, dan moet de korting naar verhouding over allebei worden
+ * verdeeld — anders klopt de btw niet. Maar elk deel apart afronden levert
+ * centen verschil op, en dan telt wat er op het document staat niet meer op tot
+ * het totaal eronder. Precies de fout waar roundToCents hierboven voor bestaat.
+ *
+ * Daarom krijgt het grootste tarief het restant: alle andere worden afgerond,
+ * en wat er dan nog mist of over is gaat naar de grootste grondslag. Daar is de
+ * verhoudingsgewijze afwijking het kleinst, en de som klopt op de cent.
+ */
+const grondslagNaKorting = (
+    baseByRate: { [rate: number]: number },
+    korting: number,
+    subtotal: number,
+): { [rate: number]: number } => {
+    const tarieven = Object.keys(baseByRate).map(Number);
+    if (korting <= 0 || subtotal <= 0) return { ...baseByRate };
+
+    const doel = roundToCents(subtotal - korting);
+    const factor = doel / subtotal;
+
+    // Het tarief met de grootste grondslag vangt het afrondingsrestje op.
+    const grootste = tarieven.reduce((a, b) => (baseByRate[b] > baseByRate[a] ? b : a));
+
+    const uit: { [rate: number]: number } = {};
+    let toegekend = 0;
+    for (const tarief of tarieven) {
+        if (tarief === grootste) continue;
+        uit[tarief] = roundToCents(baseByRate[tarief] * factor);
+        toegekend = roundToCents(toegekend + uit[tarief]);
+    }
+    uit[grootste] = roundToCents(doel - toegekend);
+
+    return uit;
+};
+
 export const summariseDocument = (
     items: { quantity: number; unitPrice: number; vatRate: number }[],
     isVatExempt: boolean,
-): { subtotal: number; vatTotals: { [rate: number]: number }; total: number } => {
+    discount?: Discount,
+): {
+    subtotal: number;
+    /** De korting in euro's; 0 als er geen is. */
+    discount: number;
+    /**
+     * De grondslag per tarief ná korting.
+     *
+     * Staat hier omdat de e-factuur hem nodig heeft: EN 16931 wil de korting per
+     * btw-categorie opgesplitst, en de belastbare bedragen moeten daarmee
+     * overeenkomen. Hem daar opnieuw uitrekenen zou betekenen dat twee plekken
+     * dezelfde verdeling doen — precies hoe papier en XML uit elkaar lopen.
+     */
+    vatBases: { [rate: number]: number };
+    vatTotals: { [rate: number]: number };
+    total: number;
+} => {
     const subtotal = calculateSubtotal(items);
+    const korting = discountAmount(subtotal, discount);
+    const naKorting = roundToCents(subtotal - korting);
+
+    const baseByRate = items.reduce((acc, item) => {
+        acc[item.vatRate] = roundToCents((acc[item.vatRate] || 0) + lineTotal(item));
+        return acc;
+    }, {} as { [rate: number]: number });
+
+    const verlaagd = grondslagNaKorting(baseByRate, korting, subtotal);
+
+    if (isVatExempt) {
+        return {
+            subtotal, discount: korting, vatBases: verlaagd, vatTotals: {}, total: naKorting,
+        };
+    }
+
+    const vatTotals: { [rate: number]: number } = {};
+    for (const [tarief, grondslag] of Object.entries(verlaagd)) {
+        vatTotals[Number(tarief)] = roundToCents((grondslag * Number(tarief)) / 100);
+    }
+
+    const btw = Object.values(vatTotals).reduce((a, b) => roundToCents(a + b), 0);
     return {
         subtotal,
-        vatTotals: isVatExempt ? {} : calculateVat(items),
-        total: isVatExempt ? subtotal : calculateTotal(items),
+        discount: korting,
+        vatBases: verlaagd,
+        vatTotals,
+        total: roundToCents(naKorting + btw),
     };
 };

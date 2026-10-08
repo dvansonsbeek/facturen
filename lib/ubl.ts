@@ -1,4 +1,4 @@
-import { Invoice, LineItem, VatScheme } from "@/types";
+import { Invoice, LineItem, VatScheme, Discount } from "@/types";
 import { lineTotal, roundToCents, summariseDocument } from "@/lib/utils";
 import {
     chargesVat, clientVatStatement, schemeOf, statementFor, VAT_SCHEMES,
@@ -348,9 +348,18 @@ const betaling = (data: Invoice): string => {
  * Bij een vrijstelling is er één groep: de hele grondslag, nul btw, categorie E
  * met de reden erbij. Geen tarieven, geen bedragen — net als op het papier.
  */
-const btwTotalen = (items: LineItem[], scheme: VatScheme, clientVat?: string): string => {
+const btwTotalen = (
+    items: LineItem[],
+    scheme: VatScheme,
+    clientVat?: string,
+    discount?: Discount,
+): string => {
     const isVatExempt = !chargesVat(scheme);
-    const { subtotal, vatTotals } = summariseDocument(items, isVatExempt);
+    // De grondslag ná korting: wat hier staat moet overeenkomen met wat er
+    // onderaan het papier staat, en met de AllowanceCharge hieronder.
+    const { subtotal, discount: korting, vatBases, vatTotals } =
+        summariseDocument(items, isVatExempt, discount);
+    const belastbaar = roundToCents(subtotal - korting);
 
     if (isVatExempt) {
         // Eén groep: de hele grondslag, nul btw, de categorie van het regime en
@@ -368,7 +377,7 @@ const btwTotalen = (items: LineItem[], scheme: VatScheme, clientVat?: string): s
             '<cac:TaxTotal>',
             tag('cbc:TaxAmount', bedrag(0), ' currencyID="EUR"'),
             '<cac:TaxSubtotal>',
-            tag('cbc:TaxableAmount', bedrag(subtotal), ' currencyID="EUR"'),
+            tag('cbc:TaxableAmount', bedrag(belastbaar), ' currencyID="EUR"'),
             tag('cbc:TaxAmount', bedrag(0), ' currencyID="EUR"'),
             '<cac:TaxCategory>',
             tag('cbc:ID', taxCategory(0, scheme)),
@@ -381,12 +390,11 @@ const btwTotalen = (items: LineItem[], scheme: VatScheme, clientVat?: string): s
         ].filter(Boolean).join('');
     }
 
-    // De grondslag per tarief, op dezelfde manier opgeteld als lib/utils.ts dat
-    // doet: per tarief over het geheel, daarna afronden.
-    const grondslag = items.reduce<Record<number, number>>((acc, item) => {
-        acc[item.vatRate] = (acc[item.vatRate] ?? 0) + lineTotal(item);
-        return acc;
-    }, {});
+    // De grondslag per tarief komt uit summariseDocument en wordt hier niet
+    // opnieuw uitgerekend: die heeft de korting al naar verhouding over de
+    // tarieven verdeeld, en twee plekken die dezelfde verdeling doen is precies
+    // hoe het papier en de XML uit elkaar gaan lopen.
+    const grondslag = vatBases;
 
     const totaalBtw = Object.values(vatTotals).reduce((a, b) => a + b, 0);
 
@@ -412,6 +420,52 @@ const btwTotalen = (items: LineItem[], scheme: VatScheme, clientVat?: string): s
         groepen,
         '</cac:TaxTotal>',
     ].join('');
+};
+
+/**
+ * De korting, zoals EN 16931 hem wil zien.
+ *
+ * Niet één bedrag onderaan, maar **één AllowanceCharge per btw-categorie**. Dat
+ * moet ook wel: een korting verlaagt de grondslag, en de ontvanger moet kunnen
+ * narekenen welke grondslag bij welk tarief hoort. Staan er 21%- en 9%-regels
+ * op, dan zijn het dus twee elementen.
+ *
+ * Het bedrag per tarief is het verschil tussen de grondslag vóór en ná korting,
+ * en dat komt uit dezelfde verdeling als het papier gebruikt — zie
+ * summariseDocument. Zelf opnieuw delen zou centen verschil opleveren, en dan
+ * weigert de validator terecht.
+ *
+ * Plek in het schema: na PaymentTerms en vóór TaxTotal. UBL is een vaste reeks;
+ * scripts/controleer-efactuur.mjs toetst die volgorde, want Schematron doet dat
+ * niet.
+ */
+const kortingen = (items: LineItem[], scheme: VatScheme, discount?: Discount): string => {
+    const isVatExempt = !chargesVat(scheme);
+    const voor = summariseDocument(items, isVatExempt);
+    const na = summariseDocument(items, isVatExempt, discount);
+    if (na.discount <= 0) return '';
+
+    return Object.keys(na.vatBases)
+        .map(Number)
+        .sort((a, b) => b - a)
+        .map((tarief) => {
+            const deel = roundToCents((voor.vatBases[tarief] ?? 0) - (na.vatBases[tarief] ?? 0));
+            if (deel <= 0) return '';
+            return [
+                '<cac:AllowanceCharge>',
+                // false = aftrek. true zou een toeslag zijn.
+                tag('cbc:ChargeIndicator', 'false'),
+                tag('cbc:AllowanceChargeReason', 'Korting'),
+                tag('cbc:Amount', bedrag(deel), ' currencyID="EUR"'),
+                '<cac:TaxCategory>',
+                tag('cbc:ID', taxCategory(tarief, scheme)),
+                tag('cbc:Percent', isVatExempt ? '0.00' : tarief.toFixed(2)),
+                `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
+                '</cac:TaxCategory>',
+                '</cac:AllowanceCharge>',
+            ].join('');
+        })
+        .join('');
 };
 
 const regels = (items: LineItem[], scheme: VatScheme, vorm: Documentvorm): string => {
@@ -452,7 +506,9 @@ const regels = (items: LineItem[], scheme: VatScheme, vorm: Documentvorm): strin
 export const buildUblInvoice = (data: Invoice): string => {
     const scheme = schemeOf(data);
     const vorm = data.creditOf ? CREDITNOTA : FACTUUR;
-    const { subtotal, total } = summariseDocument(data.items, !chargesVat(scheme));
+    const { subtotal, discount: korting, total } = summariseDocument(
+        data.items, !chargesVat(scheme), data.discount,
+    );
 
     const body = [
         tag('cbc:CustomizationID', CUSTOMIZATION_ID),
@@ -484,11 +540,17 @@ export const buildUblInvoice = (data: Invoice): string => {
         // PaymentMeans; UBL is een vaste reeks, dus de plek is niet vrij.
         levering(data, scheme),
         betaling(data),
-        btwTotalen(data.items, scheme, data.client.vatNumber),
+        // Vóór TaxTotal: UBL is een vaste reeks, dus de plek ligt vast.
+        kortingen(data.items, scheme, data.discount),
+        btwTotalen(data.items, scheme, data.client.vatNumber, data.discount),
         '<cac:LegalMonetaryTotal>',
+        // De som van de regels staat hier zónder korting (BR-CO-10); de korting
+        // zit in AllowanceTotalAmount en gaat er bij TaxExclusiveAmount vanaf
+        // (BR-CO-13). Zo kan de ontvanger de opstelling naspelen.
         tag('cbc:LineExtensionAmount', bedrag(subtotal), ' currencyID="EUR"'),
-        tag('cbc:TaxExclusiveAmount', bedrag(subtotal), ' currencyID="EUR"'),
+        tag('cbc:TaxExclusiveAmount', bedrag(roundToCents(subtotal - korting)), ' currencyID="EUR"'),
         tag('cbc:TaxInclusiveAmount', bedrag(total), ' currencyID="EUR"'),
+        korting > 0 ? tag('cbc:AllowanceTotalAmount', bedrag(korting), ' currencyID="EUR"') : '',
         tag('cbc:PayableAmount', bedrag(total), ' currencyID="EUR"'),
         '</cac:LegalMonetaryTotal>',
         regels(data.items, scheme, vorm),

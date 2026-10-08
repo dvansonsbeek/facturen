@@ -23,7 +23,9 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
     // Alleen op een factuur: een offerte vraagt nog niet om betaling, en een
     // creditfactuur juist niet (dat zit in paymentQrMatrix zelf).
     const qr = isQuotation ? null : paymentQrMatrix(data as Invoice);
-    const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
+    const { subtotal, discount, vatTotals, total } = summariseDocument(
+        data.items, isVatExempt, data.discount,
+    );
     const bankAccount = (data as Invoice).bankAccount;
     const bankAccountDisplay = bankAccount ? formatIban(bankAccount) : IBAN_PLACEHOLDER;
 
@@ -119,10 +121,24 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '3rem' }}>
                 <div style={{ width: '250px' }}>
-                    {!isVatExempt && (
+                    {/* Het subtotaal staat er zodra het iets toevoegt. Zonder btw
+                        én zonder korting is het hetzelfde getal als het totaal, en
+                        dan is het ruis — vandaar dat het onder de KOR wegviel. Staat
+                        er wél korting op, dan is het juist nodig: anders zie je niet
+                        waar de korting vanaf gaat. */}
+                    {(!isVatExempt || discount > 0) && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <span>Subtotaal:</span>
                             <span>{formatCurrency(subtotal)}</span>
+                        </div>
+                    )}
+                    {discount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span>Korting:</span>
+                            {/* Met een minteken, want dit gaat eraf. De bedragen zelf
+                                blijven positief — net als op een creditfactuur zegt
+                                het document al welke kant het op gaat. */}
+                            <span>−{formatCurrency(discount)}</span>
                         </div>
                     )}
                     {Object.entries(vatTotals).map(([rate, amount]) => (

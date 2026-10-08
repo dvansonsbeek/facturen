@@ -122,6 +122,26 @@ const GEVALLEN = {
     // in UBL is dat cac:Delivery, en die kent zijn eigen regels.
     leverdatum: (page) => page.locator('#leverdatum').fill('2026-09-15'),
     /**
+     * Korting op het totaal, met twee btw-tarieven erin.
+     *
+     * Juist die combinatie: EN 16931 wil de korting per btw-categorie
+     * uitgesplitst, en de bedragen moeten optellen tot wat er in
+     * LegalMonetaryTotal staat (BR-CO-10 voor de regels, BR-CO-13 voor de
+     * korting, BR-CO-15 voor het totaal met btw). Dat kunnen wij zelf niet
+     * nakijken — de validator wel, en dat is het hele punt van deze stap.
+     *
+     * Het bedrag is met opzet niet rond: dan moet de verdeling over 21% en 9%
+     * ergens een cent opvangen, en blijkt of dat klopt.
+     */
+    korting: async (page) => {
+        await page.getByRole('button', { name: 'Item Toevoegen' }).click();
+        await page.locator('textarea[placeholder="Omschrijving goederen/ diensten"]').nth(1).fill('Handboek');
+        await page.locator('input[placeholder="Aantal"]').nth(1).fill('3');
+        await page.locator('input[placeholder="Eenheidsprijs"]').nth(1).fill('24.95');
+        await page.locator('.item-row select').nth(1).selectOption('9');
+        await page.locator('#korting').fill('33.33');
+    },
+    /**
      * Een creditfactuur: typecode 381 in plaats van 380, met een verwijzing
      * naar het stuk dat wordt teruggenomen. BR-55 wil die verwijzing, en de
      * bedragen horen positief te blijven.

@@ -998,6 +998,55 @@ export default function InvoiceForm() {
                         ))}
                     </div>
 
+                    {/* Korting over het hele document, direct onder de regels: daar
+                        gaat hij immers vanaf. Op het totaal en niet per regel, omdat
+                        dat is wat er in de praktijk wordt gevraagd — "€ 50 eraf omdat
+                        het uitliep", niet een andere prijs per post. */}
+                    <div style={{ marginBottom: '2rem' }}>
+                        <h3 style={{ marginBottom: '1rem' }}>
+                            <label htmlFor="korting">Korting</label>
+                        </h3>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                            <input
+                                id="korting"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0"
+                                value={currentData.discount?.waarde ?? ''}
+                                onChange={(e) => updateDocument({
+                                    discount: e.target.value === ''
+                                        ? undefined
+                                        : {
+                                            soort: currentData.discount?.soort ?? 'bedrag',
+                                            waarde: parseFloat(e.target.value) || 0,
+                                        },
+                                })}
+                                style={{ flex: 1 }}
+                            />
+                            <select
+                                id="kortingsoort"
+                                aria-label="Korting in euro's of procenten"
+                                value={currentData.discount?.soort ?? 'bedrag'}
+                                onChange={(e) => updateDocument({
+                                    discount: {
+                                        soort: e.target.value as 'bedrag' | 'procent',
+                                        waarde: currentData.discount?.waarde ?? 0,
+                                    },
+                                })}
+                                style={{ width: '9rem' }}
+                            >
+                                <option value="bedrag">€ (bedrag)</option>
+                                <option value="procent">% van subtotaal</option>
+                            </select>
+                        </div>
+                        <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                            Gaat van het subtotaal af, vóór de btw. Staan er regels met
+                            verschillende btw-tarieven op, dan wordt de korting naar
+                            verhouding over die tarieven verdeeld.
+                        </p>
+                    </div>
+
                     <div style={{ marginBottom: '2rem' }}>
                         <h3 style={{ marginBottom: '1rem' }}>
                             <label htmlFor="opmerkingen">Opmerkingen</label>

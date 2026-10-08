@@ -161,7 +161,9 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
     // Zelfde stille marge als op het scherm; zonder die rand vinden veel
     // scanners de code niet terug.
     const qrZijde = (qr?.length ?? 0) + 8;
-    const { subtotal, vatTotals, total } = summariseDocument(data.items, isVatExempt);
+    const { subtotal, discount, vatTotals, total } = summariseDocument(
+        data.items, isVatExempt, data.discount,
+    );
     const invoice = data as Invoice;
     const quotation = data as Quotation;
     const bankAccountDisplay = invoice.bankAccount ? formatIban(invoice.bankAccount) : IBAN_PLACEHOLDER;
@@ -252,10 +254,18 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
 
                 <View style={styles.totals}>
                     <View style={styles.totalsBox}>
-                        {!isVatExempt && (
+                        {/* Zelfde regel als in het voorbeeld: het subtotaal staat er
+                            zodra het iets toevoegt — met btw, of met korting. */}
+                        {(!isVatExempt || discount > 0) && (
                             <View style={styles.totalsLine}>
                                 <Text>Subtotaal:</Text>
                                 <Text>{formatCurrency(subtotal)}</Text>
+                            </View>
+                        )}
+                        {discount > 0 && (
+                            <View style={styles.totalsLine}>
+                                <Text>Korting:</Text>
+                                <Text>−{formatCurrency(discount)}</Text>
                             </View>
                         )}
                         {Object.entries(vatTotals).map(([rate, amount]) => (

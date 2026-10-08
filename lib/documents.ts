@@ -176,7 +176,9 @@ export const bewaarDocument = async (
     soort: DocumentSoort,
 ): Promise<BewaardDocument | null> => {
     const nummer = 'invoiceNumber' in stuk ? stuk.invoiceNumber : stuk.quotationNumber;
-    const { total } = summariseDocument(stuk.items, !chargesVat(schemeOf(stuk)));
+    const { total } = summariseDocument(
+        stuk.items, !chargesVat(schemeOf(stuk)), stuk.discount,
+    );
 
     const record: BewaardDocument = {
         // Een toevalsgetal en niet iets met het nummer erin: bij versleuteling

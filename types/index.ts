@@ -25,6 +25,19 @@ export interface Client {
   kvkNumber?: string;
 }
 
+/**
+ * Een korting over het hele document.
+ *
+ * Twee vormen, omdat beide gewoon voorkomen: een vast bedrag ("€ 50 eraf") en
+ * een percentage ("10% korting"). Het percentage rekent over het subtotaal
+ * exclusief btw — over het bedrag mét btw rekenen zou de btw zelf verlagen, en
+ * dat is niet wat een korting doet.
+ */
+export interface Discount {
+  soort: 'bedrag' | 'procent';
+  waarde: number;
+}
+
 export interface LineItem {
   id: string;
   name?: string; // Optionele naam/titel
@@ -97,6 +110,19 @@ export interface Invoice {
    * leeg laten betekent daar dat de factuurdatum wordt genomen.
    */
   deliveryDate?: string;
+  /**
+   * Korting over het hele document.
+   *
+   * Op het totaal en niet per regel, omdat dat is wat er in de praktijk wordt
+   * gevraagd: "€ 50 eraf omdat het uitliep" of "10% introductiekorting", niet
+   * een andere prijs per post.
+   *
+   * Dat heeft wel een gevolg voor de btw. Staan er regels met verschillende
+   * tarieven op, dan moet de korting naar verhouding over die tarieven worden
+   * verdeeld — anders tellen de btw-regels op het document niet op tot het
+   * totaal eronder. Zie `summariseDocument` in lib/utils.ts.
+   */
+  discount?: Discount;
   /**
    * De factuur die met dit document wordt teruggedraaid.
    *

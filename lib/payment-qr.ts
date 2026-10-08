@@ -110,7 +110,12 @@ export const epcPayload = (data: Invoice): string | null => {
     const naam = kort(data.sender.name ?? '', MAX_NAAM);
     if (!naam) return null;
 
-    const { total } = summariseDocument(data.items, !chargesVat(schemeOf(data)));
+    // Mét de korting: wat je klant scant moet hetzelfde zijn als wat er
+    // onderaan de factuur staat, anders betaalt wie scant iets anders dan wie
+    // overtypt.
+    const { total } = summariseDocument(
+        data.items, !chargesVat(schemeOf(data)), data.discount,
+    );
     const bedrag = bedragVoorQr(total);
     if (!bedrag) return null;
 
