@@ -16,6 +16,87 @@ test('schakelt tussen factuur en offerte', async ({ page }) => {
     await expect(heading).toHaveText('FACTUUR');
 });
 
+/**
+ * Wisselen van documenttype mag niets van het andere type laten staan.
+ *
+ * Een offerte en een factuur delen hun klant, hun regels en hun btw-behandeling
+ * — dat hoort mee te gaan. Maar de teksten die de app zélf bij een documenttype
+ * zet, horen bij dat type en niet bij het andere. "Deze offerte is 30 dagen
+ * geldig" op een factuur is geen smaakkwestie: het staat op papier dat de klant
+ * krijgt.
+ *
+ * Let op de richting. Dat de standaardtekst van de offerte een wissel *naar* de
+ * offerte overleeft, is met opzet en staat hieronder getoetst — zonder dat is
+ * die tekst onbereikbaar, want wisselen is de enige weg erheen. Het gaat hier om
+ * de weg terug.
+ */
+test.describe('wisselen laat niets van het andere documenttype staan', () => {
+    /** Wat de app zelf op een offerte zet, en nergens anders hoort. */
+    const OFFERTETEKSTEN = [
+        'OFFERTE',
+        'Offerte voor:',
+        'Geldig tot:',
+        'Deze offerte is 30 dagen geldig.',
+    ];
+
+    /** En wat alleen bij een factuur hoort. */
+    const FACTUURTEKSTEN = [
+        'FACTUUR',
+        'Factureren aan:',
+        'Betalingsvoorwaarden:',
+        'Wij verzoeken u vriendelijk',
+    ];
+
+    const vulIets = async (page: import('@playwright/test').Page) => {
+        const app = ui(page);
+        await app.companyName.fill('Sonsbeek Advies BV');
+        await app.clientName.fill('Klant BV');
+        await app.itemPrice().fill('100');
+        return app;
+    };
+
+    test('op een factuur staat niets van de offerte', async ({ page }) => {
+        const app = await vulIets(page);
+
+        await app.tab('Offerte').click();
+        await expect(app.preview.locator('h1').first()).toHaveText('OFFERTE');
+        await app.tab('Factuur').click();
+        await expect(app.preview.locator('h1').first()).toHaveText('FACTUUR');
+
+        const tekst = await previewText(page);
+        for (const zin of OFFERTETEKSTEN) {
+            expect(tekst, `"${zin}" staat nog op de factuur`).not.toContain(zin);
+        }
+    });
+
+    test('en op een offerte niets van de factuur', async ({ page }) => {
+        const app = await vulIets(page);
+
+        await app.tab('Offerte').click();
+        await expect(app.preview.locator('h1').first()).toHaveText('OFFERTE');
+
+        const tekst = await previewText(page);
+        for (const zin of FACTUURTEKSTEN) {
+            expect(tekst, `"${zin}" staat nog op de offerte`).not.toContain(zin);
+        }
+    });
+
+    /**
+     * Wat wél mee moet. Zonder deze zou "haal alles weg" ook de notitie wissen
+     * die je zelf typte, en dan is de genezing erger dan de kwaal.
+     */
+    test('maar een notitie die je zelf typte gaat wel mee', async ({ page }) => {
+        const app = await vulIets(page);
+        await app.notes.fill('Levering in overleg.');
+
+        await app.tab('Offerte').click();
+        await expect(app.notes).toHaveValue('Levering in overleg.');
+
+        await app.tab('Factuur').click();
+        await expect(app.notes).toHaveValue('Levering in overleg.');
+    });
+});
+
 test('neemt bedrijfs- en klantgegevens mee naar het andere documenttype', async ({ page }) => {
     const app = ui(page);
     await app.companyName.fill('Sonsbeek Advies BV');
