@@ -254,6 +254,10 @@ export default function InvoiceForm() {
             // crediteerde je ongemerkt opnieuw dezelfde factuur.
             creditOf: undefined,
             deliveryDate: undefined,
+            // En begint zonder korting. Een korting is een afspraak over dít
+            // werk, geen vaste instelling; bleef hij staan, dan bracht je
+            // volgende maand ongemerkt te weinig in rekening.
+            discount: undefined,
         }));
     };
 
@@ -294,6 +298,10 @@ export default function InvoiceForm() {
             // een regime terug op "normaal" en staat er ineens btw op.
             vatScheme: schemeOf(source),
             notes: eigenNotitie || prev.notes,
+            // Net als het regime hierboven: een korting hoort bij het document,
+            // niet bij het soort. Bleef hij hier staan, dan verdween een
+            // afgesproken korting zodra je even naar het andere tabblad keek.
+            discount: source.discount,
             date: source.date,
         });
 
@@ -327,6 +335,10 @@ export default function InvoiceForm() {
             // Een omgezette offerte is een gewone factuur, ook als er net nog
             // een creditfactuur op dit tabblad stond.
             creditOf: undefined,
+            // De korting is afgesproken in de offerte waar je klant ja op zei.
+            // Zonder deze regel staat er op de factuur een hoger bedrag dan je
+            // hebt aangeboden, en dat is geen schoonheidsfoutje.
+            discount: quotation.discount,
             notes: `Conform offerte ${offerteNummer}.`,
             date: getInitialDates().date,
         }));
@@ -522,6 +534,9 @@ export default function InvoiceForm() {
             // zonder dit zou het een gewone factuur worden en zou het bedrag de
             // verkeerde kant op gaan.
             creditOf: (bewaard.document as Invoice).creditOf,
+            // Uit het bewaarde stuk en niet uit het huidige concept: een
+            // duplicaat hoort het document te herhalen dat je uitreikte.
+            discount: bewaard.document.discount,
             notes: bewaard.document.notes ?? '',
             date: getInitialDates().date,
         };

@@ -230,6 +230,83 @@ test.describe('korting op het document', () => {
         expect(na).not.toBe(voor);
     });
 
+    /**
+     * Een offerte kent de korting ook — je spreekt hem daar juist af.
+     *
+     * En dan moet hij meereizen. Dit is dezelfde val als bij het btw-regime: elk
+     * pad dat een document kopieert moet het nieuwe veld meenemen, en er zijn er
+     * drie. Toen vatScheme erbij kwam werden alle drie vergeten, en niets merkte
+     * het op.
+     */
+    test('een offerte kan ook korting hebben', async ({ page }) => {
+        const app = ui(page);
+        await app.tab('Offerte').click();
+        await app.clientName.fill('Klant BV');
+        await app.itemPrice().fill('500');
+        await page.locator('#korting').fill('50');
+
+        await expect(app.preview.locator('h1').first()).toHaveText('OFFERTE');
+        await expect(app.preview).toContainText('Korting');
+        await expect(app.preview).toContainText('€ 544,50');
+    });
+
+    test('en blijft staan als je van tabblad wisselt', async ({ page }) => {
+        const app = await vul(page);
+        await page.locator('#korting').fill('100');
+
+        await app.tab('Offerte').click();
+        await expect(page.locator('#korting')).toHaveValue('100');
+        await expect(app.preview).toContainText('€ 484,00');
+
+        await app.tab('Factuur').click();
+        await expect(page.locator('#korting')).toHaveValue('100');
+    });
+
+    /**
+     * De ergste van de drie. Je offreert 500 met 50 korting, je klant gaat
+     * akkoord, je zet hem om — en dan staat er 605 op de factuur in plaats van
+     * 544,50. Je brengt dan meer in rekening dan je hebt afgesproken.
+     */
+    test('en gaat mee als een geaccepteerde offerte een factuur wordt', async ({ page }) => {
+        const app = ui(page);
+        await app.tab('Offerte').click();
+        await app.clientName.fill('Klant BV');
+        await app.itemPrice().fill('500');
+        await page.locator('#korting').fill('50');
+        await expect(app.preview).toContainText('€ 544,50');
+
+        await app.convertToInvoice.click();
+
+        await expect(app.preview.locator('h1').first()).toHaveText('FACTUUR');
+        await expect(page.locator('#korting')).toHaveValue('50');
+        await expect(app.preview).toContainText('€ 544,50');
+    });
+
+    /**
+     * Let op de tussenstap met Volgende factuur. Zonder die stap bewijst deze
+     * test niets: het concept hééft de korting dan nog, dus hij zou ook slagen
+     * als dupliceren hem helemaal niet overneemt. Pas na het legen komt hij
+     * aantoonbaar uit het bewaarde document.
+     */
+    test('en gaat mee bij het dupliceren van een bewaard document', async ({ page }) => {
+        const app = await vul(page);
+        await page.locator('#korting').fill('100');
+        const nummer = await app.documentNumber.inputValue();
+
+        await app.saveDocument.click();
+        await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+
+        page.once('dialog', (d) => d.accept());
+        await app.nextDocument.click();
+        await expect(page.locator('#korting')).toHaveValue('');
+
+        await openFoldout(page, 'Bewaarde documenten');
+        await app.archiveRowFor(nummer).duplicate.click();
+
+        await expect(page.locator('#korting')).toHaveValue('100');
+        await expect(app.preview).toContainText('€ 484,00');
+    });
+
     test('leegmaken haalt de korting weer weg', async ({ page }) => {
         const app = await vul(page);
         await page.locator('#korting').fill('100');
