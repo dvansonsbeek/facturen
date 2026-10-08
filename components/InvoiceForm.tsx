@@ -948,11 +948,23 @@ export default function InvoiceForm() {
                                     </label>
                                     <input
                                         id="klantreferentie"
-                                        placeholder="Inkoopordernummer, kostenplaats of projectcode"
+                                        placeholder="INKOOP-2026-77"
                                         value={invoice.buyerReference || ''}
                                         onChange={(e) => updateDocument({ buyerReference: e.target.value })}
                                         style={{ width: '100%' }}
+                                        aria-describedby="klantreferentie-uitleg"
                                     />
+                                    {/* De opsomming stond in de placeholder en werd op een
+                                        telefoon afgekapt na "Inkoopordernummer, kostenp".
+                                        Een placeholder breekt niet af naar een tweede regel,
+                                        dus een opsomming hoort eronder. */}
+                                    <p id="klantreferentie-uitleg" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                        Het kenmerk waarmee je klant deze factuur in zijn eigen
+                                        administratie terugvindt: een inkoopordernummer,
+                                        kostenplaats of projectcode. Vraag ernaar als je het niet
+                                        hebt — zonder dit kenmerk wordt een e-factuur in de
+                                        praktijk teruggestuurd.
+                                    </p>
                                 </div>
                             )}
                             {/* Eén keuze en geen losse vinkjes: deze regimes sluiten
@@ -1040,7 +1052,7 @@ export default function InvoiceForm() {
                                             waarde: parseFloat(e.target.value) || 0,
                                         },
                                 })}
-                                style={{ flex: 1 }}
+                                style={{ flex: 1, minWidth: '4rem' }}
                             />
                             <select
                                 id="kortingsoort"
@@ -1052,7 +1064,13 @@ export default function InvoiceForm() {
                                         waarde: currentData.discount?.waarde ?? 0,
                                     },
                                 })}
-                                style={{ width: '9rem' }}
+                                /* 12rem en niet 9: op 9rem stond er "% van subtot" —
+                                   de langste optie vraagt 144px, plus 20px voor het
+                                   pijltje dat de browser bínnen het veld tekent en de
+                                   binnenruimte. Niet ingekort tot "%", want "van
+                                   subtotaal" is nu juist het punt: het percentage gaat
+                                   over het bedrag exclusief btw. */
+                                style={{ width: '13rem', flex: '0 0 auto' }}
                             >
                                 <option value="bedrag">€ (bedrag)</option>
                                 <option value="procent">% van subtotaal</option>

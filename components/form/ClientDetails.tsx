@@ -131,14 +131,25 @@ export default function ClientDetails({
                             />
                         </div>
                     </div>
+                    {/* De uitleg stond in de placeholder. Dat las op een telefoon als
+                        "Alleen invullen bij buitenlandse kla" — een placeholder loopt
+                        niet door naar een tweede regel, dus een zin erin past per
+                        definitie niet op een smal scherm. Een voorbeeld hoort in het
+                        veld, een uitleg eronder. */}
                     <div>
                         <label htmlFor="klant-land">Land (optioneel)</label>
                         <input
                             id="klant-land"
-                            placeholder="Alleen invullen bij buitenlandse klanten"
+                            placeholder="Duitsland"
                             value={client.country}
                             onChange={(e) => onChange({ country: e.target.value })}
+                            aria-describedby="klant-land-uitleg"
                         />
+                        <p id="klant-land-uitleg" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                            Alleen invullen bij een klant buiten Nederland. Schrijf het land
+                            voluit; de e-factuur maakt er zelf de landcode van en weigert een
+                            naam die hij niet kent, liever dan er een te verzinnen.
+                        </p>
                     </div>
                     <div>
                         <label htmlFor="klant-btw">BTW-nummer Klant (optioneel)</label>
@@ -155,10 +166,17 @@ export default function ClientDetails({
                         </label>
                         <input
                             id="klant-kvk"
-                            placeholder="Nodig om de e-factuur via Peppol te kunnen versturen"
+                            placeholder="12345678"
                             value={client.kvkNumber || ''}
                             onChange={(e) => onChange({ kvkNumber: e.target.value })}
+                            aria-describedby="klant-kvk-uitleg"
                         />
+                        <p id="klant-kvk-uitleg" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                            Dit is het adres waar een Peppol-netwerk de e-factuur heen stuurt.
+                            Zonder nummer blijft het bestand geldig om zelf door te geven, maar
+                            kan het niet automatisch bezorgd worden. Een particulier of een
+                            buitenlandse klant heeft geen KvK-nummer; laat het dan leeg.
+                        </p>
                     </div>
                 </>)}
             </div>

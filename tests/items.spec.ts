@@ -262,27 +262,37 @@ test.describe('de opmaak van een regel', () => {
 });
 
 /**
- * De tekst die een leeg veld toont, moet er ook in passen — op elke breedte.
+ * De tekst die een veld toont, moet er ook in passen — in elk veld van het
+ * formulier, op elke breedte.
  *
- * Twee dingen misten hier eerder. Ik toetste met scrollWidth > clientWidth, en
- * dat ziet alleen een ingevulde wáárde die overloopt; een afgekapte placeholder
- * merkt het niet op. Dus staat "uur, stuk…" als "uur, st" op het scherm terwijl
- * de test groen blijft, en valt het pas op een schermafdruk op. Daarom meet deze
- * test de tekst echt op in hetzelfde lettertype.
+ * Drie dingen misten hier. Ik toetste eerst met scrollWidth > clientWidth, en dat
+ * ziet alleen een ingevulde wáárde die overloopt; een afgekapte placeholder merkt
+ * het niet op. Dus stond "uur, stuk…" als "uur, st" op het scherm terwijl de test
+ * groen bleef, en viel het pas op een schermafdruk op.
  *
- * En hij deed het op één breedte, en keek alleen naar invoervelden. Allebei te
- * weinig. De kolommen zijn fr-delen, dus de verhouding die bij 1400px klopte
- * liep bij 1280px mis — daar is het formulier juist smáller, omdat het voorbeeld
- * ernaast staat. Vandaar deze lijst breedtes, met 1280 en 700 erbij als de
- * krapste gevallen die ik opmat.
+ * Toen deed hij het op één breedte. Ook te weinig: de kolommen van een itemregel
+ * zijn fr-delen, dus de verhouding die bij 1400px klopte liep bij 1280px mis —
+ * daar is het formulier juist smáller, omdat het voorbeeld ernaast staat.
  *
- * En de btw-keuzelijst bleef buiten schot terwijl daar "21% BT" stond: geen
- * placeholder maar een gekozen wáárde, wat erger is. Die telt hier dus mee, met
- * 20px gereserveerd voor het pijltje dat de browser bínnen de content box
- * tekent.
+ * En hij keek alleen naar de itemregel, terwijl de ergste gevallen daarbuiten
+ * stonden: "Nodig om de e-factuur via Peppol te kunnen versturen" vroeg 419px in
+ * een veld van 281px. Daarom nu het hele formulier.
+ *
+ * Elk soort veld kapt anders af, en dat is de kern van deze test:
+ *
+ * - **input** kapt af op één regel. Opgemeten tekstbreedte tegen de ruimte binnen
+ *   de padding.
+ * - **textarea** kapt *niet* horizontaal af maar loopt door naar de volgende
+ *   regel, en kan alleen onderaan wegvallen. Hem als één regel meten meldde
+ *   afkappingen die er niet zijn — gecontroleerd door er een veel te lange hint in
+ *   te zetten en ernaar te kijken. Dus hier de gewikkelde hoogte tegen de hoogte
+ *   van het veld.
+ * - **select** toont geen placeholder maar een gekozen wáárde, wat erger is als
+ *   hij wegvalt. Daar stond "21% BT". De browser tekent het pijltje bínnen de
+ *   content box, dus daar gaat ruimte van af.
  */
 test.describe('de tekst in een veld past erin', () => {
-    const meetTeKrappeVelden = (rij: Element) => {
+    const meetTeKrappeVelden = () => {
         /* Het pijltje van een <select> wordt door de browser getekend en staat
            niet in de padding; opgemeten in Chromium op zo'n 16px, met wat lucht
            erbij 20. Een vaste waarde is hier beter dan hem proberen uit te
@@ -291,36 +301,68 @@ test.describe('de tekst in een veld past erin', () => {
         const PIJLTJE = 20;
         const uit: string[] = [];
 
-        const breedteVan = (tekst: string, font: string) => {
-            const meet = document.createElement('span');
-            meet.style.cssText =
-                `position:absolute;visibility:hidden;white-space:nowrap;font:${font}`;
+        /** De ruimte binnen de padding, horizontaal en verticaal. */
+        const binnenruimte = (veld: HTMLElement) => {
+            const s = getComputedStyle(veld);
+            return {
+                breed: veld.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
+                hoog: veld.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom),
+                font: s.font,
+                lineHeight: s.lineHeight,
+            };
+        };
+
+        const meetIn = (stijl: string, tekst: string) => {
+            const meet = document.createElement('div');
+            meet.style.cssText = `position:absolute;visibility:hidden;${stijl}`;
             meet.textContent = tekst;
             document.body.appendChild(meet);
-            const breedte = meet.getBoundingClientRect().width;
+            const vak = meet.getBoundingClientRect();
             meet.remove();
-            return breedte;
+            return vak;
         };
 
-        const toets = (veld: Element, tekst: string, extra: number) => {
-            const stijl = getComputedStyle(veld);
-            const nodig = breedteVan(tekst, stijl.font) + extra;
-            const ruimte = (veld as HTMLElement).clientWidth
-                - parseFloat(stijl.paddingLeft) - parseFloat(stijl.paddingRight);
-            if (nodig > ruimte) {
-                uit.push(`"${tekst}" vraagt ${Math.round(nodig)}px `
-                    + `en krijgt ${Math.round(ruimte)}px`);
+        for (const veld of document.querySelectorAll<HTMLElement>(
+            'input[placeholder], textarea[placeholder], select',
+        )) {
+            // Onzichtbaar (dichtgeklapt, of verborgen achter Bewerken) valt af:
+            // daar is niets te meten en een 0 zou alles rood maken.
+            if (!veld.clientWidth || !veld.clientHeight) continue;
+            const ruimte = binnenruimte(veld);
+
+            if (veld instanceof HTMLTextAreaElement) {
+                const hoogte = meetIn(
+                    `width:${ruimte.breed}px;font:${ruimte.font};line-height:${ruimte.lineHeight};`
+                    + 'white-space:pre-wrap;overflow-wrap:break-word',
+                    veld.placeholder,
+                ).height;
+                if (hoogte > ruimte.hoog) {
+                    uit.push(`textarea "${veld.placeholder}" is ${Math.round(hoogte)}px `
+                        + `hoog gewikkeld en krijgt ${Math.round(ruimte.hoog)}px`);
+                }
+                continue;
             }
-        };
 
-        for (const veld of rij.querySelectorAll('input[placeholder], textarea[placeholder]')) {
-            toets(veld, (veld as HTMLInputElement).placeholder, 0);
-        }
-        // De langste optie, niet de gekozen: ook 9% BTW moet je straks kunnen
-        // lezen zonder dat de opmaak meeschuift.
-        for (const lijst of rij.querySelectorAll('select')) {
-            for (const optie of (lijst as HTMLSelectElement).options) {
-                toets(lijst, optie.text, PIJLTJE);
+            /* Elke optie, niet alleen de gekozen: ook 9% BTW moet je straks kunnen
+               lezen zonder dat de opmaak meeschuift.
+
+               Van een optie van de vorm "Naam — uitleg" telt alleen "Naam". Een
+               uitklaplijst toont de volle tekst zodra je hem opent; de dichtgeklapte
+               lijst is een samenvatting, en wat daar moet passen is het deel dat de
+               opties uit elkaar houdt. Eisen dat de hele uitleg erin past zou
+               betekenen dat de btw-regimes hun uitleg moeten inleveren om een test
+               tevreden te stellen, en die uitleg is daar het nuttigst. */
+            const teksten = veld instanceof HTMLSelectElement
+                ? [...veld.options].map((o) => o.text.split(' — ')[0])
+                : [(veld as HTMLInputElement).placeholder];
+            const extra = veld instanceof HTMLSelectElement ? PIJLTJE : 0;
+
+            for (const tekst of teksten) {
+                const nodig = meetIn(`white-space:nowrap;font:${ruimte.font}`, tekst).width + extra;
+                if (nodig > ruimte.breed) {
+                    uit.push(`"${tekst}" vraagt ${Math.round(nodig)}px `
+                        + `en krijgt ${Math.round(ruimte.breed)}px`);
+                }
             }
         }
         return uit;
@@ -329,8 +371,12 @@ test.describe('de tekst in een veld past erin', () => {
     for (const breedte of [390, 700, 768, 900, 1280, 1400, 1920]) {
         test(`bij een venster van ${breedte}px`, async ({ page }) => {
             await page.setViewportSize({ width: breedte, height: 900 });
-            const teKrap = await page.locator('.item-row').first()
-                .evaluate(meetTeKrappeVelden);
+            // Ook wat dichtgeklapt staat: daar zitten de betaalgegevens en de
+            // bedrijfsgegevens, en die werden tot nu toe nooit opgemeten.
+            await page.evaluate(() => {
+                for (const d of document.querySelectorAll('details')) d.open = true;
+            });
+            const teKrap = await page.evaluate(meetTeKrappeVelden);
             expect(teKrap, teKrap.join('; ')).toEqual([]);
         });
     }

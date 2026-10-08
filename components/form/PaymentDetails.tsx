@@ -69,9 +69,14 @@ export default function PaymentDetails({ settings, onChange, open, onToggle }: P
                 </div>
                 <div>
                     <label htmlFor="betalingsvoorwaarden">Betalingsvoorwaarden</label>
+                    {/* Korte hint, want een placeholder kapt af in plaats van door te
+                        lopen: de hele zin werd op een telefoon "Binnen 14 dagen na
+                        factuurda". Dit is een voorbeeld en geen uitleg, dus een kortere
+                        variant doet hetzelfde werk. Hij is bovendien zelden te zien —
+                        lib/settings.ts vult dit veld standaard al in. */}
                     <input
                         id="betalingsvoorwaarden"
-                        placeholder="Binnen 14 dagen na factuurdatum."
+                        placeholder="Binnen 14 dagen"
                         value={settings.paymentConditions}
                         onChange={(e) => onChange({ paymentConditions: e.target.value })}
                     />

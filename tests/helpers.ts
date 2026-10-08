@@ -27,7 +27,9 @@ export const ui = (page: Page) => ({
     companyName: page.locator('input[placeholder="Mijn Bedrijf BV"]'),
     companyEmail: page.locator('input[placeholder="info@mijnbedrijf.nl"]'),
     companyVat: page.locator('input[placeholder="NL123456789B01"]').first(),
-    companyKvk: page.locator('input[placeholder="12345678"]'),
+    // Op de id: de klant heeft sinds kort dezelfde voorbeeldplaceholder, en een
+    // selector op "12345678" wees daardoor naar twee velden tegelijk.
+    companyKvk: page.locator('#bedrijf-kvk'),
     exportSettings: page.getByRole('button', { name: 'Export', exact: true }),
     clearSettings: page.getByRole('button', { name: 'Wissen', exact: true }),
 
@@ -56,7 +58,10 @@ export const ui = (page: Page) => ({
     // De tweede: de eerste hoort bij de afzender.
     clientCity: page.locator('input[placeholder="Amsterdam"]').nth(1),
     clientZip: page.locator('input[placeholder="1234 AB"]').nth(1),
-    clientCountry: page.locator('input[placeholder="Alleen invullen bij buitenlandse klanten"]'),
+    // Op de id en niet op de placeholder: die bevatte een hele uitleg, die naar
+    // een <p> eronder is verhuisd omdat hij op een telefoon werd afgekapt. Een
+    // selector mag niet omvallen omdat een hint herschreven wordt.
+    clientCountry: page.locator('#klant-land'),
     clientVat: page.locator('input[placeholder="NL123456789B01"]').nth(1),
     clientKvk: page.locator('#klant-kvk'),
 
@@ -76,10 +81,10 @@ export const ui = (page: Page) => ({
 
     // Betaalgegevens
     iban: page.locator('input[placeholder="NLxx XXXX XXXX XXXX XX"]'),
-    paymentConditions: page.locator('input[placeholder="Binnen 14 dagen na factuurdatum."]'),
+    paymentConditions: page.locator('#betalingsvoorwaarden'),
 
     // Opmerkingen
-    notes: page.locator('textarea[placeholder="Extra tekst onderaan het document (optioneel)"]'),
+    notes: page.locator('#opmerkingen'),
 
     // Algemene Informatie, alleen bij een factuur: nodig voor de e-factuur.
     buyerReference: page.locator('#klantreferentie'),

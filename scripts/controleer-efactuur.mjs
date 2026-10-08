@@ -108,11 +108,11 @@ const GEVALLEN = {
     icp: async (page) => {
         // Een intracommunautaire levering gaat naar een ánder EU-land; met een
         // Nederlandse klant weigert de app de export, en terecht.
-        await page.locator('input[placeholder="Alleen invullen bij buitenlandse klanten"]').fill('Duitsland');
+        await page.locator('#klant-land').fill('Duitsland');
         await page.locator('#btwRegime').selectOption('icp');
     },
     export: async (page) => {
-        await page.locator('input[placeholder="Alleen invullen bij buitenlandse klanten"]').fill('Zwitserland');
+        await page.locator('#klant-land').fill('Zwitserland');
         await page.locator('#btwRegime').selectOption('export');
     },
     // Het nultarief is geen eigen regime: het gewone regime met een regel op 0%
@@ -171,7 +171,7 @@ const maakFactuur = async (browser, naam, extra) => {
     const vul = (sel, waarde) => page.locator(sel).first().fill(waarde);
     await vul('input[placeholder="Mijn Bedrijf BV"]', 'Sonsbeek Advies BV');
     await vul('input[placeholder="Straatnaam 1"]', 'Velperweg 1');
-    await vul('input[placeholder="12345678"]', '87654321');
+    await vul('#bedrijf-kvk', '87654321');
     await vul('input[placeholder="NL123456789B01"]', 'NL123456789B01');
     await vul('input[placeholder="info@mijnbedrijf.nl"]', 'info@sonsbeekadvies.nl');
     await vul('input[placeholder="NLxx XXXX XXXX XXXX XX"]', 'NL91ABNA0417164300');

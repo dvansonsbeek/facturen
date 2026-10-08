@@ -868,9 +868,19 @@ there is no backend: everything the journey creates lives in the test's own brow
 profile and goes away with it. It is the step that catches publication-only faults — a
 wrong `basePath`, a missing `.nojekyll`, an asset Pages will not serve.
 
-**All selectors live in `tests/helpers.ts`.** The form's `<label>` elements have no
-`htmlFor`, so `getByLabel` does not work and placeholders are the stable handle. If you
-split `InvoiceForm` up, that file should be the only test file needing changes.
+**All selectors live in `tests/helpers.ts`.** If you split `InvoiceForm` up, that file
+should be the only test file needing changes.
+
+**Prefer the `id`; a placeholder is the last resort.** This file used to say the opposite —
+that the `<label>` elements have no `htmlFor` so placeholders are the stable handle — and
+that is now wrong twice over. Most fields *do* carry `htmlFor` and an `id`
+(`#klant-land`, `#betalingsvoorwaarden`, `#opmerkingen`, `#bedrijf-kvk`, every field in
+`ItemRow`), and placeholders turned out to be the *least* stable thing in the form: they
+are display text, so layout work rewrites them. Shortening one placeholder broke three
+unrelated tests, and giving the client's KvK field the example `12345678` — which the
+sender's KvK field already used — broke 55 more, because one locator then matched two
+inputs. Where no id exists, something structural (`list="eenheden"`,
+`.item-row button[title=…]`) beats wording.
 
 Two selectors there are deliberately narrower than they look. `preview` is scoped to
 `.preview-wrapper .invoice-preview` because the archive dialog renders a second
@@ -925,12 +935,38 @@ Run the suite before and after any refactor. It exists precisely because
 - **The fields are checked by measuring their text, not by eye or by `scrollWidth`.**
   `scrollWidth > clientWidth` sees an overflowing *value* and is blind to a clipped
   *placeholder*, so "uur, stuk…" rendered as "uur, st" with the suite green. The test in
-  `tests/items.spec.ts` renders each placeholder in the field's own computed font and
-  compares against the space inside its padding, across seven window widths — and it
-  covers `<select>` options too, reserving 20px for the dropdown arrow the browser draws
-  *inside* the content box. That last part was the gap that let `21% BTW` ship as
-  `21% BT`: a truncated value, which is worse than a truncated hint. Validated by
-  re-imposing the old column widths at runtime and confirming it names all six faults.
+  `tests/items.spec.ts` renders each field's text in that field's own computed font and
+  compares against the space inside its padding, over **the whole form** at seven window
+  widths. Form-wide matters: the worst offenders were nowhere near the item row.
+- **Each kind of field fails differently, and the test knows all three.** Getting this
+  wrong produces confident nonsense in both directions, so it was settled by putting a
+  deliberately over-long placeholder in each and looking:
+  - `<input>` truncates on one line — measure the string against the content width.
+  - `<textarea>` **wraps**; it can only clip at the *bottom*. Measuring it as one line
+    reported truncation that cannot happen, which is how "Extra tekst onderaan het
+    document (optioneel)" got onto a fix list it did not belong on. Measure the wrapped
+    height against the field's height instead.
+  - `<select>` shows a chosen *value*, which is worse to lose than a hint, and the
+    browser draws the arrow **inside** the content box — so 20px comes off before the
+    text. That is the gap that let `21% BTW` ship as `21% BT`.
+- **A placeholder is an example, never an explanation.** It cannot wrap, so a sentence in
+  one is unreadable on a phone by construction: "Nodig om de e-factuur via Peppol te
+  kunnen versturen" asked for 419px in a 281px field. Explanations go in a muted `<p>`
+  below the field, tied to it with `aria-describedby` — the idiom `PaymentDetails.tsx`
+  already used for the IBAN. Keep placeholders to a concrete example (`Duitsland`,
+  `12345678`, `INKOOP-2026-77`).
+- **Select options read `Naam — uitleg`, and only the name has to fit.** The open
+  dropdown shows the full string; the closed control is a summary, so what must survive
+  is the part that tells the options apart. Requiring the whole option to fit would force
+  the VAT regimes to surrender the explanations that are most useful exactly where they
+  are. This is why `kor` reads `KOR — vrijgesteld van btw (kleineondernemersregeling)`
+  and not the other way round: with the long name first, a phone showed
+  `Kleineondernemersregeling (KO`.
+- **A placeholder is not a selector.** Three tests broke when "uur, stuk…" was shortened,
+  and 55 more when the client's KvK example became `12345678` — which the *sender's* KvK
+  field already used, so one locator matched two inputs. Hang test selectors on the `id`
+  or on something structural (`list="eenheden"`), not on wording that layout work will
+  rewrite. `tests/helpers.ts` says this at each converted line.
 - **Beware a `@media` block that only lowers specificity.** `@media (min-width: 768px)
   { .row-label { display: none } }` never hid anything, because `.form-section .row-label`
   outweighs it and a media query adds no weight. It sat there long enough that the column

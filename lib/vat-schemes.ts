@@ -67,7 +67,13 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
         requiresClientVat: false,
     },
     kor: {
-        label: 'Kleineondernemersregeling (KOR) — vrijgesteld van btw',
+        /* De afkorting voorop. Elk label is "Naam — uitleg", en in een
+           dichtgeklapte keuzelijst is alleen die naam te zien: op een telefoon
+           paste "Kleineondernemersregeling (KOR)" niet (278px in 251px) en
+           bleef er "Kleineondernemersregeling (KO" over. Zo lees je er "KOR —
+           vrijgesteld van btw", wat méér zegt, en het volle woord staat er nog
+           steeds voor wie de afkorting niet kent. */
+        label: 'KOR — vrijgesteld van btw (kleineondernemersregeling)',
         hint: 'Je bent aangemeld voor de KOR. Er mag dan geen btw op de factuur staan.',
         statement:
             'Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).',
