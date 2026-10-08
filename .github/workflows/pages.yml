@@ -22,9 +22,9 @@ jobs:
     # commentaar bovenaan ci.yml voor het waarom en voor hoe we verhuizen.
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -33,7 +33,7 @@ jobs:
 
       # Voor de officiële SI-UBL-validator: dat is een XSLT 2.0-stylesheet en
       # die heeft Saxon nodig. Alleen hier, nooit in de app zelf.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
@@ -41,7 +41,7 @@ jobs:
       # Saxon en de validator zijn samen zes megabyte en staan niet in de repo.
       # Gecachet op hun vaste versie, zodat ze één keer binnenkomen en een
       # haperende download hierna niet de publicatie ophoudt.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .validatie-cache
           key: validatie-saxon10.9-siubl2026-05-21
@@ -90,10 +90,16 @@ jobs:
       # overgeslagen. Deze actie draait geen Jekyll, maar het kost niets.
       - run: touch out/.nojekyll
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      # include-hidden-files is niet overbodig: vanaf v4 laat deze actie alles
+      # dat met een punt begint uit het pakket weg, en dat is precies de
+      # .nojekyll van hierboven. Zonder deze regel verdwijnt die stilzwijgend
+      # bij het opwaarderen — geen foutmelding, alleen een bestand dat er niet
+      # meer is. .git en .github blijven er sowieso buiten.
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: out
+          include-hidden-files: true
 
   publiceren:
     needs: bouwen
@@ -103,7 +109,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   # Dezelfde reis nog één keer, nu tegen de site zoals hij er echt staat. De
   # stap hierboven toetst de build; deze toetst de publicatie — een verkeerd
@@ -114,9 +120,9 @@ jobs:
     needs: publiceren
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
