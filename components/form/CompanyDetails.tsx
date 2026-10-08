@@ -30,7 +30,12 @@ export default function CompanyDetails({
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', border: '2px dashed var(--border)', borderRadius: 'var(--radius)' }}>
                     <div style={{ flex: 1 }}>
                         <label htmlFor="bedrijf-logo" style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>Logo Uploaden</label>
-                        <input ref={bestandsveld} id="bedrijf-logo" type="file" accept="image/*" onChange={onLogoChange} style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem' }} />
+                        {/* Geen fontSize hier: inline opmaak wint van het stijlblad, en
+                            daar staat de regel die op een aanraakscherm 16px afdwingt.
+                            Onder die grens zoomt Safari op iOS bij het aantikken in en
+                            daarna niet meer uit. De 0,8rem die hier stond, werd op een
+                            telefoon 11,2px. */}
+                        <input ref={bestandsveld} id="bedrijf-logo" type="file" accept="image/*" onChange={onLogoChange} style={{ width: '100%', padding: '0.5rem' }} />
                         {logoWarning && (
                             <p role="status" style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--error)' }}>
                                 {logoWarning}

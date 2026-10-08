@@ -752,3 +752,60 @@ textarea:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
 }
+
+/* ===========================================================================
+   Bediening met een vinger
+
+   Alleen waar met een vinger wordt bediend, en niet op schermbreedte: een
+   aanraakscherm van 1180px breed heeft dezelfde dikke vinger als een telefoon,
+   en een smal venster op een laptop juist niet. `pointer: coarse` vraagt naar
+   het aanwijsapparaat zelf, en dat is precies de vraag.
+
+   Op een muisscherm verandert hier dus niets — knoppen van 25px zijn met een
+   muis prima, en alles op 44px zetten zou het formulier onnodig uit elkaar
+   trekken.
+   =========================================================================== */
+@media (pointer: coarse) {
+  /* Apple HIG houdt 44x44pt aan, Material 48dp; 44 is de ondergrens van de
+     twee. De compacte knoppen kwamen op 25px uit — ruim onder de helft van een
+     vingertop, en dus een bron van misklikken. min-height en niet padding,
+     zodat de tekst gewoon gecentreerd blijft staan. */
+  .premium-btn,
+  .premium-btn.compact,
+  button,
+  select,
+  summary {
+    min-height: 44px;
+  }
+
+  /* Ook in de breedte. Het prullenbakje van een regel was 34px breed en het
+     knopje voor de donkere modus 43 — allebei hoog genoeg maar te smal, en
+     een vingertop is in beide richtingen even dik. */
+  button {
+    min-width: 44px;
+  }
+
+  .premium-btn.compact {
+    padding-block: 0.6rem;
+  }
+
+  /* Safari op iOS zoomt de pagina in zodra je een veld onder 16px aantikt, en
+     zoomt daarna niet terug uit — je zit dan met de rest van het formulier
+     buiten beeld. De basisregel voor input/select/textarea staat daarom al op
+     16px met die opmerking erbij, maar .item-row zet er 0.9rem overheen, en op
+     een telefoon staat html bovendien op 14px. Netto: 12,6px.
+
+     Hier dus terug naar 16px. De regel staat toch al onder elkaar op deze
+     breedtes, dus de dichtheid die 0.9rem opleverde is er niet meer nodig. */
+  .item-row input,
+  .item-row select,
+  .item-row textarea {
+    font-size: 16px;
+  }
+
+  /* Het bestandsveld voor het logo erft zijn lettergrootte niet van de regel
+     hierboven; die staat los in de component. */
+  #bedrijf-logo {
+    font-size: 16px;
+  }
+}
