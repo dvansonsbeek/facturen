@@ -186,7 +186,7 @@ const maakFactuur = async (browser, naam, extra) => {
 
     await vul('textarea[placeholder="Omschrijving goederen/ diensten"]', 'Strategisch advies');
     await vul('input[placeholder="Aantal"]', '10');
-    await vul('input[placeholder="uur, stuk…"]', 'uur');
+    await vul('input[list="eenheden"]', 'uur');
     await vul('input[placeholder="Eenheidsprijs"]', '125');
 
     await extra(page);

@@ -1021,7 +1021,10 @@ export default function InvoiceForm() {
                         <h3 style={{ marginBottom: '1rem' }}>
                             <label htmlFor="korting">Korting</label>
                         </h3>
-                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                        {/* Niet uitrekken: een korting is een getal van hooguit een
+                            paar tekens, en met flex: 1 werd het veld bijna net zo
+                            breed als het hele formulier — 482px voor "10". */}
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', maxWidth: '22rem' }}>
                             <input
                                 id="korting"
                                 type="number"

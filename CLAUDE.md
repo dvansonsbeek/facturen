@@ -905,15 +905,39 @@ Run the suite before and after any refactor. It exists precisely because
   the form.
 - **A line item asks how wide *it* is, not how wide the window is.** `.item-row` uses an
   `@container` query against `.form-section`, because from 1024px the form sits beside
-  the preview in a `minmax(400px, 1fr)` column — so a row is *narrower* there (~356px)
-  than on a 768px phone in landscape (~638px). A viewport media query crushes it at
-  exactly the wrong size.
+  the preview in a `minmax(440px, 1.25fr)` column — so a row is *narrower* there (592px
+  at a 1280px window) than on a 768px phone in landscape (638px). A viewport media query
+  crushes it at exactly the wrong size. Note which measurement the query reads: the
+  container's **content box**, which is already the row width — adding the section's
+  padding to the threshold knocked grid mode out at 1280px.
 - **Count the columns when you add a field to a row.** `.mobile-split` is
   `display: contents`, so its three fields are grid items in their own right, not one.
   Adding the unit field gave six items against five columns: everything shifted one
   place, the VAT select landed in the 40px column meant for the delete button, and the
   button dropped to a second line. `tests/items.spec.ts` now asserts columns equal items,
   which is the relationship that actually broke.
+- **Columns carry a `minmax()` floor, and the container threshold is the sum of those
+  floors.** Bare `fr` ratios are a fit at one width and a misfit at the next: the ratio
+  tuned at 1400px truncated the name, quantity and price fields at 1280px, where the form
+  is *narrower*. The floors are measured text plus padding, so the threshold (580px) is
+  arithmetic — change a floor and you change the threshold. Below it the row stacks, which
+  is the honest answer rather than a crushed row.
+- **The fields are checked by measuring their text, not by eye or by `scrollWidth`.**
+  `scrollWidth > clientWidth` sees an overflowing *value* and is blind to a clipped
+  *placeholder*, so "uur, stuk…" rendered as "uur, st" with the suite green. The test in
+  `tests/items.spec.ts` renders each placeholder in the field's own computed font and
+  compares against the space inside its padding, across seven window widths — and it
+  covers `<select>` options too, reserving 20px for the dropdown arrow the browser draws
+  *inside* the content box. That last part was the gap that let `21% BTW` ship as
+  `21% BT`: a truncated value, which is worse than a truncated hint. Validated by
+  re-imposing the old column widths at runtime and confirming it names all six faults.
+- **Beware a `@media` block that only lowers specificity.** `@media (min-width: 768px)
+  { .row-label { display: none } }` never hid anything, because `.form-section .row-label`
+  outweighs it and a media query adds no weight. It sat there long enough that the column
+  floors above were first computed on the belief that labels vanish at desktop and the
+  placeholder is the field's only name. Both that rule and the `.responsive-item-row > *`
+  order reset were the same mistake; measure the computed style rather than reading the
+  stylesheet.
 
 ## Known gaps and deliberate decisions
 

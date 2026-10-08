@@ -290,7 +290,18 @@ h4 {
 @media (min-width: 1024px) {
   .main-grid {
     display: grid !important;
-    grid-template-columns: minmax(400px, 1fr) 1.2fr !important;
+    /* Het formulier krijgt de ruimere helft, niet het voorbeeld.
+       Hiervoor stond het op minmax(400px, 1fr) 1.2fr en hield een regel bij een
+       venster van 1400px — een doodgewone laptop — nog 527px over. Daar paste
+       "Eenheidsprijs" niet meer in zijn eigen veld, en bij 1280px viel de hele
+       regel terug op onder elkaar.
+
+       Dat kan nu, omdat het voorbeeld zichzelf verkleint tot het in zijn kolom
+       past (zie .preview-wrapper). Het wordt daardoor wel kleiner: bij 1400px
+       546px breed in plaats van 677 — zo'n 68% van een A4, en dat blijft goed
+       leesbaar. Het formulier is waar je wérkt; het voorbeeld is waar je
+       controleert. */
+    grid-template-columns: minmax(440px, 1.25fr) 1fr !important;
     gap: 2rem;
   }
 }
@@ -299,6 +310,21 @@ h4 {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* Onder elkaar leest de beschrijving direct achter de naam, terwijl hij in de
+   DOM als laatste staat — daar staat hij om in het raster hieronder vanzelf op
+   een eigen regel te vallen. Vandaar deze volgorde; in het raster wordt hij
+   weer losgelaten. */
+.responsive-item-row .item-naam { order: 1; }
+.responsive-item-row .item-beschrijving { order: 2; }
+.responsive-item-row .mobile-split { order: 3; }
+.responsive-item-row .item-btw { order: 4; }
+.responsive-item-row .item-verwijderen {
+  order: 5;
+  /* Het enige dat niet over de volle breedte hoort: een prullenbakje van 40px
+     uitgerekt tot 578px is één groot klikdoel waar je per ongeluk in valt. */
+  align-self: flex-start;
 }
 
 /* Een regel op één lijn, maar alleen als er plek voor is.
@@ -311,8 +337,20 @@ h4 {
    — het prijsveld hield 37px over.
 
    Een containervraag kijkt naar de ruimte die er werkelijk is. Zie
-   .form-section, die zich daarvoor als container opgeeft. */
-@container (min-width: 500px) {
+   .form-section, die zich daarvoor als container opgeeft.
+
+   De grens is 580px en niet 500px, en dat getal is uitgerekend in plaats van
+   gekozen: de zes kolommen hieronder hebben samen 477px aan minima nodig, plus
+   40px voor de prullenbak en 5×0.75rem = 60px aan tussenruimte — 577px, naar
+   boven afgerond op 580. Bij 500px engageerde het raster terwijl die minima
+   niet pasten, en dan loopt een raster over zijn container heen.
+
+   Let op welke maat een containervraag leest: de *content box*, dus wat er
+   binnen de binnenruimte van .form-section over is — precies de breedte die een
+   regel krijgt. Ik rekende er eerst de 66px binnenruimte bij op en kwam op 650;
+   bij een venster van 1280 is die ruimte 592px, dus viel het raster daar
+   onverwacht terug op onder elkaar. Opgemerkt door na te meten. */
+@container (min-width: 580px) {
   /* Zes kolommen, en tel ze na als je er een veld bij zet: naam, aantal,
      eenheid, prijs, btw, prullenbak.
 
@@ -323,7 +361,33 @@ h4 {
      regel onder de beschrijving. */
   .responsive-item-row {
     display: grid !important;
-    grid-template-columns: 3fr 1fr 1.35fr 1.35fr 1.7fr 40px !important;
+    /* Elke kolom heeft een ondergrens, en die is opgemeten en niet geschat.
+       Puur in fr uitgedrukt werkte het niet: bij een venster van 1280 is het
+       formulier 658px en de regel dus 592px, en daar kwamen naam, aantal en
+       prijs alle drie tekort terwijl het bij 1400 net goed ging. Een verhouding
+       die bij één breedte klopt, klopt bij de volgende niet.
+
+       De minima zijn de tekst plus 2×0.6rem binnenruimte plus twee punten
+       lucht, want de opgemeten breedtes zijn afgerond en 41,4px past niet in
+       41px: naam 114→135, aantal 41→64, eenheid 22→55 (ondergrens van 50px uit
+       items.spec.ts, niet de tekst), prijs 91→115.
+
+       De btw-lijst is het buitenbeentje: daar gaat het niet om een placeholder
+       maar om de gekozen wáárde, en de browser tekent het pijltje bínnen de
+       content box. "21% BTW" vraagt 64px, er was 71px over en daar moest dat
+       pijltje ook nog in — op het scherm stond "21% BT". Dus 64 + 20 voor het
+       pijltje + 21 binnenruimte = 108.
+
+       De fr-delen verdelen wat er daarboven over is; de beschrijving eronder
+       pakt de volle breedte, dus de naam hoeft hier niet alles op te vangen. */
+    grid-template-columns:
+      minmax(135px, 2.2fr) minmax(64px, 0.9fr) minmax(55px, 0.8fr)
+      minmax(115px, 1.5fr) minmax(108px, 1.3fr) 40px !important;
+    /* Krapper dan de 1rem van onder elkaar, en dat scheelt precies de 20px die
+       de btw-lijst erbij kreeg: anders gaat het raster pas vanaf 600px aan en
+       valt hij bij een venster van 1280 (592px) uit elkaar. Tussen kolommen van
+       één regel mag het dichter op elkaar dan tussen gestapelde velden. */
+    gap: 0.75rem;
     padding: 0 !important;
     border: none !important;
     margin-bottom: 1rem !important;
@@ -331,6 +395,34 @@ h4 {
 
   .mobile-split {
     display: contents !important;
+  }
+
+  /* De volgorde van hierboven geldt alleen onder elkaar. In het raster moet de
+     DOM-volgorde juist gelden, anders klimt de beschrijving naar voren en
+     schuift de hele regel een kolom op.
+
+     Met dezelfde opsomming en niet met `> *`: dat laatste weegt lichter dan de
+     regels hierboven en werd dus genegeerd. Gevolg was dat de naam in kolom 4
+     belandde en btw en prullenbak op een derde regel — opgemerkt door na te
+     meten, niet door ernaar te kijken. */
+  .responsive-item-row .item-naam,
+  .responsive-item-row .item-beschrijving,
+  .responsive-item-row .mobile-split,
+  .responsive-item-row .item-btw,
+  .responsive-item-row .item-verwijderen {
+    order: 0;
+  }
+
+  /* Over de volle breedte, op een eigen regel eronder. Hij stond in dezelfde cel
+     als de naam en was daardoor even smal, met drie lege kolommen ernaast. */
+  .item-beschrijving {
+    grid-column: 1 / -1;
+  }
+
+  /* Onderaan de eerste regel, bij de velden waar hij bij hoort — niet
+     halverwege de beschrijving eronder. */
+  .item-verwijderen {
+    align-self: end;
   }
 }
 
@@ -346,11 +438,14 @@ h4 {
   text-transform: uppercase;
 }
 
-@media (min-width: 768px) {
-  .row-label {
-    display: none;
-  }
-}
+/* Hier stond een @media (min-width: 768px) { .row-label { display: none } }.
+   Die deed niets: .form-section .row-label hierboven weegt 0,2,0 en .row-label
+   weegt 0,1,0, en een mediaquery maakt een regel niet zwaarder. De labels
+   stonden dus altijd al op het scherm — opgemeten, niet aangenomen. Weggehaald
+   omdat dode opmaak gevaarlijker is dan geen opmaak: ik heb de kolombreedtes
+   hieronder eerst uitgerekend in de veronderstelling dat de placeholder boven
+   768px de énige aanduiding van een veld was. Wil je ze alsnog verbergen, zet
+   het dan op .form-section .row-label en reken erop dat het zichtbaar wordt. */
 
 .item-row input,
 .item-row select {

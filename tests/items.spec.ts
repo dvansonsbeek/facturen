@@ -129,10 +129,13 @@ test.describe('eenheid per regel', () => {
         await app.itemUnit(0).fill('uur');
         await app.itemPrice(0).fill('85');
 
-        const text = await previewText(page);
-        expect(text).toContain('€ 255,00');   // subtotaal
-        expect(text).toContain('€ 53,55');    // 21% btw
-        expect(text).toContain('€ 308,55');   // totaal
+        // Eén keer uitlezen en er drie dingen over beweren leest de oude stand
+        // als het voorbeeld nog niet opnieuw getekend is — dit viel om in een
+        // volle run en niet in zijn eentje. toContainText probeert het opnieuw.
+        const voorbeeld = ui(page).preview;
+        await expect(voorbeeld).toContainText('€ 255,00');   // subtotaal
+        await expect(voorbeeld).toContainText('€ 53,55');    // 21% btw
+        await expect(voorbeeld).toContainText('€ 308,55');   // totaal
     });
 
     test('biedt suggesties aan zonder ze te verplichten', async ({ page }) => {
@@ -162,24 +165,56 @@ test.describe('de opmaak van een regel', () => {
 
     /**
      * De controle die er het meest toe doet, want hij pint het verband dat brak:
-     * evenveel kolommen als rasteritems. Zet iemand er een veld bij zonder een
-     * kolom, dan gaat deze rood in plaats van dat er stilletjes iets afvalt.
+     * de bovenste regel heeft precies zoveel velden als er kolommen zijn. Zet
+     * iemand er een veld bij zonder een kolom, dan gaat deze rood in plaats van
+     * dat er stilletjes iets afvalt.
+     *
+     * De beschrijving telt niet mee: die pakt met grid-column: 1 / -1 bewust de
+     * volle breedte op een eigen regel eronder. Daarom wordt er geteld op
+     * positie en niet op aantal kinderen — dat laatste zou bij elke bewuste
+     * tweede regel omvallen.
      */
-    test('heeft net zoveel kolommen als velden', async ({ page }) => {
+    test('de bovenste regel heeft net zoveel velden als kolommen', async ({ page }) => {
         const meting = await page.locator('.item-row').first().evaluate((el) => {
             const stijl = getComputedStyle(el);
             if (stijl.display !== 'grid') return null;
+
             // display: contents maakt van de kínderen rasteritems, niet van het
             // element zelf — precies wat hier over het hoofd werd gezien.
-            const tel = (node: Element): number => [...node.children].reduce(
-                (n, kind) => n + (getComputedStyle(kind).display === 'contents' ? tel(kind) : 1),
-                0,
+            const items: Element[] = [];
+            const verzamel = (node: Element) => {
+                for (const kind of node.children) {
+                    if (getComputedStyle(kind).display === 'contents') verzamel(kind);
+                    else items.push(kind);
+                }
+            };
+            verzamel(el);
+
+            // Op breedte en niet op hoogte: het prullenbakje staat met
+            // align-self: end onderaan zijn cel, dus zijn bovenkant ligt lager
+            // dan die van de velden ernaast. Op bovenkant tellen gaf daardoor
+            // vijf in plaats van zes — een fout in de meting, niet in de
+            // opmaak. Wat de tweede regel kenmerkt is dat hij de volle breedte
+            // pakt.
+            const breedte = Math.round(el.getBoundingClientRect().width);
+            const opDeEersteRegel = items.filter(
+                (i) => Math.round(i.getBoundingClientRect().width) < breedte - 1,
             );
-            return { kolommen: stijl.gridTemplateColumns.split(/\s+/).length, items: tel(el) };
+
+            return {
+                kolommen: stijl.gridTemplateColumns.split(/\s+/).length,
+                opDeEersteRegel: opDeEersteRegel.length,
+                // En wat eronder staat hoort de volle breedte te pakken.
+                volleBreedte: items
+                    .filter((i) => !opDeEersteRegel.includes(i))
+                    .every((i) => Math.round(i.getBoundingClientRect().width)
+                        >= Math.round(el.getBoundingClientRect().width) - 1),
+            };
         });
 
         expect(meting, 'de regel staat niet als raster; is de containervraag gewijzigd?').not.toBeNull();
-        expect(meting!.items).toBe(meting!.kolommen);
+        expect(meting!.opDeEersteRegel).toBe(meting!.kolommen);
+        expect(meting!.volleBreedte, 'wat onder de eerste regel staat vult hem niet').toBe(true);
     });
 
     test('zet het prullenbakje op dezelfde regel als de velden', async ({ page }) => {
@@ -224,4 +259,79 @@ test.describe('de opmaak van een regel', () => {
             .evaluate((el) => getComputedStyle(el).display);
         expect(display).toBe('flex');
     });
+});
+
+/**
+ * De tekst die een leeg veld toont, moet er ook in passen — op elke breedte.
+ *
+ * Twee dingen misten hier eerder. Ik toetste met scrollWidth > clientWidth, en
+ * dat ziet alleen een ingevulde wáárde die overloopt; een afgekapte placeholder
+ * merkt het niet op. Dus staat "uur, stuk…" als "uur, st" op het scherm terwijl
+ * de test groen blijft, en valt het pas op een schermafdruk op. Daarom meet deze
+ * test de tekst echt op in hetzelfde lettertype.
+ *
+ * En hij deed het op één breedte, en keek alleen naar invoervelden. Allebei te
+ * weinig. De kolommen zijn fr-delen, dus de verhouding die bij 1400px klopte
+ * liep bij 1280px mis — daar is het formulier juist smáller, omdat het voorbeeld
+ * ernaast staat. Vandaar deze lijst breedtes, met 1280 en 700 erbij als de
+ * krapste gevallen die ik opmat.
+ *
+ * En de btw-keuzelijst bleef buiten schot terwijl daar "21% BT" stond: geen
+ * placeholder maar een gekozen wáárde, wat erger is. Die telt hier dus mee, met
+ * 20px gereserveerd voor het pijltje dat de browser bínnen de content box
+ * tekent.
+ */
+test.describe('de tekst in een veld past erin', () => {
+    const meetTeKrappeVelden = (rij: Element) => {
+        /* Het pijltje van een <select> wordt door de browser getekend en staat
+           niet in de padding; opgemeten in Chromium op zo'n 16px, met wat lucht
+           erbij 20. Een vaste waarde is hier beter dan hem proberen uit te
+           rekenen: te ruim schatten maakt de test streng, en streng is precies
+           wat je wil voor een afgekapt bedrag. */
+        const PIJLTJE = 20;
+        const uit: string[] = [];
+
+        const breedteVan = (tekst: string, font: string) => {
+            const meet = document.createElement('span');
+            meet.style.cssText =
+                `position:absolute;visibility:hidden;white-space:nowrap;font:${font}`;
+            meet.textContent = tekst;
+            document.body.appendChild(meet);
+            const breedte = meet.getBoundingClientRect().width;
+            meet.remove();
+            return breedte;
+        };
+
+        const toets = (veld: Element, tekst: string, extra: number) => {
+            const stijl = getComputedStyle(veld);
+            const nodig = breedteVan(tekst, stijl.font) + extra;
+            const ruimte = (veld as HTMLElement).clientWidth
+                - parseFloat(stijl.paddingLeft) - parseFloat(stijl.paddingRight);
+            if (nodig > ruimte) {
+                uit.push(`"${tekst}" vraagt ${Math.round(nodig)}px `
+                    + `en krijgt ${Math.round(ruimte)}px`);
+            }
+        };
+
+        for (const veld of rij.querySelectorAll('input[placeholder], textarea[placeholder]')) {
+            toets(veld, (veld as HTMLInputElement).placeholder, 0);
+        }
+        // De langste optie, niet de gekozen: ook 9% BTW moet je straks kunnen
+        // lezen zonder dat de opmaak meeschuift.
+        for (const lijst of rij.querySelectorAll('select')) {
+            for (const optie of (lijst as HTMLSelectElement).options) {
+                toets(lijst, optie.text, PIJLTJE);
+            }
+        }
+        return uit;
+    };
+
+    for (const breedte of [390, 700, 768, 900, 1280, 1400, 1920]) {
+        test(`bij een venster van ${breedte}px`, async ({ page }) => {
+            await page.setViewportSize({ width: breedte, height: 900 });
+            const teKrap = await page.locator('.item-row').first()
+                .evaluate(meetTeKrappeVelden);
+            expect(teKrap, teKrap.join('; ')).toEqual([]);
+        });
+    }
 });

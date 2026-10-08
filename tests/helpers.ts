@@ -64,7 +64,10 @@ export const ui = (page: Page) => ({
     itemName: (i = 0) => page.locator('input[placeholder="Bijv. Webdesign"]').nth(i),
     itemDescription: (i = 0) => page.locator('textarea[placeholder="Omschrijving goederen/ diensten"]').nth(i),
     itemQuantity: (i = 0) => page.locator('input[placeholder="Aantal"]').nth(i),
-    itemUnit: (i = 0) => page.locator('input[placeholder="uur, stuk…"]').nth(i),
+    // Op de datalist en niet op de placeholder: die tekst is al eens ingekort
+    // omdat hij in een smalle kolom niet paste, en dat brak drie tests die
+    // niets met opmaak te maken hadden. list="eenheden" is wat het veld ís.
+    itemUnit: (i = 0) => page.locator('input[list="eenheden"]').nth(i),
     itemPrice: (i = 0) => page.locator('input[placeholder="Eenheidsprijs"]').nth(i),
     itemVatRate: (i = 0) => page.locator('.item-row select').nth(i),
     addItem: page.getByRole('button', { name: /Item Toevoegen/ }),
