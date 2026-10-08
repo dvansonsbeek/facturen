@@ -90,10 +90,27 @@ test.describe('de pagina zelf', () => {
     /**
      * Contact loopt via GitHub, met opzet: geen naam en geen e-mailadres op een
      * openbare pagina.
+     *
+     * De verwijzing moet naar /issues/new en niet naar /issues. Dat tweede is de
+     * lijst, en bij een project zonder issues is dat een kale pagina waar je
+     * niets kunt melden terwijl er "meld hem" boven staat. Precies dat werd
+     * gemeld als "hij gaat naar GitHub algemeen".
      */
-    test('wijst voor vragen naar GitHub en zet er geen e-mailadres op', async ({ page }) => {
-        await expect(page.getByRole('link', { name: 'issue' })).toBeVisible();
-        const tekst = await page.locator('article').innerText();
+    test('wijst voor een melding naar het formulier, niet naar de lijst', async ({ page }) => {
+        const melden = page.getByRole('link', { name: 'op GitHub' });
+        await expect(melden).toBeVisible();
+        await expect(melden).toHaveAttribute('href', /\/issues\/new$/);
+    });
+
+    /**
+     * En de eis staat erbij. /issues/new stuurt je zonder account door naar de
+     * inlogpagina van GitHub, en de meeste zzp'ers hebben er geen. Dat mag een
+     * beperking zijn — er komt geen e-mailadres op deze pagina — maar dan moet
+     * je het wel wéten voordat je klikt.
+     */
+    test('en zegt erbij dat je daar een account voor nodig hebt', async ({ page }) => {
+        const tekst = normalise(await page.locator('article').innerText());
+        expect(tekst).toContain('GitHub-account nodig');
         expect(tekst).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
     });
 
@@ -124,7 +141,7 @@ test.describe('de pagina zelf', () => {
             'De tekst van de voorwaarden is gewijzigd. Werk BIJGEWERKT bij in '
             + 'app/voorwaarden/page.tsx als dit een inhoudelijke wijziging is, en zet '
             + `daarna deze vingerafdruk op ${vingerafdruk}.`,
-        ).toBe('07344e489a1c397b');
+        ).toBe('19dafd6ff4df8258');
     });
 
     test('is weer terug te verlaten', async ({ page }) => {

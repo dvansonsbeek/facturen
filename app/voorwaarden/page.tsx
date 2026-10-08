@@ -39,7 +39,7 @@ export const metadata: Metadata = {
  * dat niet. tests/voorwaarden.spec.ts houdt een vingerafdruk van de tekst bij en
  * gaat rood zodra die verandert, juist om deze regel niet te laten vergeten.
  */
-const BIJGEWERKT = '7 oktober 2026';
+const BIJGEWERKT = '8 oktober 2026';
 
 const STIJL_KOP = { fontSize: '1.1rem', marginTop: '2rem', marginBottom: '0.5rem' };
 /** globals.css zet alle marges op nul, dus alinea's hebben hier hun eigen ruimte
@@ -157,9 +157,22 @@ export default function Voorwaarden() {
           Deze voorwaarden kunnen veranderen; bovenaan staat wanneer ze voor het laatst zijn
           bijgewerkt. De app is open source en de volledige broncode, inclusief de geschiedenis
           van elke wijziging, staat op{' '}
-          <a href="https://github.com/dvansonsbeek/facturen">GitHub</a>. Vragen of iets
-          gevonden dat niet klopt? Open daar een{' '}
-          <a href="https://github.com/dvansonsbeek/facturen/issues">issue</a>.
+          <a href="https://github.com/dvansonsbeek/facturen">GitHub</a>.
+        </p>
+        {/* Naar /issues/new en niet naar /issues: dat tweede is de lijst, en met
+            een leeg project is dat een kale pagina waar je niets kunt melden —
+            terwijl er "meld hem" boven staat.
+
+            En de eis erbij, want hij is echt: /issues/new stuurt je zonder
+            account door naar de inlogpagina van GitHub. De meeste zzp'ers hebben
+            er geen. Dat is een bewuste beperking — er komt geen e-mailadres op
+            deze pagina — maar dan hoort het er wel bij te staan in plaats van
+            iemand op een inlogmuur te laten lopen. */}
+        <p style={STIJL_P}>
+          Zit er een fout in? Meld hem{' '}
+          <a href="https://github.com/dvansonsbeek/facturen/issues/new">op GitHub</a>; daarvoor
+          heb je wel een GitHub-account nodig. Er staat met opzet geen e-mailadres op deze
+          pagina.
         </p>
 
         <p style={{ marginTop: '2.5rem', fontSize: '0.9rem' }}>
