@@ -111,7 +111,7 @@ test.describe('op het document', () => {
     test('staat op een factuur met een rekeningnummer', async ({ page }) => {
         const app = await vul(page);
         await expect(app.preview.locator('svg[aria-label="Betaal-QR volgens EPC069-12"]')).toBeVisible();
-        expect(normalise(await app.preview.innerText())).toContain('Scan deze code met je bankapp');
+        expect(normalise(await app.preview.innerText())).toContain('Scan deze code met uw bankapp');
     });
 
     test('staat er niet zonder rekeningnummer', async ({ page }) => {

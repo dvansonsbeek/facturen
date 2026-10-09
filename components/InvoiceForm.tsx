@@ -240,9 +240,16 @@ export default function InvoiceForm() {
      */
     const handleNextDocument = () => {
         const volgende = nextNumber(documentNumber);
-        const heeftWerk = draft.items.length > 1 || draft.items.some(item => item.unitPrice > 0);
+        // Ook de korting en de leverdatum tellen mee. Hiervoor keek dit alleen
+        // naar de regels, en dan verdween een ingevulde korting zonder dat er
+        // iets gevraagd werd — precies het veld waarvan je het niet merkt.
+        const heeftWerk = draft.items.length > 1
+            || draft.items.some(item => item.unitPrice > 0)
+            || draft.discount !== undefined
+            || draft.deliveryDate !== undefined;
         if (heeftWerk && !window.confirm(
-            `De regels van dit document worden gewist en het nummer gaat naar ${volgende}. Doorgaan?`,
+            `De regels van dit document worden gewist en het nummer gaat naar ${volgende}. `
+            + 'Een ingevulde korting en leverdatum vervallen ook. Doorgaan?',
         )) return;
 
         writeNumbering(isQuotation ? { offerte: volgende } : { factuur: volgende });
@@ -514,7 +521,10 @@ export default function InvoiceForm() {
         const bewaard = await bewaarDocument(currentData, soort);
         setBewaarMelding(bewaard
             ? `${soortLabel(soort)} ${bewaard.nummer} is bewaard.`
-            : 'Bewaren is niet gelukt: deze browser geeft geen opslagruimte vrij.');
+            // Geen oorzaak noemen alsof hij vaststaat: bewaarDocument vangt élke
+            // fout af, dus dit kan net zo goed een IndexedDB zijn die in een
+            // privévenster niets teruggeeft als een volle schijf.
+            : 'Bewaren is niet gelukt. Mogelijk geeft deze browser geen opslagruimte vrij.');
     };
 
     /**

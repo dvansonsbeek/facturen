@@ -40,7 +40,7 @@ Een bijdrage mag, maar hoeft niet: [buymeacoffee.com/dvansonsbeek](https://buyme
 - **Opgeruimd Formulier**: Secties die je maar één keer invult, klap je in; die keuze wordt onthouden.
 - **Dark Mode**: Oogvriendelijk ontwerp voor de late uurtjes.
 - **Responsief**: Werkt op desktop, tablet en telefoon.
-- **Privacy First**: Geen database, geen cloud-opslag, geen account. Alles wat je invult blijft in je eigen browser, en dat is afgedwongen, niet alleen beloofd: de pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om die gegevens ergens heen te sturen. De lettertypes komen daarom uit de app zelf en niet bij Google vandaan. Het enige dat de browser verlaat is een bezoekersteller ([GoatCounter](https://www.goatcounter.com/)): die telt dat de pagina geopend is, zonder cookies en zonder iets van je factuur. Zie *Bezoekersteller* hieronder.
+- **Privacy voorop**: Geen database, geen cloud-opslag, geen account. Alles wat je invult blijft in je eigen browser, en dat is afgedwongen, niet alleen beloofd: de pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om die gegevens ergens heen te sturen. Eén adres is uitgezonderd en alleen voor het ophalen van een afbeelding: de bezoekersteller ([GoatCounter](https://www.goatcounter.com/)), die telt dat de pagina geopend is, zonder cookies en zonder iets van je factuur. Verder is er geen bestemming toegestaan. De lettertypes komen daarom uit de app zelf en niet bij Google vandaan. Zie *Bezoekersteller* hieronder.
 
 ## ⚠️ Goed om te weten
 

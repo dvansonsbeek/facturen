@@ -128,7 +128,7 @@ test('de tabelkop staat boven de regels op elke pagina', async ({ page }) => {
  */
 test.describe('de betaal-QR in de opmaak', () => {
     const bijschrift = (pagina: PdfPageLayout) =>
-        pagina.items.find(item => item.text.includes('Scan met je bankapp'));
+        pagina.items.find(item => item.text.includes('Scan met uw bankapp'));
 
     test('staat op een factuur van één pagina, boven de voetstrook', async ({ page }) => {
         const paginas = await maakDocument(page, 1);
@@ -241,7 +241,7 @@ test.describe('de opmaak van een creditfactuur', () => {
     test('heeft geen betaal-QR', async ({ page }) => {
         const paginas = await maakCreditfactuur(page, 3);
         for (const pagina of paginas) {
-            expect(pagina.items.find(i => i.text.includes('Scan met je bankapp')),
+            expect(pagina.items.find(i => i.text.includes('Scan met uw bankapp')),
                 'een creditfactuur nodigt uit tot betalen').toBeUndefined();
         }
     });

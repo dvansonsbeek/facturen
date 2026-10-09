@@ -96,9 +96,11 @@ export default function SecurityPanel({
                         In de opslag van <strong>deze browser, op dit apparaat</strong>. Er is geen
                         server, geen account en geen database. Dat is niet alleen een belofte: de
                         pagina stuurt een beveiligingsbeleid mee dat de browser verbiedt om wat je
-                        invult ergens heen te sturen. Zelfs als er ooit code in zou sluipen die dat
-                        wilde, kan het niet. De lettertypes komen daarom ook uit deze app zelf en
-                        niet bij Google vandaan.
+                        invult ergens heen te sturen. Eén adres is uitgezonderd, en alleen voor het
+                        ophalen van een afbeelding: de bezoekersteller hieronder. Verder is er geen
+                        enkele bestemming toegestaan, ook niet voor code die hier ooit in zou
+                        sluipen. De lettertypes komen daarom ook uit deze app zelf en niet bij
+                        Google vandaan.
                     </p>
                     {/* Een app die om vertrouwen vraagt, hoort zelf te melden dat
                         er geteld wordt — en niet pas als iemand het ontdekt. */}

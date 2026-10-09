@@ -208,7 +208,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                         <Text>{data.sender.country}</Text>
                         {!!data.sender.vatNumber && <Text>BTW: {data.sender.vatNumber}</Text>}
                         {!!data.sender.kvkNumber && <Text>KvK: {data.sender.kvkNumber}</Text>}
-                        <Text>Email: {data.sender.email}</Text>
+                        <Text>E-mail: {data.sender.email}</Text>
                     </View>
                 </View>
 
@@ -298,8 +298,8 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                             <Path d={qrPath(qr)} fill="#000000" />
                         </Svg>
                         <Text style={styles.qrBijschrift}>
-                            Scan met je bankapp om de overschrijving ingevuld te krijgen. Werkt
-                            niet bij elke bank; de gegevens onderaan kun je altijd overnemen.
+                            Scan met uw bankapp om de overschrijving ingevuld te krijgen. Werkt
+                            niet bij elke bank; de gegevens onderaan kunt u altijd overnemen.
                         </Text>
                     </View>
                 )}

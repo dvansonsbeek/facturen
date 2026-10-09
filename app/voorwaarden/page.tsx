@@ -39,7 +39,7 @@ export const metadata: Metadata = {
  * dat niet. tests/voorwaarden.spec.ts houdt een vingerafdruk van de tekst bij en
  * gaat rood zodra die verandert, juist om deze regel niet te laten vergeten.
  */
-const BIJGEWERKT = '8 oktober 2026';
+const BIJGEWERKT = '9 oktober 2026';
 
 const STIJL_KOP = { fontSize: '1.1rem', marginTop: '2rem', marginBottom: '0.5rem' };
 /** globals.css zet alle marges op nul, dus alinea's hebben hier hun eigen ruimte
@@ -81,6 +81,13 @@ export default function Voorwaarden() {
           52 van de Algemene wet inzake rijksbelastingen en de Wet op de omzetbelasting 1968)
           en daar verandert het gebruik van deze app niets aan. Controleer wat je verstuurt, en
           vraag het bij twijfel aan je boekhouder of de Belastingdienst.
+        </p>
+        <p style={STIJL_P}>
+          Die bewaarplicht duurt <strong>zeven jaar</strong>; voor sommige gegevens, zoals die
+          over onroerende zaken, geldt een langere termijn. Reken daar de opslag van een browser
+          niet voor: die kan door een herinstallatie of het wissen van je browsergegevens leeg
+          raken, en er is geen server die het terughaalt. Gebruik <strong>Export</strong> en
+          bewaar dat bestand op een plek waar het die jaren wél doorkomt.
         </p>
 
         <h2 style={STIJL_KOP}>Geen garanties</h2>

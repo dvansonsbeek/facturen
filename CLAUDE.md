@@ -379,7 +379,9 @@ duplicating a credit note carries it. Same class of bug as the regime migration,
 **Searching it is not a nicety.** The archive was the one part of the app that got *worse*
 the more you used it: everything in one list, newest first, nothing else. Fine at ten
 documents, unusable at three hundred — and three hundred is where you end up, because the
-terms page itself says to keep seven years. One field matches number, client, type, amount
+bewaarplicht runs seven years (art. 52 lid 4 AWR). This file claimed the terms page said so;
+it did not, and now it does, next to the advice to keep the Export somewhere that survives
+those years. One field matches number, client, type, amount
 and the date in **both** forms, since it is stored as `2026-10-08` and shown as `08-10-2026`
 and someone typing "2026" means both. It appears only from six documents: below that you can
 see everything and a search box is clutter. The "1 van 7 documenten" count is load-bearing —
@@ -411,6 +413,13 @@ An image request cannot read anything, so the counter is a pixel whose URL this 
 builds itself, filling in referrer and screen size that GoatCounter's script would
 otherwise collect. The policy therefore grows by **one host in `img-src` only**;
 `script-src` and `connect-src` are untouched.
+
+**But "cannot read" is not "cannot carry".** That one host is a destination, and
+`script-src` keeps `'unsafe-inline'` because Next needs it, so injected code could put a
+client name into an image URL aimed at it. Narrow — one host, a GET — but real, and it
+means the CSP no longer makes exfiltration *impossible*, only single-destination.
+`SecurityPanel.tsx` and the README said it was impossible; both now name the exception
+instead, because a claim without its limit is the one thing this project does not ship.
 
 **It is off unless `NEXT_PUBLIC_GOATCOUNTER` is set.** No variable, no pixel, and the CSP
 is byte-identical to before — which is how the dev server and the whole test suite run.

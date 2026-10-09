@@ -76,7 +76,7 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                     <p>{data.sender.country}</p>
                     {data.sender.vatNumber && <p>BTW: {data.sender.vatNumber}</p>}
                     {data.sender.kvkNumber && <p>KvK: {data.sender.kvkNumber}</p>}
-                    <p>Email: {data.sender.email}</p>
+                    <p>E-mail: {data.sender.email}</p>
                 </div>
             </div>
 
@@ -197,8 +197,8 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '1rem' }}>
                             <QrCode matrix={qr} size={88} />
                             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--secondary)' }}>
-                                Scan deze code met je bankapp om de overschrijving ingevuld te
-                                krijgen. Werkt niet bij elke bank; de gegevens hierboven kun je
+                                Scan deze code met uw bankapp om de overschrijving ingevuld te
+                                krijgen. Werkt niet bij elke bank; de gegevens hierboven kunt u
                                 altijd overnemen.
                             </p>
                         </div>

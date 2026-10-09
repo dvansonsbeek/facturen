@@ -141,11 +141,15 @@ test.describe('de pagina zelf', () => {
             'De tekst van de voorwaarden is gewijzigd. Werk BIJGEWERKT bij in '
             + 'app/voorwaarden/page.tsx als dit een inhoudelijke wijziging is, en zet '
             + `daarna deze vingerafdruk op ${vingerafdruk}.`,
-        // Bijgewerkt toen de em-streepjes uit de lopende tekst gingen. BIJGEWERKT
-        // staat bewust stil: er is niets veranderd aan wat er geldt, alleen aan
-        // hoe het er staat. De datum verzetten zou vaste lezers vertellen dat de
-        // voorwaarden gewijzigd zijn, en dat is dan niet waar.
-        ).toBe('3003cf9dac5955f1');
+        // Twee keer bijgewerkt op 9 oktober 2026. Eerst gingen de em-streepjes uit
+        // de lopende tekst; daarbij bleef BIJGEWERKT bewust staan, want er
+        // veranderde niets aan wat er geldt en een verzette datum vertelt vaste
+        // lezers ten onrechte dat de voorwaarden gewijzigd zijn.
+        //
+        // Daarna kwam de bewaartermijn van zeven jaar erbij, en dát is wél
+        // inhoudelijk: er staat nu een plicht genoemd die er eerst niet stond.
+        // Toen is de datum dus wel mee opgeschoven.
+        ).toBe('0eecdedc98620e5c');
     });
 
     test('is weer terug te verlaten', async ({ page }) => {
