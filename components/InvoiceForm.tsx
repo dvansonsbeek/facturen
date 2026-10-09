@@ -11,7 +11,7 @@ import {
     subscribeSettings, readSettings, readServerSettings, writeSettings, clearSettings,
     didLastWriteFail, uitOudeBetaaltermijn, type CompanySettings,
 } from "@/lib/settings";
-import { downscaleImage } from "@/lib/image";
+import { dataUrlBytes, downscaleImage } from "@/lib/image";
 import { stampPageNumbers } from "@/lib/page-numbers";
 import { buildUblInvoice, ontbrekendeVelden, ublFilename } from "@/lib/ubl";
 import { inspecteerBackup, vervangingsVraag } from "@/lib/backup";
@@ -412,6 +412,28 @@ export default function InvoiceForm() {
                     'Dit logo is te groot om te onthouden. Het staat wel op je document, '
                     + 'maar is na het herladen van de pagina weg. Probeer een kleiner bestand.',
                 );
+            } else {
+                /*
+                 * Gemeten aan wat eruit kwam en niet aan wat erin ging: een
+                 * foto van vier megabyte die tot zestig kilobyte verkleint,
+                 * heeft geen gevolgen. Het gaat om wat er in de PDF belandt.
+                 *
+                 * De ondergrens is een halve megabyte omdat een factuur uit
+                 * deze app verder niets weegt: kaal vier kilobyte, met een
+                 * betaal-QR elf. Een logo van een halve megabyte is dan in zijn
+                 * eentje de hele bijlage, en dat merk je pas als je hem mailt.
+                 */
+                const bytes = dataUrlBytes(logoUrl);
+                if (bytes >= 512 * 1024) {
+                    const mb = (bytes / (1024 * 1024)).toFixed(1);
+                    setLogoWaarschuwing(
+                        `Dit logo is ${mb} MB, en dat gaat zo in elke PDF mee. Een factuur `
+                        + 'uit deze app is verder maar een paar kilobyte, dus je bijlage '
+                        + 'wordt er vooral van dit logo groot. Een kleiner of eenvoudiger '
+                        + 'bestand scheelt veel; op het document staat het hooguit een paar '
+                        + 'centimeter breed.',
+                    );
+                }
             }
         } catch {
             setLogoWaarschuwing('Dit bestand kon niet als afbeelding worden gelezen.');

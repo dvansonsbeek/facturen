@@ -91,6 +91,97 @@ test('een klein logo blijft zoals het is', async ({ page }) => {
     expect(breedte).toBe(240);
 });
 
+/**
+ * Verkleinen mag nooit vergroten.
+ *
+ * De app bracht een logo terug naar 480 pixels en sloeg het altijd opnieuw op
+ * als PNG. Dat is verliesloos en dus slecht in foto's, precies het soort
+ * bestand dat hier binnenkomt: opgemeten ging een logo van 126 kB er als 151 kB
+ * uit. Breder maar lichter is per saldo beter, voor de opslag van 5 MB én voor
+ * de PDF waar het in meegaat.
+ *
+ * Het plaatje is met zorg gekozen, en willekeurige ruis is het juist níet: die
+ * krimpt bij het verkleinen gewoon mee, dus daarmee gaat deze test ook op zonder
+ * de reparatie. Het gaat om een beeld dat op ware grootte góéd comprimeert en na
+ * het herschalen slecht: blokken van vier pixels, die bij het verkleinen tot
+ * tussenkleuren vervagen. Zo ontstond de oorspronkelijke meting van 126 naar
+ * 151 kB, en zo gaat deze test rood zodra de keuze tussen de twee verdwijnt.
+ */
+test('een logo wordt nooit zwaarder van het verkleinen', async ({ page }) => {
+    await openFoldout(page, 'Mijn Bedrijfsgegevens');
+
+    const bron = await page.evaluate(() => {
+        const c = document.createElement('canvas');
+        c.width = 1200; c.height = 600;
+        const ctx = c.getContext('2d')!;
+        for (let x = 0; x < 1200; x += 4) {
+            for (let y = 0; y < 600; y += 4) {
+                ctx.fillStyle = `hsl(${(x * y) % 360} 80% ${40 + ((x + y) % 40)}%)`;
+                ctx.fillRect(x, y, 4, 4);
+            }
+        }
+        return c.toDataURL('image/png');
+    });
+
+    await page.locator('#bedrijf-logo').setInputFiles({
+        name: 'logo.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(bron.split(',')[1], 'base64'),
+    });
+    await expect(ui(page).preview.locator('img[alt="Logo"]')).toBeVisible();
+
+    const opgeslagen = await bewaardLogo(page);
+    expect(opgeslagen!.length, 'het verkleinde logo is zwaarder dan het origineel')
+        .toBeLessThanOrEqual(bron.length);
+});
+
+/**
+ * En als het logo zwaar blijft, hoort de gebruiker dat te weten voordat hij de
+ * factuur verstuurt. Een factuur uit deze app is kaal vier kilobyte; een logo
+ * van een halve megabyte is dan in zijn eentje de hele bijlage.
+ */
+test('waarschuwt als het logo de PDF merkbaar zwaarder maakt', async ({ page }) => {
+    await openFoldout(page, 'Mijn Bedrijfsgegevens');
+
+    /*
+     * Precies 480 breed, en dat is de kern van dit geval: breder dan dat wordt
+     * verkleind en komt daarmee vanzelf onder de grens. Wat zwaar blijft, is een
+     * logo dat níet verkleind hoeft te worden maar toch veel bytes kost — een
+     * uitvoer van 480 pixels met verlopen of ruis erin. Dat is het bestand waar
+     * de gebruiker niets aan merkt tot hij de factuur verstuurt.
+     */
+    const groot = await page.evaluate(() => {
+        const c = document.createElement('canvas');
+        c.width = 480; c.height = 900;
+        const ctx = c.getContext('2d')!;
+        const beeld = ctx.createImageData(480, 900);
+        // Écht willekeurig. Een regelmatig patroon lijkt ruis maar perst PNG
+        // weg tot niets: een eerdere poging met (i * 7) % 256 leverde 18 kB.
+        for (let i = 0; i < beeld.data.length; i += 4) {
+            beeld.data[i] = (Math.random() * 256) | 0;
+            beeld.data[i + 1] = (Math.random() * 256) | 0;
+            beeld.data[i + 2] = (Math.random() * 256) | 0;
+            beeld.data[i + 3] = 255;
+        }
+        ctx.putImageData(beeld, 0, 0);
+        return c.toDataURL('image/png');
+    });
+
+    await page.locator('#bedrijf-logo').setInputFiles({
+        name: 'logo.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(groot.split(',')[1], 'base64'),
+    });
+
+    await expect(page.getByText(/gaat zo in elke PDF mee/)).toBeVisible();
+});
+
+test('een klein logo levert geen waarschuwing op', async ({ page }) => {
+    await kiesLogo(page, 240, 80);
+    await expect(ui(page).preview.locator('img[alt="Logo"]')).toBeVisible();
+    await expect(page.getByText(/gaat zo in elke PDF mee/)).toHaveCount(0);
+});
+
 test('het logo komt ook in de PDF', async ({ page }) => {
     const app = ui(page);
     await kiesLogo(page, 600, 200);

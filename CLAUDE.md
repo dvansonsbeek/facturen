@@ -904,6 +904,32 @@ switches the document to an experimental pagination engine that turned a two-pag
 invoice into five with a wrong total. Stamping leaves the verified layout untouched.
 Revisit only if react-pdf fixes `render`; 4.9.0 is the latest as of October 2026.
 
+**The PDFs are small, and the only thing that changes that is the logo.** Measured on real
+downloads: **4 kB** bare, **11 kB** with the payment QR, 6 kB at twenty line items, and
+**50 kB** with a substantial logo. Two earlier decisions are why, and neither should be
+undone: **no fonts are embedded** (zero `/FontFile` entries — the base-14 faces carry no
+data), and the **QR is vector**, roughly 7 kB of path rather than a bitmap. There is
+nothing to optimise here; if a PDF is ever large, it is the logo.
+
+**"Downscaling" a logo could make it bigger, and did.** `lib/image.ts` resized on pixel
+width and then *always* re-encoded to PNG — lossless, and therefore poor at photographs,
+exactly the "foto van een telefoon" its own comment anticipates. A measured case went in at
+126 kB and came out at 151 kB, inflating both the `localStorage` budget and every PDF. It
+now keeps whichever of the two is smaller in **bytes**, which is the right test for both
+purposes even when the kept one is wider in pixels. That single change took the measured
+PDF from 89 kB to 50 kB.
+
+Above **0.5 MB** the form says so, because a factuur is otherwise a few kilobytes and the
+logo becomes the whole attachment — something you find out only when you email it. The
+threshold is applied to the *stored* result, not the upload: a 4 MB photo that downscales to
+60 kB has no consequence.
+
+The test for the no-inflation rule needed care. **Random noise is the wrong fixture**: it
+shrinks when downscaled, so the test passes without the fix. It takes an image that
+compresses *well* at full size and badly after resampling — 4-pixel blocks that blur into
+intermediate colours — which is how the 126→151 kB case arose. Verified by reverting the
+fix: 154 258 against 128 854.
+
 **A logo makes the PDF take a different path, and that path was broken for weeks.**
 react-pdf processes the image in a Web Worker started from a `blob:` URL. The CSP never
 set `worker-src`, so it fell back to `script-src`, which does not allow `blob:` — and
