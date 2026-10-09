@@ -471,7 +471,25 @@ export default function InvoiceForm() {
         URL.revokeObjectURL(url);
     };
 
-    const handleDownloadPDF = () => downloadPdf(currentData, isQuotation, documentNumber);
+    /**
+     * Eén plek waar het misgaan van een PDF iets zegt.
+     *
+     * Beide knoppen riepen downloadPdf zonder vangnet aan, en dat liep stil af:
+     * mislukte de dynamische import, dan gebeurde er niets. Geen melding, geen
+     * fout, alleen een knop die dood leek. Dat is precies hoe dit offline
+     * uitpakte voordat de brok werd voorgeladen, en het kan ook nu nog door een
+     * halve cache of een afgebroken verbinding.
+     */
+    const metPdfMelding = (taak: Promise<void>) => {
+        taak.catch(() => setBewaarMelding(
+            'De PDF kon niet gemaakt worden. Ben je offline en heb je deze app net '
+            + 'voor het eerst geopend, maak dan één keer verbinding; daarna werkt het '
+            + 'ook zonder.',
+        ));
+    };
+
+    const handleDownloadPDF = () =>
+        metPdfMelding(downloadPdf(currentData, isQuotation, documentNumber));
 
     /**
      * De e-factuur: dezelfde factuur als machineleesbaar UBL-bestand.
@@ -508,7 +526,7 @@ export default function InvoiceForm() {
      * een verhuizing elke oude factuur stilletjes herschrijven.
      */
     const handleDownloadSaved = (bewaard: BewaardDocument) =>
-        downloadPdf(bewaard.document, bewaard.soort === 'offerte', bewaard.nummer);
+        metPdfMelding(downloadPdf(bewaard.document, bewaard.soort === 'offerte', bewaard.nummer));
 
     /**
      * Legt het document vast in het archief.

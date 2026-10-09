@@ -635,6 +635,31 @@ visit — which the test caught. `install` therefore pulls both routes and greps
 HTML for `/_next/static/` URLs. A regex rather than a build-time manifest: three lines
 here against an extra build step.
 
+**That regex cannot reach a lazily-loaded chunk, and Download PDF was broken offline for
+it.** `@react-pdf/renderer` and `InvoiceDocument` load on click, so their chunks are not
+referenced in the HTML and were never precached. Offline the button did **nothing at all**
+— no message, because neither caller had a `.catch()`. That is the scenario the security
+panel sells: *"factureren in de trein of bij een klant zonder wifi"*. Three things were
+wrong, and each had to be measured:
+
+- **`cache.put` sat outside `event.waitUntil`** in all three fetch branches, so the browser
+  may terminate the worker before a large write finishes. Small files usually survived;
+  the 1.2 MB chunk did not.
+- **Importing is not enough — the warm-up has to render.** `components/ServiceWorker.tsx`
+  now renders one throwaway document on idle, *and stamps it*, because the second chunk
+  (420 kB, fontkit plus pdf-lib) is only pulled by `stampPageNumbers`, after `toBlob()`.
+  Warming half the path left the download failing on a chunk nobody had looked for. Doing
+  what the button does is also self-maintaining: a list of filenames would fall behind the
+  next time the PDF path gains a dependency, which is exactly how this broke.
+- **The first visit still cannot work offline**, because the page is not yet controlled
+  when those requests go out; it takes one full visit. `metPdfMelding` in `InvoiceForm`
+  now says so instead of leaving a dead button.
+
+`tests/uat/offline.spec.ts` downloads **all four documents** offline — invoice and
+quotation, Dutch and English — and reads their text back, because the heading and the
+footer differ per type and per language. Validated by disabling the warm-up and watching
+it go red.
+
 **Registration is production-only**, gated like the visit counter. In development a
 worker fights hot reload, and in the suite it would drag state between tests that must
 start clean. That is why the offline test lives in `playwright.productie.config.ts` —

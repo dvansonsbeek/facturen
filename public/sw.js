@@ -119,6 +119,22 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
 
+    /*
+     * Wegschrijven via waitUntil, en dat is geen nette-code-kwestie.
+     *
+     * Zonder waitUntil staat het bewaren los van de gebeurtenis, en mag de
+     * browser de worker afsluiten zodra het antwoord is teruggegeven. Bij een
+     * klein bestand is dat meestal net op tijd klaar; bij een groot bestand
+     * niet. De brok met react-pdf is 1,2 MB, en die haalde het stelselmatig
+     * niet: hij werd wél opgehaald en belandde niet in de cache, waarna
+     * Download PDF offline niets deed. Opgemerkt door de cache uit te lezen na
+     * één bezoek, niet door ernaar te kijken.
+     */
+    const bewaar = (antwoord) => {
+        const kopie = antwoord.clone();
+        event.waitUntil(caches.open(VERSIE).then((cache) => cache.put(request, kopie)));
+    };
+
     // Het document: eerst het netwerk, zodat een nieuwe versie altijd wint
     // zodra je verbinding hebt. Pas bij een mislukking de cache, en dan nog
     // liever de hoofdpagina dan een foutscherm.
@@ -126,8 +142,7 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             fetch(request)
                 .then((antwoord) => {
-                    const kopie = antwoord.clone();
-                    caches.open(VERSIE).then((cache) => cache.put(request, kopie));
+                    bewaar(antwoord);
                     return antwoord;
                 })
                 .catch(() => caches.match(request).then((uit) => uit || caches.match(WORTEL))),
@@ -139,8 +154,7 @@ self.addEventListener('fetch', (event) => {
     if (isOnveranderlijk(url)) {
         event.respondWith(
             caches.match(request).then((uit) => uit || fetch(request).then((antwoord) => {
-                const kopie = antwoord.clone();
-                caches.open(VERSIE).then((cache) => cache.put(request, kopie));
+                bewaar(antwoord);
                 return antwoord;
             })),
         );
@@ -152,10 +166,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         fetch(request)
             .then((antwoord) => {
-                if (antwoord.ok) {
-                    const kopie = antwoord.clone();
-                    caches.open(VERSIE).then((cache) => cache.put(request, kopie));
-                }
+                if (antwoord.ok) bewaar(antwoord);
                 return antwoord;
             })
             .catch(() => caches.match(request)),
