@@ -36,7 +36,6 @@ test.describe('wisselen laat niets van het andere documenttype staan', () => {
         'OFFERTE',
         'Offerte voor:',
         'Geldig tot:',
-        'Deze offerte is 30 dagen geldig.',
     ];
 
     /** En wat alleen bij een factuur hoort. */
@@ -150,17 +149,19 @@ test.describe('opmerkingen', () => {
     });
 
     /**
-     * De offerte begint met een standaardtekst. Die werd bij het wisselen van
-     * documenttype overschreven door de lege notitie van de factuur, omdat ?? de
-     * lege string niet als "niet ingevuld" ziet. De tekst was daardoor
-     * onbereikbaar: wisselen is de enige manier om bij de offerte te komen.
+     * Een offerte begon met "Deze offerte is 30 dagen geldig." in dit veld. Die
+     * zin is weg: hij zei hetzelfde als "Geldig tot:" bovenaan, met het aantal
+     * dagen er hard in — dus wie de datum veranderde had een offerte die zichzelf
+     * tegensprak. Een notitie is nu zonder uitzondering van jou.
      */
-    test('de standaardtekst van de offerte overleeft het wisselen van documenttype', async ({ page }) => {
+    test('beginnen leeg, ook bij een offerte', async ({ page }) => {
         const app = ui(page);
         await app.tab('Offerte').click();
 
-        await expect(app.notes).toHaveValue('Deze offerte is 30 dagen geldig.');
-        await expect(ui(page).preview).toContainText('Deze offerte is 30 dagen geldig.');
+        await expect(app.notes).toHaveValue('');
+        expect(await previewText(page)).not.toContain('Opmerkingen:');
+        // En de geldigheid staat er nog wél, want die stond altijd al in de kop.
+        await expect(ui(page).preview).toContainText('Geldig tot:');
     });
 
     test('een ingevulde notitie gaat wel mee naar het andere documenttype', async ({ page }) => {
@@ -246,12 +247,19 @@ test.describe('offerte omzetten naar factuur', () => {
         await expect(ui(page).preview).toContainText(`Conform offerte ${offerteNummer}.`);
     });
 
-    test('laat de offertetekst niet op de factuur staan', async ({ page }) => {
+    /**
+     * Dit bewaakte dat de standaardzin van de offerte niet op de factuur
+     * belandde. Die zin bestaat niet meer, maar de regel eronder wel: een offerte
+     * noemt een geldigheidsdatum en een factuur hoort die niet te erven.
+     */
+    test('laat de geldigheid van de offerte niet op de factuur staan', async ({ page }) => {
         const app = ui(page);
         await app.tab('Offerte').click();
         await app.convertToInvoice.click();
 
-        expect(await previewText(page)).not.toContain('Deze offerte is 30 dagen geldig.');
+        const tekst = await previewText(page);
+        expect(tekst).not.toContain('Geldig tot:');
+        expect(tekst).not.toContain('OFFERTE');
     });
 
     test('de knop staat alleen op een offerte', async ({ page }) => {

@@ -370,6 +370,15 @@ separate editable due-date field could contradict it — "Vervaldatum: 09-10" ab
 left unused. A **quotation** does keep `validUntil`: there the end date *is* the term,
 and nothing else states it.
 
+That last clause was **untrue for a long time**, and the same contradiction had quietly
+grown on the quotation side. Every new quotation was seeded with the note *"Deze offerte is
+30 dagen geldig."* — the same fact as `Geldig tot:` directly above it, with the number
+hardcoded, so changing the date to two weeks produced a document saying 14 November at the
+top and 30 days at the bottom. It was also the only thing that ever filled `notes`, which
+forced `handleToggleType` to work out whether a note was the user's or the app's before
+copying it. Removing the sentence deleted the contradiction, that comparison, and a third
+untranslated string in one go. Notes are now, without exception, the user's own.
+
 **Other NL specifics:** VAT number format `NL123456789B01`; the KvK number is required
 on invoices by the Handelsregisterwet (independent of VAT law); Dutch IBANs are 18
 characters.

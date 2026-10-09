@@ -57,16 +57,24 @@ type QuotationDraft = Omit<Quotation, 'sender' | 'quotationNumber'>;
 
 const emptyClient = (): Client => ({ name: "", address: "", zip: "", city: "", country: "" });
 
-/**
- * De tekst waarmee een offerte begint.
+/*
+ * Hier stond OFFERTE_STANDAARDTEKST = 'Deze offerte is 30 dagen geldig.', dat
+ * als notitie in elke nieuwe offerte werd gezet. Weggehaald, om drie redenen
+ * die bij elkaar opgeteld zwaarder wegen dan het gemak ervan:
  *
- * Staat hier als constante omdat er op drie plekken naar wordt gekeken, en de
- * derde is de reden: bij het wisselen van documenttype moet te zien zijn of de
- * notitie van de gebruiker is of van de app. Stond hij drie keer uitgeschreven,
- * dan werkt die vergelijking stilletjes niet meer zodra iemand één van de drie
- * herformuleert.
+ * - Het staat er al. Een offerte toont "Geldig tot: 08-11-2026" uit validUntil.
+ *   Die zin zei hetzelfde nog eens, in andere woorden.
+ * - En kon het tegenspreken. Het getal stond hard in de tekst, dus wie de datum
+ *   op twee weken zette, had een offerte die bovenaan 14 november zei en
+ *   onderaan "30 dagen geldig". Precies het geval waarvoor er geen los
+ *   vervaldatumveld op een factuur zit.
+ * - Het werd niet vertaald. Als notitie is het jouw tekst, dus hij bleef
+ *   Nederlands op een Engelstalige offerte — dezelfde reden waarom de
+ *   betaaltermijn een getal werd.
+ *
+ * Daarmee verviel ook de vergelijking die nodig was om te weten of een notitie
+ * van jou was of van de app; notities zijn nu zonder uitzondering van jou.
  */
-const OFFERTE_STANDAARDTEKST = 'Deze offerte is 30 dagen geldig.';
 
 /**
  * Alleen de klantvelden overnemen uit het boek. Veld voor veld, zodat het
@@ -152,7 +160,7 @@ export default function InvoiceForm() {
             items: [defaultItem()],
             vatScheme: 'normaal',
             taal: 'nl',
-            notes: OFFERTE_STANDAARDTEKST,
+            notes: "",
         };
     });
 
@@ -259,7 +267,7 @@ export default function InvoiceForm() {
         writeNumbering(isQuotation ? { offerte: volgende } : { factuur: volgende });
         updateDocument(() => ({
             items: [defaultItem()],
-            notes: isQuotation ? OFFERTE_STANDAARDTEKST : '',
+            notes: '',
             date: getInitialDates().date,
             // Een volgend document is een gewone factuur. Bleef dit staan, dan
             // crediteerde je ongemerkt opnieuw dezelfde factuur.
@@ -288,24 +296,15 @@ export default function InvoiceForm() {
         // Bedrijfs- en betaalgegevens hoeven hier niet mee: die staan in de
         // instellingen en gelden voor beide documenttypes.
 
-        /**
-         * Wat jij typte gaat mee; wat de app zelf neerzette niet.
-         *
-         * De offerte begint met een standaardzin. Die ging klakkeloos mee naar de
-         * factuur, en dan stond er "Deze offerte is 30 dagen geldig" op een
-         * factuur — op papier dat de klant krijgt. Het stond al als bekend nadeel
-         * in de opmerking bij Omzetten hieronder, maar die knop repareerde alleen
-         * zijn eigen pad; gewoon wisselen lekte door en niets toetste die kant op.
-         *
-         * Alleen deze zin wordt tegengehouden, en niet "alle notities": wat je
-         * zelf intypt is van het document en hoort juist wél mee te reizen.
+        /*
+         * Hier werd eerst uitgezocht of de notitie van jou was of van de app,
+         * omdat een offerte met "Deze offerte is 30 dagen geldig" begon en die
+         * zin anders op een fáctuur belandde — op papier dat je klant krijgt.
+         * Die zin is weg (zie de opmerking bij de bovenkant van dit bestand), en
+         * daarmee is er niets meer te onderscheiden: een notitie is zonder
+         * uitzondering van jou en reist gewoon mee, net als de regels en de
+         * klant. Ook een lege, want die leeghalen is ook een keuze.
          */
-        const eigenNotitie = source.notes === OFFERTE_STANDAARDTEKST ? '' : source.notes;
-
-        // Let op: || en niet ??. Een lege notitie betekent "niet ingevuld" en
-        // moet de standaardtekst van het andere document niet overschrijven —
-        // zonder dat is de offertetekst onbereikbaar, want wisselen is de enige
-        // weg erheen.
         const carriedOver = (prev: InvoiceDraft | QuotationDraft) => ({
             client: { ...prev.client, ...source.client },
             items: source.items.map(item => ({ ...item })),
@@ -317,7 +316,7 @@ export default function InvoiceForm() {
             // Engels die als Nederlandse factuur terugkomt, is een fout die je
             // pas ziet als je klant hem niet begrijpt.
             taal: source.taal ?? 'nl',
-            notes: eigenNotitie || prev.notes,
+            notes: source.notes,
             // Net als het regime hierboven: een korting hoort bij het document,
             // niet bij het soort. Bleef hij hier staan, dan verdween een
             // afgesproken korting zodra je even naar het andere tabblad keek.
