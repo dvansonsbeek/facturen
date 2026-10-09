@@ -270,10 +270,25 @@ Three traps found by the official validator, not by reasoning:
   **`BR-O-11`/`BR-O-12`**, which forbid mixing `O` with another category on one document,
   cannot fire: the regime is per document, never per line.
 
-  **Paper and XML deliberately disagree here.** Art. 35a lid 1 Wet OB wants your
-  btw-identificatienummer on the invoice; `BR-O-02` forbids it in the file. So it prints
-  on the PDF and is absent from the e-factuur. That asymmetry is intentional, and is the
-  one point in this regime worth putting to an accountant.
+  **Paper and XML deliberately disagree here**, and omitting it is the *only* conforming
+  option — checked, not assumed. Art. 35a lid 1 Wet OB wants your btw-identificatienummer
+  on the invoice; `BR-O-02` forbids it in the file. So it prints on the PDF and is absent
+  from the e-factuur. Two things settle that this is intended rather than an oversight to
+  work around:
+
+  - The EN 16931 maintainers were asked to soften `BR-O-02` from "shall not" to "should
+    not" ([issue #40](https://github.com/ConnectingEurope/eInvoicing-EN16931/issues/40))
+    and closed it **wontfix**: changing it would mean revising the EN itself.
+  - The workaround used elsewhere — carry the number as `BT-32`, the seller *tax
+    registration* identifier, instead of `BT-31` — **NLCIUS specifically blocks**.
+    `BR-NL-25`: *"The use of a seller tax registration identifier … is not recommended
+    when the tax scheme is not VAT, since this is not applicable to suppliers in the
+    Netherlands."* Verified by putting the number back under `TaxScheme` `LOC` and `TAX`
+    and watching `BR-NL-25` fire on both.
+
+  So there is no second option to weigh. In practice the stakes are low anyway: a non-EU
+  client is rarely reachable over Peppol, so the PDF — which does carry the number — is
+  the artefact that actually travels.
 - **`cac:Delivery` must sit between `AccountingCustomerParty` and `PaymentMeans`.** UBL is
   a fixed sequence and **Schematron does not check order** — that is the XSD's job, and
   there is no XSD validator here. `check:efactuur` therefore pulls the element sequence
