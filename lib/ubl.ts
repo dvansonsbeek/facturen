@@ -1,5 +1,5 @@
 import { Invoice, LineItem, Taal, VatScheme, Discount } from "@/types";
-import { lineTotal, roundToCents, summariseDocument } from "@/lib/utils";
+import { lineTotal, paymentTermsOnDocument, roundToCents, summariseDocument } from "@/lib/utils";
 import {
     chargesVat, clientVatStatement, schemeOf, statementFor, VAT_SCHEMES,
 } from "@/lib/vat-schemes";
@@ -394,8 +394,12 @@ const betaling = (data: Invoice): string => {
             '</cac:PaymentMeans>',
         );
     }
-    if (data.paymentConditions?.trim()) {
-        delen.push(`<cac:PaymentTerms>${tag('cbc:Note', data.paymentConditions.trim())}</cac:PaymentTerms>`);
+    // Via dezelfde functie als het papier, en in de taal van het document: een
+    // e-factuur die een andere betaaltermijn noemt dan de PDF ernaast is erger
+    // dan geen e-factuur.
+    const betaaltermijn = paymentTermsOnDocument(data, data.taal ?? 'nl');
+    if (betaaltermijn) {
+        delen.push(`<cac:PaymentTerms>${tag('cbc:Note', betaaltermijn)}</cac:PaymentTerms>`);
     }
     return delen.filter(Boolean).join('');
 };

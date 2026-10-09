@@ -9,7 +9,7 @@ import { generateId } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
 import {
     subscribeSettings, readSettings, readServerSettings, writeSettings, clearSettings,
-    didLastWriteFail, type CompanySettings,
+    didLastWriteFail, uitOudeBetaaltermijn, type CompanySettings,
 } from "@/lib/settings";
 import { downscaleImage } from "@/lib/image";
 import { stampPageNumbers } from "@/lib/page-numbers";
@@ -52,7 +52,7 @@ import InvoicePreview from "./InvoicePreview";
  * het niet meer gebeuren dat factuur en offerte elk een eigen, uiteenlopende
  * kopie van je bedrijfsgegevens bijhouden.
  */
-type InvoiceDraft = Omit<Invoice, 'sender' | 'bankAccount' | 'bic' | 'paymentConditions' | 'invoiceNumber'>;
+type InvoiceDraft = Omit<Invoice, 'sender' | 'bankAccount' | 'bic' | 'paymentConditions' | 'paymentTermDays' | 'invoiceNumber'>;
 type QuotationDraft = Omit<Quotation, 'sender' | 'quotationNumber'>;
 
 const emptyClient = (): Client => ({ name: "", address: "", zip: "", city: "", country: "" });
@@ -196,6 +196,7 @@ export default function InvoiceForm() {
             sender: settings.sender,
             bankAccount: settings.bankAccount,
             bic: settings.bic,
+            paymentTermDays: settings.paymentTermDays,
             paymentConditions: settings.paymentConditions,
         };
 
@@ -696,13 +697,15 @@ export default function InvoiceForm() {
             }))) return;
 
             const { bestand } = inspectie;
-            if (bestand.sender || bestand.bankAccount || bestand.bic || bestand.paymentConditions) {
+            if (bestand.sender || bestand.bankAccount || bestand.bic
+                || bestand.paymentTermDays !== undefined || bestand.paymentConditions) {
                 updateSettings({
                     ...(bestand.sender ? { sender: bestand.sender as Sender } : {}),
                     ...(bestand.bankAccount !== undefined ? { bankAccount: bestand.bankAccount } : {}),
                     ...(bestand.bic !== undefined ? { bic: bestand.bic } : {}),
-                    ...(bestand.paymentConditions !== undefined
-                        ? { paymentConditions: bestand.paymentConditions } : {}),
+                    // Door dezelfde omzetting als de opslag zelf, want een
+                    // bestand uit een oudere versie draagt alleen de zin.
+                    ...uitOudeBetaaltermijn(bestand),
                 });
             }
 

@@ -174,8 +174,10 @@ test.describe('opmerkingen', () => {
 
 test('betalingsvoorwaarden zijn te wijzigen', async ({ page }) => {
     const app = ui(page);
-    await app.paymentConditions.fill('Binnen 30 dagen na factuurdatum.');
-    await expect(ui(page).preview).toContainText('Binnen 30 dagen na factuurdatum.');
+    // Via het aantal dagen, want dat is sinds de vertaalbare zin het gewone pad;
+    // de eigen tekst ernaast heeft zijn eigen tests in betaaltermijn.spec.ts.
+    await app.paymentTermDays.fill('45');
+    await expect(ui(page).preview).toContainText('Binnen 45 dagen na factuurdatum.');
 });
 
 test.describe('standaard documentnummer', () => {
@@ -337,9 +339,12 @@ test.describe('een factuur heeft geen vervaldatum', () => {
 
     test('de betaaltermijn staat alleen in de betalingsvoorwaarden', async ({ page }) => {
         const app = ui(page);
-        await app.paymentConditions.fill('Binnen 30 dagen na factuurdatum.');
+        await app.paymentTermDays.fill('30');
         const text = await previewText(page);
         expect(text).toContain('Binnen 30 dagen na factuurdatum.');
+        // Het aantal dagen staat er nu als getal in het formulier, maar nog
+        // steeds niet als losse vervaldatum op het document: die twee konden
+        // elkaar tegenspreken en daarom is dat veld er niet.
         expect(text).not.toContain('Vervaldatum');
     });
 

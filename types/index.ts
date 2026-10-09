@@ -104,6 +104,12 @@ export interface Invoice {
    */
   isVatExempt?: boolean;
   notes?: string;
+  /**
+   * De betaaltermijn in dagen; `paymentTermsOnDocument()` maakt er de zin van.
+   * Afwezig bij documenten van vóór deze keuze, die dragen alleen de zin zelf.
+   */
+  paymentTermDays?: number;
+  /** Eigen tekst in plaats van die zin. Zie lib/settings.ts voor het waarom. */
   paymentConditions?: string;
   bankAccount?: string;
   bic?: string;

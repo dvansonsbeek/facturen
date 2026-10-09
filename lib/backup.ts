@@ -26,12 +26,14 @@ import type { KluisRecord } from "@/lib/vault";
  */
 
 /** Alleen deze sleutels komen uit een bestand in de instellingen terecht. */
-const SETTING_SLEUTELS = ['bankAccount', 'bic', 'paymentConditions'] as const;
+const SETTING_SLEUTELS = ['bankAccount', 'bic', 'paymentTermDays', 'paymentConditions'] as const;
 
 export interface BackupBestand {
     sender?: Partial<Sender>;
     bankAccount?: string;
     bic?: string;
+    /** Zie lib/settings.ts: een ouder bestand draagt alleen paymentConditions. */
+    paymentTermDays?: number;
     paymentConditions?: string;
     clients?: SavedClient[] | Versleuteld;
     numbering?: { factuur?: string; offerte?: string };

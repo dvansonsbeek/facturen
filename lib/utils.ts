@@ -90,6 +90,33 @@ export const supplyDateOnDocument = (
 };
 
 /**
+ * De betalingsvoorwaarde die op het document hoort, of null.
+ *
+ * Eigen tekst gaat vóór: wie "vooraf te voldoen" of "50% bij opdracht" invult,
+ * bedoelt dat en niet een aantal dagen. Staat er geen eigen tekst, dan wordt de
+ * zin uit het aantal dagen opgebouwd, in de taal van het document — en dát is
+ * waarom dit een getal werd. Als vrije tekst bleef de Nederlandse zin staan op
+ * een Engelse factuur.
+ *
+ * De volgorde doet nog iets anders, en dat is geen toeval. Een bewaard document
+ * van vóór deze wijziging draagt alleen die oude zin en geen aantal dagen, dus
+ * valt het vanzelf in de eerste tak en rendert het precies zoals het is
+ * uitgereikt. Dezelfde aanpak als `schemeOf()` bij het btw-regime: de migratie
+ * zit in het lezen, niet in de opslag.
+ *
+ * Staat hier zodat het voorbeeld, de PDF en de e-factuur dezelfde zin gebruiken.
+ */
+export const paymentTermsOnDocument = (
+    data: { paymentConditions?: string; paymentTermDays?: number },
+    taal: Taal = 'nl',
+): string | null => {
+    const eigen = (data.paymentConditions ?? '').trim();
+    if (eigen) return eigen;
+    const dagen = data.paymentTermDays;
+    return typeof dagen === 'number' && dagen > 0 ? teksten(taal).betaaltermijn(dagen) : null;
+};
+
+/**
  * De verwijzing naar de factuur die wordt teruggedraaid, of null.
  *
  * Een creditfactuur moet duidelijk en ondubbelzinnig naar het oorspronkelijke

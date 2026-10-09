@@ -67,19 +67,50 @@ export default function PaymentDetails({ settings, onChange, open, onToggle }: P
                         onChange={(e) => onChange({ bic: e.target.value })}
                     />
                 </div>
+                {/* Een getal en geen zin, want de zin moest vertaalbaar worden.
+                    Als vrije tekst bleef "Binnen 30 dagen na factuurdatum" in het
+                    Nederlands staan op een Engelse factuur: het was jouw tekst, en
+                    die vertaalt de app niet. Nu bouwt lib/taal.ts de zin op in de
+                    taal van het document. */}
                 <div>
-                    <label htmlFor="betalingsvoorwaarden">Betalingsvoorwaarden</label>
-                    {/* Korte hint, want een placeholder kapt af in plaats van door te
-                        lopen: de hele zin werd op een telefoon "Binnen 14 dagen na
-                        factuurda". Dit is een voorbeeld en geen uitleg, dus een kortere
-                        variant doet hetzelfde werk. Hij is bovendien zelden te zien —
-                        lib/settings.ts vult dit veld standaard al in. */}
+                    <label htmlFor="betaaltermijn">Betaaltermijn (dagen)</label>
+                    <input
+                        id="betaaltermijn"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={settings.paymentTermDays}
+                        onChange={(e) => onChange({
+                            paymentTermDays: Math.max(1, Math.min(365, parseInt(e.target.value, 10) || 0)),
+                        })}
+                        style={{ maxWidth: '8rem' }}
+                        aria-describedby="betaaltermijn-uitleg"
+                    />
+                    <p id="betaaltermijn-uitleg" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                        Hieruit komt de zin op de factuur, in de taal van het document.
+                        Spreek je niets af, dan gaat de wet uit van dertig dagen.
+                    </p>
+                </div>
+                {/* De ontsnappingsklep, en met opzet niet weggelaten: een getal kan
+                    niet alles zeggen. "Vooraf te voldoen", "50% bij opdracht, 50% bij
+                    oplevering", "contant bij levering" — dat zijn echte termijnen, en
+                    dit veld schrappen zou ze er stilletjes uit halen. */}
+                <div>
+                    <label className="label-wrap" htmlFor="betalingsvoorwaarden">
+                        Eigen tekst in plaats daarvan (optioneel)
+                    </label>
                     <input
                         id="betalingsvoorwaarden"
-                        placeholder="Binnen 14 dagen"
+                        placeholder="Vooraf te voldoen"
                         value={settings.paymentConditions}
                         onChange={(e) => onChange({ paymentConditions: e.target.value })}
+                        aria-describedby="betalingsvoorwaarden-uitleg"
                     />
+                    <p id="betalingsvoorwaarden-uitleg" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                        Voor een afspraak die niet in een aantal dagen past. Wat je hier
+                        invult komt in plaats van de zin hierboven en blijft staan zoals
+                        je het schrijft, ook op een Engelstalig document.
+                    </p>
                 </div>
             </div>
         </details>

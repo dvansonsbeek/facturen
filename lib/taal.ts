@@ -53,6 +53,11 @@ export interface DocumentTeksten {
 
     opmerkingen: string;
     betalingsvoorwaarden: string;
+    /**
+     * De betaaltermijn als zin. Dit is precies waarom hij een getal werd: als
+     * vrije tekst stond hij in het Nederlands op een Engelse factuur.
+     */
+    betaaltermijn: (dagen: number) => string;
 
     /** De betaalalinea, in stukken; zie de opmerking bovenaan. */
     betaling: {
@@ -103,6 +108,7 @@ export const TEKSTEN: Record<Taal, DocumentTeksten> = {
 
         opmerkingen: 'Opmerkingen',
         betalingsvoorwaarden: 'Betalingsvoorwaarden',
+        betaaltermijn: (dagen) => `Binnen ${dagen} ${dagen === 1 ? 'dag' : 'dagen'} na factuurdatum.`,
 
         betaling: {
             verzoek: 'Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar rekeningnummer',
@@ -158,6 +164,7 @@ export const TEKSTEN: Record<Taal, DocumentTeksten> = {
 
         opmerkingen: 'Notes',
         betalingsvoorwaarden: 'Payment terms',
+        betaaltermijn: (dagen) => `Payable within ${dagen} ${dagen === 1 ? 'day' : 'days'} of the invoice date.`,
 
         betaling: {
             verzoek: 'Please transfer the total invoice amount to account number',

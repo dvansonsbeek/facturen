@@ -9,6 +9,20 @@ export interface CompanySettings {
     sender: Sender;
     bankAccount: string;
     bic: string;
+    /**
+     * De betaaltermijn als getal, zodat de zin op het document vertaald kan
+     * worden. Vrije tekst kan dat niet: die stond in het Nederlands op een
+     * Engelse factuur, want het is jouw tekst en de app vertaalt die niet.
+     */
+    paymentTermDays: number;
+    /**
+     * Eigen tekst die in plaats van die zin komt, leeg als je hem niet gebruikt.
+     *
+     * Blijft bestaan omdat een getal niet alles kan zeggen: "vooraf te voldoen",
+     * "50% bij opdracht, 50% bij oplevering", "contant bij levering". Dit veld
+     * schrappen zou die termijnen stilletjes wegnemen bij de eerstvolgende
+     * wijziging. Wat hier staat wordt niet vertaald, en het veld zegt dat erbij.
+     */
     paymentConditions: string;
 }
 
@@ -26,7 +40,48 @@ export const DEFAULT_SETTINGS: CompanySettings = {
     },
     bankAccount: "",
     bic: "",
-    paymentConditions: "Binnen 14 dagen na factuurdatum.",
+    // Dertig dagen: dat is ook waar de wet op terugvalt als er niets is
+    // afgesproken. Wie korter wil, zet het getal lager.
+    paymentTermDays: 30,
+    paymentConditions: "",
+};
+
+/**
+ * De oude vrije tekst omzetten naar een getal, zonder iets kwijt te raken.
+ *
+ * Tot nu toe stond de betaaltermijn als zin in de opslag, standaard "Binnen 14
+ * dagen na factuurdatum." en bij veel mensen met een ander getal erin. Wat op
+ * dat patroon past wordt het getal; al het andere blijft staan als eigen tekst,
+ * want dat is een termijn die een getal niet kan uitdrukken.
+ *
+ * Hier en niet in de opslag: net als bij `schemeOf()` voor het btw-regime
+ * gebeurt de migratie bij het lezen, zodat er niets herschreven wordt wat
+ * iemand ooit heeft bewaard.
+ */
+const DAGEN_UIT_ZIN = /^\s*binnen\s+(\d{1,3})\s+dagen\s+na\s+factuurdatum\s*\.?\s*$/i;
+
+export const uitOudeBetaaltermijn = (
+    // Alleen de twee velden die hier gelezen worden, zodat dit ook werkt op een
+    // ingelezen back-upbestand: dat heeft een losser type voor de rest.
+    stored: { paymentTermDays?: number; paymentConditions?: string },
+): Pick<CompanySettings, 'paymentTermDays' | 'paymentConditions'> => {
+    // Al omgezet: dan telt wat er staat.
+    if (typeof stored.paymentTermDays === 'number') {
+        return {
+            paymentTermDays: stored.paymentTermDays,
+            paymentConditions: stored.paymentConditions ?? '',
+        };
+    }
+    const tekst = stored.paymentConditions;
+    if (typeof tekst !== 'string' || tekst.trim() === '') return {
+        paymentTermDays: DEFAULT_SETTINGS.paymentTermDays,
+        paymentConditions: '',
+    };
+
+    const match = DAGEN_UIT_ZIN.exec(tekst);
+    return match
+        ? { paymentTermDays: Number(match[1]), paymentConditions: '' }
+        : { paymentTermDays: DEFAULT_SETTINGS.paymentTermDays, paymentConditions: tekst };
 };
 
 const listeners = new Set<() => void>();
@@ -55,6 +110,8 @@ const parse = (raw: string): CompanySettings => {
             ...DEFAULT_SETTINGS,
             ...stored,
             sender: { ...DEFAULT_SETTINGS.sender, ...(stored.sender ?? {}) },
+            // Na de spreiding, want dit overschrijft wat er uit de opslag komt.
+            ...uitOudeBetaaltermijn(stored),
         };
     } catch {
         return DEFAULT_SETTINGS;

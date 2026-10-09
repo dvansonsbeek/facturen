@@ -1,6 +1,6 @@
 import { Document, Page, View, Text, Image, StyleSheet, Svg, Path, Rect } from "@react-pdf/renderer";
 import { Invoice, Quotation } from "@/types";
-import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, paymentTermsOnDocument, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 import { teksten } from "@/lib/taal";
 import { paymentQrMatrix } from "@/lib/payment-qr";
@@ -162,6 +162,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
     const statement = statementFor(scheme, taal);
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber, taal);
     const supplyDate = supplyDateOnDocument(data);
+    const betaaltermijn = paymentTermsOnDocument(data, taal);
     const creditRef = creditReference(data, taal);
     const qr = isQuotation ? null : paymentQrMatrix(data as Invoice);
     // Zelfde stille marge als op het scherm; zonder die rand vinden veel
@@ -176,7 +177,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
 
     // De betaalinstructies staan in de vaste voettekst; dit blok loopt mee met
     // de inhoud en bevat alleen wat eenmalig onderaan het document hoort.
-    const hasFlowFooter = !!data.notes || (!isQuotation && !!data.paymentConditions);
+    const hasFlowFooter = !!data.notes || (!isQuotation && !!betaaltermijn);
 
     return (
         <Document
@@ -317,10 +318,10 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                                 {data.notes}
                             </Text>
                         )}
-                        {!isQuotation && !!data.paymentConditions && (
+                        {!isQuotation && !!betaaltermijn && (
                             <Text style={styles.footerLine}>
                                 <Text style={styles.label}>{t.betalingsvoorwaarden}: </Text>
-                                {data.paymentConditions}
+                                {betaaltermijn}
                             </Text>
                         )}
                     </View>

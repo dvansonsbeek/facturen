@@ -407,9 +407,31 @@ sentence.
   the interesting one: *Volgende factuur* **keeps** it, unlike the discount. That button
   keeps the client, and the language belongs to the client — resetting it would quietly
   make the next invoice to the same German customer unreadable.
-- **Only fixed text is translated.** Payment conditions, units and line descriptions are
-  the user's own words and stay as typed; the field's help text says so, because otherwise
-  a Dutch payment term on an English invoice looks like a bug.
+- **Only fixed text is translated.** Units and line descriptions are the user's own words
+  and stay as typed; the help text says so, because otherwise they look like a bug.
+
+**The payment term became a number for exactly this reason.** It used to be free text
+(`"Binnen 14 dagen na factuurdatum."`), which meant an English invoice read *"Payment
+terms:"* followed by a Dutch sentence. It was the only field where that happened, because
+it is the one sentence the app had *seeded* rather than the user having chosen the words.
+`CompanySettings.paymentTermDays` (default **30**, where Dutch law also lands when nothing
+is agreed) generates it per language.
+
+- **Free text survives as an override**, and deliberately so: a number cannot say "vooraf
+  te voldoen" or "50% bij opdracht, 50% bij oplevering". Dropping the field would have
+  removed those terms from under existing users at their next edit. An override is never
+  translated, and the field says so.
+- **`paymentTermsOnDocument()` in `utils.ts` is the single resolver** — override first,
+  then the generated sentence — so the preview, the PDF and `cac:PaymentTerms/cbc:Note`
+  cannot disagree.
+- **That precedence order also handles archived documents for free.** A document issued
+  before this change carries only the old sentence and no day count, so it falls into the
+  override branch and renders exactly as issued. Same shape as `schemeOf()`: migrate on
+  read, never rewrite what was saved.
+- **`uitOudeBetaaltermijn()` converts stored settings losslessly.** Anything matching
+  `Binnen N dagen na factuurdatum` becomes the number; anything else is kept verbatim as
+  the override. Both branches are tested, because silently resetting someone's agreed term
+  to 30 days would be a real change to their invoices.
 
 ## The archive: issued means frozen
 

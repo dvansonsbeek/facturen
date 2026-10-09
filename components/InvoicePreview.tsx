@@ -1,7 +1,7 @@
 "use client";
 
 import { Invoice, Quotation } from "@/types";
-import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
+import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, paymentTermsOnDocument, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
 import { teksten } from "@/lib/taal";
 import { paymentQrMatrix } from "@/lib/payment-qr";
@@ -25,6 +25,7 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
     const statement = statementFor(scheme, taal);
     const clientVatLine = clientVatStatement(scheme, data.client.vatNumber, taal);
     const supplyDate = supplyDateOnDocument(data);
+    const betaaltermijn = paymentTermsOnDocument(data, taal);
     const creditRef = creditReference(data, taal);
     // Alleen op een factuur: een offerte vraagt nog niet om betaling, en een
     // creditfactuur juist niet (dat zit in paymentQrMatrix zelf).
@@ -171,11 +172,11 @@ export default function InvoicePreview({ data, isQuotation }: InvoicePreviewProp
                 </div>
             )}
 
-            {(data.notes || (!isQuotation && (data.paymentConditions || (data as Invoice).bankAccount))) && (
+            {(data.notes || (!isQuotation && (betaaltermijn || (data as Invoice).bankAccount))) && (
                 <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border)', fontSize: '0.85rem' }}>
                     {data.notes && <p style={{ marginBottom: '0.5rem' }}><strong>{t.opmerkingen}:</strong> {data.notes}</p>}
-                    {!isQuotation && data.paymentConditions && (
-                        <p style={{ marginBottom: '0.5rem' }}><strong>{t.betalingsvoorwaarden}:</strong> {data.paymentConditions}</p>
+                    {!isQuotation && betaaltermijn && (
+                        <p style={{ marginBottom: '0.5rem' }}><strong>{t.betalingsvoorwaarden}:</strong> {betaaltermijn}</p>
                     )}
                     {!isQuotation && (
                         <div style={{ marginTop: '1rem', color: 'var(--secondary)' }}>

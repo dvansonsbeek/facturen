@@ -87,6 +87,9 @@ export const ui = (page: Page) => ({
 
     // Betaalgegevens
     iban: page.locator('input[placeholder="NLxx XXXX XXXX XXXX XX"]'),
+    /** De betaaltermijn als getal; hieruit komt de zin op het document. */
+    paymentTermDays: page.locator('#betaaltermijn'),
+    /** De eigen tekst die in plaats van die zin komt. */
     paymentConditions: page.locator('#betalingsvoorwaarden'),
 
     // Opmerkingen
