@@ -43,7 +43,7 @@ const title = `${NAAM} — gratis facturen en offertes volgens Nederlandse btw-r
  */
 const description =
   "Facturen en offertes volgens de Nederlandse btw-regels, met KOR en e-factuur "
-  + "(UBL/NLCIUS). Geen account, geen abonnement, geen server — je klantgegevens "
+  + "(UBL/NLCIUS). Geen account, geen abonnement, geen server: je klantgegevens "
   + "blijven in je eigen browser.";
 
 export const metadata: Metadata = {

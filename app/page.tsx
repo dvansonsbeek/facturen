@@ -96,7 +96,7 @@ export default function Home() {
             <a href={`https://buymeacoffee.com/${KOFFIE}`} rel="noopener noreferrer" target="_blank">
               Een kopje koffie
             </a>{' '}
-            mag, maar levert je niets extra&apos;s op — er is geen uitgebreidere versie.
+            mag, maar levert je niets extra&apos;s op, want er is geen uitgebreidere versie.
           </p>
         )}
       </footer>

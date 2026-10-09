@@ -933,7 +933,7 @@ export default function InvoiceForm() {
                             {!isQuotation && (
                                 <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--muted)' }}>
                                     Vul <strong>Datum levering/dienst</strong> alleen in als je werk op
-                                    een andere datum is geleverd dan de factuurdatum — bijvoorbeeld als
+                                    een andere datum is geleverd dan de factuurdatum, bijvoorbeeld als
                                     je achteraf factureert. Hij komt dan op de factuur te staan, want
                                     dat is dan verplicht.
                                 </p>
@@ -962,7 +962,7 @@ export default function InvoiceForm() {
                                         Het kenmerk waarmee je klant deze factuur in zijn eigen
                                         administratie terugvindt: een inkoopordernummer,
                                         kostenplaats of projectcode. Vraag ernaar als je het niet
-                                        hebt — zonder dit kenmerk wordt een e-factuur in de
+                                        hebt: zonder dit kenmerk wordt een e-factuur in de
                                         praktijk teruggestuurd.
                                     </p>
                                 </div>

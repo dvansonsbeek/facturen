@@ -896,6 +896,16 @@ Run the suite before and after any refactor. It exists precisely because
 ## Conventions
 
 - **UI text, labels and code comments are in Dutch.** Keep it that way.
+- **No em-dash in running text that a user reads.** It reads as machine-written, and Dutch
+  prose has better tools for the job: a comma plus `want`/`omdat`, a colon when a list or
+  consequence follows, brackets for an aside, or simply two sentences. A bare comma between
+  two main clauses is a comma splice in Dutch too, so the conjunction is not optional.
+  Applies to the pages, form hints, dialogs and error strings. It does **not** apply to the
+  em-dash as a *separator*: `<title>` (`Factuurr — gratis facturen…`), a heading suffix
+  (`Beveiliging en privacy — vergrendeld`), `— Nieuwe klant —` in a select, and the
+  `Naam — uitleg` option labels all keep it. That last one is load-bearing: the fit test in
+  `tests/items.spec.ts` splits on `' — '` to decide what must fit in the closed control.
+  Code comments and this file keep theirs; the rule is about what ships to a reader.
 - Indentation is inconsistent across files (2 spaces in `app/` and `ItemRow.tsx`,
   4 elsewhere). Match the file you are editing; do not reformat wholesale.
 - Vanilla CSS with custom properties in `app/globals.css`. No Prettier, no Tailwind.

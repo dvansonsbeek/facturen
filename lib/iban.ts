@@ -93,7 +93,7 @@ export const keurIban = (ruw: string): IbanOordeel => {
     if (mod97(cijfers) !== 1) {
         return {
             ok: false,
-            reden: 'het controlegetal klopt niet — er zit vermoedelijk een tikfout in',
+            reden: 'het controlegetal klopt niet, waarschijnlijk door een tikfout',
         };
     }
 

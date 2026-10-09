@@ -69,9 +69,9 @@ export default function Voorwaarden() {
         <p style={STIJL_P}>
           De app noemt Nederlandse regels bij naam en controleert de e-factuur tegen de
           officiële validator van de Nederlandse Peppolautoriteit. Dat helpt, maar het is iets
-          anders dan een garantie dat jouw factuur juist is. Of een regeling op jouw situatie
-          van toepassing is — de kleineondernemersregeling, btw verleggen, een
-          intracommunautaire levering — kan geen programma voor je beoordelen.
+          anders dan een garantie dat jouw factuur juist is. Geen programma kan voor je
+          beoordelen of een regeling op jouw situatie van toepassing is: de
+          kleineondernemersregeling, btw verleggen, een intracommunautaire levering.
         </p>
 
         <h2 style={STIJL_KOP}>Jij blijft verantwoordelijk voor je facturen</h2>
@@ -92,8 +92,8 @@ export default function Voorwaarden() {
 
         <h2 style={STIJL_KOP}>Aansprakelijkheid</h2>
         <p style={STIJL_P}>
-          Voor schade die ontstaat door het gebruik van deze app — gemiste inkomsten, boetes of
-          naheffingen, of verloren gegevens — zijn de auteurs en rechthebbenden niet
+          Voor schade die ontstaat door het gebruik van deze app (gemiste inkomsten, boetes of
+          naheffingen, of verloren gegevens) zijn de auteurs en rechthebbenden niet
           aansprakelijk, voor zover de wet dat toelaat. Dat is dezelfde beperking als in de
           MIT-licentie waaronder de broncode staat; wie het betreft staat in het
           LICENSE-bestand daarbij.
@@ -108,7 +108,7 @@ export default function Voorwaarden() {
         <p style={STIJL_P}>
           Dat heeft een keerzijde die je moet kennen: <strong>je raakt alles kwijt</strong> als
           je de gegevens van deze site wist, je browser opnieuw installeert, in een privévenster
-          werkt, of — als je er een hebt ingesteld — je wachtwoordzin vergeet. Die zin is nergens
+          werkt, of je wachtwoordzin vergeet als je er een hebt ingesteld. Die zin is nergens
           anders opgeslagen en kan niet worden hersteld. Gebruik <strong>Export</strong> om een
           reservekopie te maken en bewaar die ergens anders. Wat de versleuteling wel en niet
           beschermt, staat in de app zelf onder <em>Beveiliging en privacy</em>.
@@ -121,11 +121,11 @@ export default function Voorwaarden() {
           pagina gegevens van jou en je klanten staan.
         </p>
         <p style={STIJL_P}>
-          Meegestuurd worden: welke pagina je opent, van welke website je kwam — alleen die
-          naam, niet de volledige adresregel — en je schermformaat. GoatCounter leidt daar het
+          Meegestuurd worden: welke pagina je opent, van welke website je kwam (alleen die
+          naam, niet de volledige adresregel) en je schermformaat. GoatCounter leidt daar het
           land uit je IP-adres bij af, maar bewaart dat IP-adres niet, zet niets in je browser
           (geen cookies, geen opslag) en houdt verder alleen aantallen per dag bij.
-          <strong> Niets van wat je invult gaat mee</strong> — geen namen, geen bedragen, geen
+          <strong> Niets van wat je invult gaat mee</strong>: geen namen, geen bedragen, geen
           factuurgegevens. Dat kan ook niet: de functie die de telling opbouwt krijgt het
           document niet te zien. Heb je <em>Do Not Track</em> of{' '}
           <em>Global Privacy Control</em> aanstaan, dan wordt er niets geteld.
@@ -137,7 +137,7 @@ export default function Voorwaarden() {
           verdwijnt, en niets dat je eerst gratis mag gebruiken om er daarna aan vast te
           zitten. Dat is geen belofte maar een gevolg: de code staat onder de
           MIT-licentie op GitHub, dus mocht dit ooit veranderen, dan kan iedereen de
-          laatste vrije versie blijven gebruiken — of hem zelf ergens neerzetten.
+          laatste vrije versie blijven gebruiken, of hem zelf ergens neerzetten.
         </p>
         <p style={STIJL_P}>
           Er wordt ook niets aan je verdiend langs een andere weg. Er zijn geen
@@ -146,7 +146,7 @@ export default function Voorwaarden() {
         </p>
         <p style={STIJL_P}>
           Je kunt vrijwillig een bijdrage doen. Dat <strong>levert je niets extra&apos;s
-          op</strong> — er is geen uitgebreidere versie om naartoe te gaan, en dat is
+          op</strong>, want er is geen uitgebreidere versie om naartoe te gaan, en dat is
           precies het punt. Het verandert ook niets aan deze voorwaarden of aan wat de
           app doet. Klik je erop, dan ga je naar een andere website; pas dáár gelden
           hun voorwaarden en hun privacybeleid.

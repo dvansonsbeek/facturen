@@ -49,8 +49,8 @@ export default function SecurityPanel({
         }
         if (!window.confirm(
             'Let op: zonder deze zin zijn je bewaarde documenten en je klantenboek niet meer '
-            + 'te openen. Er is geen server en geen herstelcode, dus vergeten betekent kwijt — '
-            + 'ook de reservekopie uit Export blijft dan onleesbaar. Schrijf hem ergens op. '
+            + 'te openen. Er is geen server en geen herstelcode, dus vergeten betekent kwijt. '
+            + 'Ook de reservekopie uit Export blijft dan onleesbaar. Schrijf hem ergens op. '
             + 'Doorgaan?',
         )) return;
 
@@ -106,7 +106,7 @@ export default function SecurityPanel({
                         Eén ding gaat er wél naar buiten: bij het openen van de pagina wordt een
                         bezoek geteld bij GoatCounter. Daarbij gaat mee welke pagina je opent, waar
                         je vandaan kwam en hoe groot je scherm is. <strong>Niets van wat je
-                        invult</strong> — geen klantnaam, geen bedrag, geen factuurnummer. Er worden
+                        invult</strong>: geen klantnaam, geen bedrag, geen factuurnummer. Er worden
                         geen cookies gezet en je wordt niet gevolgd tussen websites. Zet je browser
                         op <em>Do Not Track</em> of <em>Global Privacy Control</em>, dan wordt er
                         niets geteld.
@@ -124,8 +124,8 @@ export default function SecurityPanel({
                         Deze app is van <strong>{BOUWDATUM}</strong>. Hij werkt ook zonder
                         internet: de bestanden staan na je eerste bezoek op dit apparaat, dus je
                         kunt factureren in de trein of bij een klant zonder wifi. Ben je wél
-                        online, dan haalt hij vanzelf de nieuwste versie op — je hoeft niets bij
-                        te werken.
+                        online, dan haalt hij vanzelf de nieuwste versie op, zodat je niets bij
+                        hoeft te werken.
                     </p>
                     <p>
                         Houd die datum wel in de gaten als je lang offline werkt. Btw-tarieven en
@@ -150,7 +150,7 @@ export default function SecurityPanel({
                     <p>
                         Hier is er voor wat je invult <strong>geen verwerker</strong>. Er is
                         niemand om een overeenkomst mee te sluiten, en niemand die jouw
-                        klantenbestand kan kwijtraken — omdat niemand het heeft.
+                        klantenbestand kan kwijtraken, omdat niemand het heeft.
                     </p>
                     <p>
                         Wat níet verdwijnt: jij blijft zelf verantwoordelijk voor de gegevens van
@@ -195,7 +195,7 @@ export default function SecurityPanel({
                     <p>
                         Je <strong>bewaarde documenten</strong> en je <strong>klantenboek</strong> gaan
                         dan versleuteld naar schijf (AES-256-GCM, sleutel afgeleid met PBKDF2). Wie bij
-                        dit apparaat kan, ziet geen klantnamen, adressen of bedragen meer — alleen ruis.
+                        dit apparaat kan, ziet geen klantnamen, adressen of bedragen meer, alleen ruis.
                         Dat zijn de persoonsgegevens van anderen, en dus het deel dat er echt om vraagt.
                     </p>
                     <p>
@@ -203,7 +203,7 @@ export default function SecurityPanel({
                         Die staan op elke factuur die je verstuurt en in het handelsregister, en een
                         factuurnummer is geen geheim; versleutelen levert daar niets op en zou je de app
                         niet meer laten gebruiken zonder de zin. Zo kun je nog gewoon een factuur maken
-                        terwijl het vergrendeld is — je ziet dan alleen je bewaarde klanten en documenten
+                        terwijl het vergrendeld is. Je ziet dan alleen je bewaarde klanten en documenten
                         niet, en opslaan wordt geweigerd tot je ontgrendelt.
                     </p>
                     <p>
@@ -214,7 +214,7 @@ export default function SecurityPanel({
                     </p>
                     <p className="uitleg-let-op">
                         Er is geen herstelcode en niemand die je kan helpen. Vergeet je de zin, dan zijn
-                        je archief en je klantenboek weg — ook het Export-bestand blijft dan onleesbaar.
+                        je archief en je klantenboek weg, en ook het Export-bestand blijft dan onleesbaar.
                     </p>
                 </div>
 

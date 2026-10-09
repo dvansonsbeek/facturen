@@ -141,7 +141,11 @@ test.describe('de pagina zelf', () => {
             'De tekst van de voorwaarden is gewijzigd. Werk BIJGEWERKT bij in '
             + 'app/voorwaarden/page.tsx als dit een inhoudelijke wijziging is, en zet '
             + `daarna deze vingerafdruk op ${vingerafdruk}.`,
-        ).toBe('19dafd6ff4df8258');
+        // Bijgewerkt toen de em-streepjes uit de lopende tekst gingen. BIJGEWERKT
+        // staat bewust stil: er is niets veranderd aan wat er geldt, alleen aan
+        // hoe het er staat. De datum verzetten zou vaste lezers vertellen dat de
+        // voorwaarden gewijzigd zijn, en dat is dan niet waar.
+        ).toBe('3003cf9dac5955f1');
     });
 
     test('is weer terug te verlaten', async ({ page }) => {
