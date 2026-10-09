@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise, openFoldout } from './helpers';
+import { ui, normalise, openFoldout, openApp } from './helpers';
 
 /**
  * Het document kan Engels, de app blijft Nederlands.
@@ -21,7 +21,7 @@ import { ui, normalise, openFoldout } from './helpers';
  *    btw-regime en bij de korting ging dat allebei een keer mis.
  */
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 const vul = async (page: import('@playwright/test').Page) => {

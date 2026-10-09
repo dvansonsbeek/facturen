@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, waitForHydration } from './helpers';
+import { ui, openApp } from './helpers';
 
 /**
  * Twee tabbladen op hetzelfde apparaat.
@@ -23,10 +23,8 @@ test('bedrijfsgegevens uit het ene tabblad komen in het andere door', async ({ b
     const een = await context.newPage();
     const twee = await context.newPage();
 
-    await een.goto('/');
-    await twee.goto('/');
-    await waitForHydration(een);
-    await waitForHydration(twee);
+    await openApp(een);
+    await openApp(twee);
 
     await ui(een).companyName.fill('Sonsbeek Advies BV');
 
@@ -42,10 +40,8 @@ test('een klant die je in het ene tabblad opslaat, staat in het andere in de lij
     const een = await context.newPage();
     const twee = await context.newPage();
 
-    await een.goto('/');
-    await twee.goto('/');
-    await waitForHydration(een);
-    await waitForHydration(twee);
+    await openApp(een);
+    await openApp(twee);
 
     await expect(ui(twee).clientPicker.locator('option')).toHaveCount(1);
 
@@ -64,10 +60,9 @@ test('Wissen in het ene tabblad leegt het andere ook', async ({ browser }) => {
     const een = await context.newPage();
     const twee = await context.newPage();
 
-    await een.goto('/');
+    await openApp(een);
     await ui(een).companyName.fill('Sonsbeek Advies BV');
-    await twee.goto('/');
-    await waitForHydration(twee);
+    await openApp(twee);
     await expect(ui(twee).preview).toContainText('Sonsbeek Advies BV');
 
     een.once('dialog', (d) => d.accept());
@@ -91,10 +86,8 @@ test('het document zelf blijft per tabblad', async ({ browser }) => {
     const een = await context.newPage();
     const twee = await context.newPage();
 
-    await een.goto('/');
-    await twee.goto('/');
-    await waitForHydration(een);
-    await waitForHydration(twee);
+    await openApp(een);
+    await openApp(twee);
 
     await ui(een).clientName.fill('Klant van tabblad een');
     await ui(een).itemPrice().fill('100');

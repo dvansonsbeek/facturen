@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise, openFoldout } from './helpers';
+import { ui, normalise, openFoldout, openApp } from './helpers';
 
 /**
  * De btw-behandeling moet meegaan als een document gekopieerd wordt.
@@ -12,7 +12,7 @@ import { ui, normalise, openFoldout } from './helpers';
  * ontvanger krijgt dan btw in rekening gebracht die er niet op mag staan.
  */
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 const vul = async (page: import('@playwright/test').Page) => {

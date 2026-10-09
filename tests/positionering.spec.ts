@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFoldout, normalise, waitForHydration } from './helpers';
+import { openFoldout, normalise, waitForHydration, openApp } from './helpers';
 
 /**
  * De beloften waarop deze app zich onderscheidt.
@@ -19,7 +19,7 @@ import { openFoldout, normalise, waitForHydration } from './helpers';
 
 test.describe('geen verwerker', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
     });
 
     test('legt uit wat "geen server" juridisch betekent', async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe('geen verwerker', () => {
 
 test.describe('geen betaalde versie', () => {
     test('staat in de voorwaarden, met de reden erbij', async ({ page }) => {
-        await page.goto('/voorwaarden');
+        await openApp(page, '/voorwaarden');
         const tekst = normalise(await page.locator('article').innerText());
 
         expect(tekst).toContain('Er is geen betaalde versie');
@@ -66,7 +66,7 @@ test.describe('geen betaalde versie', () => {
      * vast te staan.
      */
     test('een bijdrage levert niets extra op, en dat staat er', async ({ page }) => {
-        await page.goto('/voorwaarden');
+        await openApp(page, '/voorwaarden');
         const tekst = normalise(await page.locator('article').innerText());
 
         expect(tekst).toContain('vrijwillig een bijdrage');
@@ -80,7 +80,7 @@ test.describe('geen betaalde versie', () => {
      * en deze suite zonder.
      */
     test('zonder ingestelde naam staat er geen verwijzing', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         await expect(page.locator('footer a[href*="buymeacoffee.com"]')).toHaveCount(0);
         // En er wordt nooit een knopscript van buiten geladen, met of zonder naam.
         await expect(page.locator('script[src*="buymeacoffee"], script[src*="ko-fi"]'))
@@ -107,8 +107,7 @@ test.describe('welke versie je hebt', () => {
         await page.addInitScript(([sleutel]) => {
             localStorage.setItem(sleutel, '2019-03-04');
         }, [VERSIESLEUTEL]);
-        await page.goto('/');
-        await waitForHydration(page);
+        await openApp(page);
 
         const melding = page.locator('header p[role="status"]');
         await expect(melding).toContainText('bijgewerkt naar de versie van');
@@ -124,8 +123,7 @@ test.describe('welke versie je hebt', () => {
      * Daarom via evaluate: één keer, na het eerste bezoek.
      */
     test('en daarna niet meer', async ({ page }) => {
-        await page.goto('/');
-        await waitForHydration(page);
+        await openApp(page);
         await page.evaluate(
             ([sleutel]) => localStorage.setItem(sleutel, '2019-03-04'),
             [VERSIESLEUTEL],
@@ -142,13 +140,12 @@ test.describe('welke versie je hebt', () => {
 
     /** Een eerste bezoek is geen wijziging; dan is er niets te melden. */
     test('zegt niets bij een eerste bezoek', async ({ page }) => {
-        await page.goto('/');
-        await waitForHydration(page);
+        await openApp(page);
         await expect(page.locator('header p[role="status"]')).toHaveCount(0);
     });
 
     test('de bouwdatum staat in de app, met de reden erbij', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         const sectie = await openFoldout(page, 'Beveiliging en privacy');
         const tekst = normalise(await sectie.innerText());
 
@@ -166,7 +163,7 @@ test.describe('wat een zoekresultaat laat zien', () => {
      * gevolgen te staan, niet in eigenschappen.
      */
     test('noemt de gevolgen en niet alleen de eigenschappen', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         const omschrijving = await page.locator('meta[name="description"]')
             .getAttribute('content');
 

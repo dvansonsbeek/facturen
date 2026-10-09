@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui } from './helpers';
+import { ui, openApp } from './helpers';
 import { extractPdfText, extractPdfPages } from './pdf-text';
 
 /** Klikt op Download PDF en geeft de tekstlaag van het resultaat terug. */
@@ -22,7 +22,7 @@ const downloadPdf = async (page: import('@playwright/test').Page) => {
 };
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('levert een PDF met selecteerbare tekst, niet een afbeelding', async ({ page }) => {

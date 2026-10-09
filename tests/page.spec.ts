@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { ui } from './helpers';
+import { ui, openApp } from './helpers';
 import { NAAM } from '../lib/site';
 
 /** De pagina zelf: titel, tagline en footer. */
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 /**
@@ -43,7 +43,7 @@ test.describe('de naam', () => {
     });
 
     test('en achter de titel van de voorwaarden', async ({ page }) => {
-        await page.goto('/voorwaarden');
+        await openApp(page, '/voorwaarden');
         await expect(page).toHaveTitle(new RegExp(`${NAAM}$`));
     });
 });

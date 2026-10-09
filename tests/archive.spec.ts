@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise, openFoldout } from './helpers';
+import { ui, normalise, openFoldout, openApp } from './helpers';
 
 /**
  * Het archief van bewaarde documenten.
@@ -10,7 +10,7 @@ import { ui, normalise, openFoldout } from './helpers';
  * ernaar.
  */
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 /** Een factuur met één regel, zodat er iets te bewaren valt. */

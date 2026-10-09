@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { ui, previewText, previewHeaders } from './helpers';
+import { ui, previewHeaders, verwachtVoorbeeld, openApp } from './helpers';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 /**
@@ -28,10 +28,7 @@ test.describe('regels toevoegen en weghalen', () => {
         await app.itemDescription(1).fill('Reiskosten');
         await app.itemPrice(1).fill('50');
 
-        const tekst = await previewText(page);
-        expect(tekst).toContain('Advies');
-        expect(tekst).toContain('Reiskosten');
-        expect(tekst).toContain('€ 181,50');
+        await verwachtVoorbeeld(page, { bevat: ['Advies', 'Reiskosten', '€ 181,50'] });
     });
 
     test('een regel weghalen haalt hem ook van het document', async ({ page }) => {
@@ -46,9 +43,12 @@ test.describe('regels toevoegen en weghalen', () => {
         await app.removeItem(1).click();
 
         await expect(page.locator('.item-row')).toHaveCount(1);
-        const tekst = await previewText(page);
-        expect(tekst).not.toContain('Reiskosten');
-        expect(tekst).toContain('€ 121,00');
+        await verwachtVoorbeeld(page, {
+            // Het nieuwe totaal is het anker: dat verandert pas als de regel
+            // echt weg is, en dan zegt het ontbreken van de naam iets.
+            bevat: ['€ 121,00'],
+            bevatNiet: ['Reiskosten'],
+        });
     });
 
     test('de laatste regel kan niet weg', async ({ page }) => {
@@ -101,9 +101,7 @@ test.describe('eenheid per regel', () => {
         await app.itemUnit(0).fill('uur');
         await app.itemPrice(0).fill('85');
 
-        const text = await previewText(page);
-        expect(text).toContain('3 uur');
-        expect(text).toContain('€ 255,00');
+        await verwachtVoorbeeld(page, { bevat: ['3 uur', '€ 255,00'] });
     });
 
     test('blijft weg als je hem leeg laat, voor een vast bedrag', async ({ page }) => {
@@ -111,9 +109,11 @@ test.describe('eenheid per regel', () => {
         await app.itemName(0).fill('Projectbegeleiding');
         await app.itemPrice(0).fill('1500');
 
-        const text = await previewText(page);
-        expect(text).toContain('€ 1.500,00');
-        expect(text).not.toMatch(/1\s+(uur|stuk)/);
+        await verwachtVoorbeeld(page, {
+            bevat: ['€ 1.500,00'],
+            // Geen eenheid achter het aantal als je er geen koos.
+            bevatNiet: [/1\s+(uur|stuk)/],
+        });
     });
 
     test('accepteert ook een eenheid die niet in de lijst staat', async ({ page }) => {

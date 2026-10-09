@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { openFoldout } from './helpers';
+import { openFoldout, openApp } from './helpers';
 
 /**
  * Past de app op het scherm waarop hij geopend wordt?
@@ -47,7 +47,7 @@ const SCHERMEN: Scherm[] = [
  * de helft van deze controles niets.
  */
 const alleSectiesOpen = async (page: Page) => {
-    await page.goto('/');
+    await openApp(page);
     for (const kop of ['Mijn Bedrijfsgegevens', 'Mijn Betaalgegevens', 'Beveiliging en privacy']) {
         await openFoldout(page, kop);
     }

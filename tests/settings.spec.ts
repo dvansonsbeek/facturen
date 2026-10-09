@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { ui } from './helpers';
+import { ui, openApp } from './helpers';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('exporteert bedrijfs- en betaalgegevens als JSON', async ({ page }) => {

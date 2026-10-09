@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { ui, openFoldout } from './helpers';
+import { ui, openFoldout, openApp } from './helpers';
 
 /**
  * Een browser die geen opslagruimte vrijgeeft.
@@ -27,7 +27,7 @@ const MELDING = 'Deze browser geeft geen opslagruimte vrij';
 test.describe('zonder opslagruimte', () => {
     test.beforeEach(async ({ page }) => {
         await blokkeerOpslag(page);
-        await page.goto('/');
+        await openApp(page);
     });
 
     /**
@@ -96,7 +96,7 @@ test.describe('als de schrijfactie mislukt', () => {
                 return echteAdd.call(this, waarde, sleutel);
             };
         });
-        await page.goto('/');
+        await openApp(page);
     });
 
     test('zegt dat bewaren niet gelukt is', async ({ page }) => {
@@ -133,7 +133,7 @@ test.describe('als de schrijfactie mislukt', () => {
  */
 test.describe('met opslagruimte', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
     });
 
     test('staat die waarschuwing er niet', async ({ page }) => {

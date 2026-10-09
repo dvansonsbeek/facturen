@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { ui, waitForHydration } from './helpers';
+import { ui, waitForHydration, openApp } from './helpers';
 
 const jaar = new Date().toISOString().slice(0, 4);
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('begint bij 001 van het lopende jaar', async ({ page }) => {
@@ -39,7 +39,7 @@ test('een bewaarde reeks van vorig jaar begint opnieuw bij 001', async ({ page }
             jaar: '2019', factuur: '2019-042', offerte: 'OFF-2019-007',
         }));
     });
-    await page.goto('/');
+    await openApp(page);
 
     // Eerst hydrateren, en dat is hier niet optioneel: readServerNumbering geeft
     // de standaard van het lopende jaar, dus vóór hydratatie staat het goede

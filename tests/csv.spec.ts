@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, openFoldout } from './helpers';
+import { ui, openFoldout, openApp } from './helpers';
 
 /**
  * Het archief als tabel, voor je boekhouder.
@@ -14,7 +14,7 @@ import { ui, openFoldout } from './helpers';
  * aankomt: dat is waar een CSV in de praktijk op stukloopt.
  */
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 const bewaarFactuur = async (

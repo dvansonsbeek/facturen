@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise, openFoldout } from './helpers';
+import { ui, normalise, openFoldout, openApp } from './helpers';
 
 /**
  * De creditfactuur.
@@ -14,7 +14,7 @@ import { ui, normalise, openFoldout } from './helpers';
  * crediteert een bepaalde factuur, je verzint er geen.
  */
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 /** Een complete factuur, bewaard, zodat er iets te crediteren valt. */

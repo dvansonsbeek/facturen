@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, openFoldout } from './helpers';
+import { ui, openFoldout, openApp } from './helpers';
 import { makePng } from './png';
 import { extractPdfText } from './pdf-text';
 
@@ -33,7 +33,7 @@ const bewaardLogo = (page: import('@playwright/test').Page) =>
     });
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('een geüpload logo komt op het document te staan', async ({ page }) => {

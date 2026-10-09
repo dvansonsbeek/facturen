@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise, openFoldout, waitForHydration } from './helpers';
+import { ui, normalise, openFoldout, waitForHydration, openApp } from './helpers';
 
 /**
  * De optionele wachtwoordzin, over het archief én het klantenboek.
@@ -13,7 +13,7 @@ import { ui, normalise, openFoldout, waitForHydration } from './helpers';
 const ZIN = 'mijn lange wachtwoordzin';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 /** Leest de documentenwinkel rechtstreeks uit, zoals een indringer dat zou doen. */
@@ -140,6 +140,7 @@ test.describe('na herladen', () => {
         await vulEnBewaar(page);
         await stelZinIn(page);
         await page.reload();
+        await waitForHydration(page);
 
         const app = ui(page);
         await app.itemPrice().fill('200');

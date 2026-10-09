@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, openFoldout, normalise } from './helpers';
+import { ui, openFoldout, normalise, openApp } from './helpers';
 import { keurIban } from '../lib/iban';
 import { epcPayload } from '../lib/payment-qr';
 import type { Invoice } from '../types';
@@ -102,7 +102,7 @@ test.describe('geen QR bij een nummer dat niet deugt', () => {
 
 test.describe('in de app', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
     });
 
     const vulIban = async (page: import('@playwright/test').Page, iban: string) => {

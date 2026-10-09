@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, normalise, openFoldout } from './helpers';
+import { ui, normalise, openFoldout, openApp } from './helpers';
 import { epcPayload, MAX_BYTES } from '../lib/payment-qr';
 import type { Invoice } from '../types';
 
@@ -95,7 +95,7 @@ test.describe('wanneer er geen code hoort te zijn', () => {
 
 test.describe('op het document', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
     });
 
     const vul = async (page: import('@playwright/test').Page) => {

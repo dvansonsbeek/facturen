@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, openFoldout } from './helpers';
+import { ui, openFoldout, openApp } from './helpers';
 import { summariseDocument, discountAmount, roundToCents } from '../lib/utils';
 import type { Discount } from '../types';
 
@@ -154,7 +154,7 @@ test.describe('wat de korting met de btw doet', () => {
  */
 test.describe('korting op het document', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
     });
 
     const vul = async (page: import('@playwright/test').Page) => {

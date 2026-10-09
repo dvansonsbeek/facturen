@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { ui, previewText, openFoldout } from './helpers';
+import { ui, openFoldout, verwachtVoorbeeld, openApp } from './helpers';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('schakelt tussen factuur en offerte', async ({ page }) => {
@@ -62,10 +62,10 @@ test.describe('wisselen laat niets van het andere documenttype staan', () => {
         await app.tab('Factuur').click();
         await expect(app.preview.locator('h1').first()).toHaveText('FACTUUR');
 
-        const tekst = await previewText(page);
-        for (const zin of OFFERTETEKSTEN) {
-            expect(tekst, `"${zin}" staat nog op de factuur`).not.toContain(zin);
-        }
+        await verwachtVoorbeeld(page, {
+            bevat: ['FACTUUR'],
+            bevatNiet: [...OFFERTETEKSTEN],
+        });
     });
 
     test('en op een offerte niets van de factuur', async ({ page }) => {
@@ -74,10 +74,10 @@ test.describe('wisselen laat niets van het andere documenttype staan', () => {
         await app.tab('Offerte').click();
         await expect(app.preview.locator('h1').first()).toHaveText('OFFERTE');
 
-        const tekst = await previewText(page);
-        for (const zin of FACTUURTEKSTEN) {
-            expect(tekst, `"${zin}" staat nog op de offerte`).not.toContain(zin);
-        }
+        await verwachtVoorbeeld(page, {
+            bevat: ['OFFERTE'],
+            bevatNiet: [...FACTUURTEKSTEN],
+        });
     });
 
     /**
@@ -111,9 +111,13 @@ test('neemt bedrijfs- en klantgegevens mee naar het andere documenttype', async 
 
 test.describe('velden verschijnen pas als ze ingevuld zijn', () => {
     test('btw- en KvK-nummer blijven weg zolang ze leeg zijn', async ({ page }) => {
-        const text = await previewText(page);
-        expect(text).not.toContain('BTW:');
-        expect(text).not.toContain('KvK:');
+        await verwachtVoorbeeld(page, {
+            // Zonder anker was dit een test die niet kón falen: op een voorbeeld
+            // dat nog leeg is, staat er inderdaad geen "BTW:". De kop staat er
+            // altijd, dus die bewijst dat er iets getekend is.
+            bevat: ['FACTUUR'],
+            bevatNiet: ['BTW:', 'KvK:'],
+        });
     });
 
     test('btw- en KvK-nummer verschijnen zodra ze ingevuld zijn', async ({ page }) => {
@@ -121,9 +125,9 @@ test.describe('velden verschijnen pas als ze ingevuld zijn', () => {
         await app.companyVat.fill('NL123456789B01');
         await app.companyKvk.fill('87654321');
 
-        const text = await previewText(page);
-        expect(text).toContain('BTW: NL123456789B01');
-        expect(text).toContain('KvK: 87654321');
+        await verwachtVoorbeeld(page, {
+            bevat: ['BTW: NL123456789B01', 'KvK: 87654321'],
+        });
     });
 
     test('het land van de klant blijft weg bij een Nederlandse klant', async ({ page }) => {
@@ -159,9 +163,12 @@ test.describe('opmerkingen', () => {
         await app.tab('Offerte').click();
 
         await expect(app.notes).toHaveValue('');
-        expect(await previewText(page)).not.toContain('Opmerkingen:');
-        // En de geldigheid staat er nog wél, want die stond altijd al in de kop.
-        await expect(ui(page).preview).toContainText('Geldig tot:');
+        await verwachtVoorbeeld(page, {
+            // De geldigheid stond altijd al in de kop, en bewijst meteen dat het
+            // voorbeeld de offerte toont; pas dan zegt het ontbreken iets.
+            bevat: ['OFFERTE', 'Geldig tot:'],
+            bevatNiet: ['Opmerkingen:'],
+        });
     });
 
     test('een ingevulde notitie gaat wel mee naar het andere documenttype', async ({ page }) => {
@@ -203,7 +210,12 @@ test('een offerte zonder BIC laat die regel gewoon weg', async ({ page }) => {
 
     // Betaalgegevens horen niet op een offerte: er valt nog niets te betalen.
     await app.tab('Offerte').click();
-    expect(await previewText(page)).not.toContain('BIC');
+    await verwachtVoorbeeld(page, {
+        // De kop als anker: pas als die is omgeslagen toont het voorbeeld de
+        // offerte, en zegt het ontbreken van de BIC iets.
+        bevat: ['OFFERTE'],
+        bevatNiet: ['BIC'],
+    });
 });
 
 test('de geldigheidsdatum van een offerte is te wijzigen', async ({ page }) => {
@@ -238,9 +250,10 @@ test.describe('datums op het document', () => {
     const dutch = (isoDate: string) => isoDate.split('-').reverse().join('-');
 
     test('staan in Nederlandse notatie, niet in ISO', async ({ page }) => {
-        const text = await previewText(page);
-        expect(text).toContain(`Datum: ${dutch(iso())}`);
-        expect(text).not.toContain(`Datum: ${iso()}`);
+        await verwachtVoorbeeld(page, {
+            bevat: [`Datum: ${dutch(iso())}`],
+            bevatNiet: [`Datum: ${iso()}`],
+        });
     });
 
     test('een offerte toont tot wanneer hij geldig is', async ({ page }) => {
@@ -292,9 +305,12 @@ test.describe('offerte omzetten naar factuur', () => {
         await app.tab('Offerte').click();
         await app.convertToInvoice.click();
 
-        const tekst = await previewText(page);
-        expect(tekst).not.toContain('Geldig tot:');
-        expect(tekst).not.toContain('OFFERTE');
+        await verwachtVoorbeeld(page, {
+            // Het omgezette document is een factuur; die kop is het bewijs dat
+            // de omzetting daadwerkelijk in het voorbeeld is beland.
+            bevat: ['FACTUUR'],
+            bevatNiet: ['Geldig tot:', 'OFFERTE'],
+        });
     });
 
     test('de knop staat alleen op een offerte', async ({ page }) => {
@@ -307,18 +323,20 @@ test.describe('offerte omzetten naar factuur', () => {
 
 test.describe('de kop boven de klantgegevens', () => {
     test('een factuur factureert aan', async ({ page }) => {
-        const text = await previewText(page);
-        expect(text).toContain('FACTUREREN AAN:');
-        expect(text).not.toContain('OFFERTE VOOR:');
+        await verwachtVoorbeeld(page, {
+            bevat: ['FACTUREREN AAN:'],
+            bevatNiet: ['OFFERTE VOOR:'],
+        });
     });
 
     test('een offerte is voor iemand', async ({ page }) => {
         const app = ui(page);
         await app.tab('Offerte').click();
 
-        const text = await previewText(page);
-        expect(text).toContain('OFFERTE VOOR:');
-        expect(text).not.toContain('FACTUREREN AAN:');
+        await verwachtVoorbeeld(page, {
+            bevat: ['OFFERTE VOOR:'],
+            bevatNiet: ['FACTUREREN AAN:'],
+        });
     });
 });
 
@@ -355,9 +373,10 @@ test.describe('nummer en datum', () => {
 
 test.describe('een factuur heeft geen vervaldatum', () => {
     test('het document noemt er geen', async ({ page }) => {
-        const text = await previewText(page);
-        expect(text).toContain('Datum:');
-        expect(text).not.toContain('Vervaldatum');
+        await verwachtVoorbeeld(page, {
+            bevat: ['Datum:'],
+            bevatNiet: ['Vervaldatum'],
+        });
     });
 
     /**
@@ -383,12 +402,13 @@ test.describe('een factuur heeft geen vervaldatum', () => {
     test('de betaaltermijn staat alleen in de betalingsvoorwaarden', async ({ page }) => {
         const app = ui(page);
         await app.paymentTermDays.fill('30');
-        const text = await previewText(page);
-        expect(text).toContain('Binnen 30 dagen na factuurdatum.');
-        // Het aantal dagen staat er nu als getal in het formulier, maar nog
-        // steeds niet als losse vervaldatum op het document: die twee konden
-        // elkaar tegenspreken en daarom is dat veld er niet.
-        expect(text).not.toContain('Vervaldatum');
+        await verwachtVoorbeeld(page, {
+            bevat: ['Binnen 30 dagen na factuurdatum.'],
+            // Het aantal dagen staat er nu als getal in het formulier, maar nog
+            // steeds niet als losse vervaldatum op het document: die twee konden
+            // elkaar tegenspreken en daarom is dat veld er niet.
+            bevatNiet: ['Vervaldatum'],
+        });
     });
 
     test('een offerte houdt zijn tweede datumveld wel', async ({ page }) => {

@@ -1035,17 +1035,46 @@ visits, so they have their own tests.
 
 **A one-shot read is not an assertion.** `expect(await previewText(page)).toContain(x)` looks
 exactly once: if React has not painted yet, it fails, and no timeout can help because nothing
-retries. `await expect(app.preview).toContainText(x)` polls. The suite flaked for days on
-this and the cause was only found by deliberately oversubscribing — `--workers=16` on 16
-cores — where the error showed the preview still reading the value from *before* the input.
-The seventeen that read the preview straight after typing were converted. What is left is
-`await previewText(page)` into a variable that several `expect`s then read — **concentrated in
-`document.spec.ts`, `vat.spec.ts` and `items.spec.ts`**, which is where to look first if flakes
-return at normal worker counts. (This paragraph claimed "roughly a hundred" for a while; it was
-22 reads by the time anyone counted. Grep for the call rather than trusting a number here — the
-same reason the line count for `InvoiceForm` is deliberately rounded.) Negative assertions stay
-one-shot on purpose: a retrying *"does not contain"* can pass before the change has happened at
-all.
+retries. `await expect(app.preview).toContainText(x)` polls. They are all converted now, and
+`verwachtVoorbeeld` in `tests/helpers.ts` is the single way the suite asks what the document
+says. It takes `bevat` and `bevatNiet` because the two need opposite treatment: the positive
+side polls, the negative side reads once, since a retrying *"does not contain"* can pass before
+the change has happened at all. It **throws on a `bevatNiet` without a `bevat`**, because an
+absence only means something once something else proves the preview is up to date — otherwise
+"there is no BTW line" also passes on a preview that is still empty, which is a test that cannot
+fail. Four of those were sitting here.
+
+**`toContainText` reads `textContent`, which is not what you see**, so the helper passes
+`useInnerText: true`. The heading above the client block stands in the DOM as `Factureren aan:`
+while the screen says FACTUREREN AAN:, because that is `text-transform` doing it; `lib/taal.ts`
+stores the sentence-case string and only the PDF calls `.toUpperCase()`. `previewText` used
+`innerText` and therefore saw the uppercase form, so converting those two assertions silently
+changed what they compared against and both went red. Both halves of the helper read `innerText`
+now, because one whose two sides look at different text is worse than no helper at all.
+
+**Converting them was not what fixed the flakes, though, and the measurement is the only reason
+anyone knows.** With all 24 gone, `document.spec.ts` at `--workers=16 --repeat-each=6` still
+failed ten to twelve times out of 240 — and the failures were *retrying* assertions polling the
+full ten seconds against a field that never changed: `#bedrijf-naam` filled with a name, still
+reading `UW BEDRIJFSNAAM` after 24 polls. Nothing was racing the assertion; the **action** had
+been thrown away. `page.goto` returns the server-rendered HTML with the fields already in it, so
+`fill` and `click` land on it happily, and then React hydrates and resets the state to its
+initial value. Under oversubscription that window is wide enough to lose a whole action in, and
+nothing errors when it happens.
+
+So **every spec enters through `openApp`** (`goto` plus `waitForHydration`) rather than calling
+`page.goto` itself. That took 33 failures across ten specs to zero, over three runs of the whole
+suite at 16 workers. The hazard was already written down below for *reloads*, which is why
+`openFoldout` waits — nobody had applied it to the **first** load, because there the fields look
+ready, and in a quiet run they are. Use the helper even in a spec that only reads text: the
+point is that nobody has to judge per test which side of the line they are on, and judging per
+test is how this got in.
+
+**After a `page.reload()` the same rule holds, and an assertion is not the same as an action.** A
+retrying `expect` straight after a reload is self-gating, so most reloads here need nothing. One
+that *acts* does: `encryption.spec.ts` reloaded and then filled a price, which is the single site
+the suite still flaked on once the `openApp` pass was in, while its own sibling test four cases
+later already had the wait. Grep for `reload()` and check whether what follows acts or asserts.
 
 Timeouts are set deliberately in `playwright.config.ts`: **60s per test, 10s per assertion**.
 Playwright's defaults are 30s and 5s, and ten assertions across three specs had already been
@@ -1222,11 +1251,14 @@ Run the suite before and after any refactor. It exists precisely because
 - **The archive is unencrypted unless the user sets a passphrase**, and company details,
   the customer book and the numbering are unencrypted either way. See *The optional
   passphrase* above for why, and for what encryption does and does not buy.
-- Tests that depend on persisted state must call `waitForHydration` (or `openFoldout`,
-  which does it) after a reload. `readServerX` returning defaults means a section the
-  user had opened renders closed for one frame, and a click in that window toggles the
-  DOM behind React's back — which is exactly how three encryption tests failed before
-  the helper existed.
+- Tests must wait for hydration before they *act* on the page, and there are two ways in:
+  `openApp` for the first load (every spec uses it) and `waitForHydration` — or
+  `openFoldout`, which calls it — after a reload. `readServerX` returning defaults means a
+  section the user had opened renders closed for one frame, and a click in that window
+  toggles the DOM behind React's back, which is exactly how three encryption tests failed
+  before the helper existed. The same window also swallows a `fill` outright, since
+  hydration resets the state to its initial value; see *A one-shot read is not an
+  assertion* above, where that turned out to be the whole cause of the suite's flakiness.
 - **The tab icon exists twice, and the `.ico` is deliberately *not* in `app/`.**
   `app/icon.svg` is what the page declares, so browsers get a mark that is sharp at any
   size. But plenty of tooling never reads the HTML and simply fetches `/favicon.ico` —

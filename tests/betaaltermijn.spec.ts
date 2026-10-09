@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { ui, normalise, openFoldout } from './helpers';
+import { ui, normalise, openFoldout, openApp } from './helpers';
 
 /**
  * De betaaltermijn is een getal geworden, zodat de zin vertaald kan worden.
@@ -20,7 +20,7 @@ import { ui, normalise, openFoldout } from './helpers';
  * 4. Een document dat al uitgereikt was, blijft staan zoals het was.
  */
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 const vulFactuur = async (page: Page) => {
@@ -118,7 +118,7 @@ test.describe('wat er al in de opslag stond', () => {
 
     test('een zin met een getal erin wordt dat getal', async ({ page }) => {
         await metOudeInstellingen(page, 'Binnen 21 dagen na factuurdatum.');
-        await page.goto('/');
+        await openApp(page);
         const app = await vulFactuur(page);
 
         await openFoldout(page, 'Mijn Betaalgegevens');
@@ -134,7 +134,7 @@ test.describe('wat er al in de opslag stond', () => {
      */
     test('een zin zonder getal blijft als eigen tekst staan', async ({ page }) => {
         await metOudeInstellingen(page, 'Contant bij levering.');
-        await page.goto('/');
+        await openApp(page);
         const app = await vulFactuur(page);
 
         await openFoldout(page, 'Mijn Betaalgegevens');

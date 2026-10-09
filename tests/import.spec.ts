@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, openFoldout } from './helpers';
+import { ui, openFoldout, openApp } from './helpers';
 import { inspecteerBackup, vervangingsVraag } from '../lib/backup';
 
 /**
@@ -86,7 +86,7 @@ test.describe('het bestand nalopen voordat er iets gebeurt', () => {
 
 test.describe('in de app', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
     });
 
     /** Een bewaard document, zodat er iets te verliezen valt. */

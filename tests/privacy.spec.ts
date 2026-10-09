@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui } from './helpers';
+import { ui, openApp } from './helpers';
 import { STRIKT_BELEID } from '../lib/csp';
 import { analyticsHost, GOATCOUNTER_CODE, telpixelUrl, wilGeteldWorden } from '../lib/analytics';
 
@@ -151,7 +151,7 @@ test('het beleid staat een eigen worker toe, en niets van buiten', async () => {
 });
 
 test('de pagina draagt een beleid mee', async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
     const policy = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
     expect(policy).toContain("default-src 'self'");
 });

@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { ui, previewText } from './helpers';
+import { ui, verwachtVoorbeeld, openApp } from './helpers';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 /**
@@ -43,9 +43,7 @@ test('een bewaarde klant kiezen vult de velden', async ({ page }) => {
     await app.clientPicker.selectOption({ label: 'Jansen Bouw BV' });
 
     // De velden blijven ingeklapt; het document laat zien wie het geworden is.
-    const text = await previewText(page);
-    expect(text).toContain('Jansen Bouw BV');
-    expect(text).toContain('Utrecht');
+    await verwachtVoorbeeld(page, { bevat: ['Jansen Bouw BV', 'Utrecht'] });
 
     await app.editClient.click();
     await expect(app.clientName).toHaveValue('Jansen Bouw BV');

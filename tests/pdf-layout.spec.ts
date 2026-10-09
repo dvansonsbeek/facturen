@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, openFoldout } from './helpers';
+import { ui, openFoldout, openApp } from './helpers';
 import { extractPdfLayout, type PdfPageLayout } from './pdf-text';
 
 /**
@@ -45,7 +45,7 @@ const tabelregels = (pagina: PdfPageLayout) =>
     pagina.items.filter(item => /^Dienst \d+$/.test(item.text));
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('geen tekst buiten de marges', async ({ page }) => {

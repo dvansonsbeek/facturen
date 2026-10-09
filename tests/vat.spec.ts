@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { ui, previewText, previewHeaders } from './helpers';
+import { ui, previewHeaders, verwachtVoorbeeld, openApp } from './helpers';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('biedt alleen de Nederlandse btw-tarieven aan', async ({ page }) => {
@@ -14,11 +14,9 @@ test('rekent het algemene tarief van 21% door', async ({ page }) => {
     const app = ui(page);
     await app.itemPrice().fill('100');
 
-    const text = await previewText(page);
-    expect(text).toContain('Subtotaal:');
-    expect(text).toContain('BTW (21%):');
-    expect(text).toContain('€ 21,00');
-    expect(text).toContain('€ 121,00');
+    await verwachtVoorbeeld(page, {
+        bevat: ['Subtotaal:', 'BTW (21%):', '€ 21,00', '€ 121,00'],
+    });
 });
 
 test('rekent het verlaagde tarief van 9% door', async ({ page }) => {
@@ -26,10 +24,7 @@ test('rekent het verlaagde tarief van 9% door', async ({ page }) => {
     await app.itemPrice().fill('100');
     await app.itemVatRate().selectOption('9');
 
-    const text = await previewText(page);
-    expect(text).toContain('BTW (9%):');
-    expect(text).toContain('€ 9,00');
-    expect(text).toContain('€ 109,00');
+    await verwachtVoorbeeld(page, { bevat: ['BTW (9%):', '€ 9,00', '€ 109,00'] });
 });
 
 test('groepeert btw per tarief bij gemengde regels', async ({ page }) => {
@@ -39,10 +34,9 @@ test('groepeert btw per tarief bij gemengde regels', async ({ page }) => {
     await app.itemPrice(1).fill('100');
     await app.itemVatRate(1).selectOption('9');
 
-    const text = await previewText(page);
-    expect(text).toContain('BTW (21%):');
-    expect(text).toContain('BTW (9%):');
-    expect(text).toContain('€ 230,00'); // 200 + 21 + 9
+    await verwachtVoorbeeld(page, {
+        bevat: ['BTW (21%):', 'BTW (9%):', '€ 230,00'], // 200 + 21 + 9
+    });
 });
 
 test.describe('afronding op centen', () => {
@@ -59,12 +53,17 @@ test.describe('afronding op centen', () => {
         await app.itemPrice(1).fill('5.05');
         await app.itemVatRate(1).selectOption('9');
 
-        const text = await previewText(page);
-        expect(text).toContain('€ 7,07');   // subtotaal
-        expect(text).toContain('€ 0,42');   // btw 21%
-        expect(text).toContain('€ 0,45');   // btw 9%
-        expect(text).toContain('€ 7,94');   // totaal: 7,07 + 0,42 + 0,45
-        expect(text).not.toContain('€ 7,95');
+        await verwachtVoorbeeld(page, {
+            bevat: [
+                '€ 7,07',   // subtotaal
+                '€ 0,42',   // btw 21%
+                '€ 0,45',   // btw 9%
+                '€ 7,94',   // totaal: 7,07 + 0,42 + 0,45
+            ],
+            // Het hele punt van deze test: niet de uitkomst van afronden over
+            // het geheel. Pas te beoordelen als de vier hierboven er staan.
+            bevatNiet: ['€ 7,95'],
+        });
     });
 
     test('rondt een halve cent van nul af naar boven', async ({ page }) => {
@@ -73,9 +72,7 @@ test.describe('afronding op centen', () => {
         await app.itemPrice().fill('0.50');
         await app.itemVatRate().selectOption('21');
 
-        const text = await previewText(page);
-        expect(text).toContain('€ 0,11');
-        expect(text).toContain('€ 0,61');
+        await verwachtVoorbeeld(page, { bevat: ['€ 0,11', '€ 0,61'] });
     });
 });
 
@@ -90,12 +87,13 @@ test.describe('kleineondernemersregeling', () => {
             'Beschrijving', 'Aantal', 'Prijs', 'Totaal',
         ]);
 
-        const text = await previewText(page);
-        // Geen btw-regels, en geen subtotaal dat gelijk is aan het totaal.
-        expect(text).not.toContain('BTW (');
-        expect(text).not.toContain('Subtotaal');
-        expect(text).toContain('€ 100,00');
-        expect(text).not.toContain('€ 121,00');
+        await verwachtVoorbeeld(page, {
+            // Het bedrag is hier het anker: zodra dat er staat, is het voorbeeld
+            // opnieuw getekend en zegt het ontbreken van de rest iets.
+            bevat: ['€ 100,00'],
+            // Geen btw-regels, en geen subtotaal dat gelijk is aan het totaal.
+            bevatNiet: ['BTW (', 'Subtotaal', '€ 121,00'],
+        });
     });
 
     test('vermeldt de vrijstelling op het document', async ({ page }) => {
@@ -110,9 +108,13 @@ test.describe('kleineondernemersregeling', () => {
         await app.itemPrice().fill('100');
         await app.vatScheme.selectOption('kor');
 
-        const text = await previewText(page);
-        expect(text).not.toContain('0%');
-        expect(text).not.toContain('€ 0,00');
+        await verwachtVoorbeeld(page, {
+            // De vrijstellingszin als anker: die verschijnt pas als het regime
+            // echt is toegepast. Zonder dat zou "er staat geen 0%" ook slagen op
+            // een voorbeeld dat nog niet opnieuw getekend is.
+            bevat: ['art. 25 Wet OB 1968'],
+            bevatNiet: ['0%', '€ 0,00'],
+        });
     });
 
     test('behoudt het tarief van de regel na uit- en weer aanzetten', async ({ page }) => {

@@ -195,6 +195,26 @@ export const waitForHydration = (page: Page) =>
     expect(page.locator('html')).toHaveAttribute('data-theme', /^(light|dark)$/);
 
 /**
+ * Open de app, en wacht tot React er echt achter zit.
+ *
+ * `page.goto` levert de door de server getekende HTML, en de velden staan daar
+ * al in. Typen of klikken lukt dus meteen, maar React gooit dat weg zodra het
+ * hydrateert: de state begint bij de beginwaarde en niet bij wat er in de DOM
+ * staat. Onder druk — een trage machine, of meer workers dan kernen — duurt dat
+ * lang genoeg om er echt tussen te komen, en dan verdwijnt de handeling zonder
+ * dat er iets faalt. Een assertie die daarna tien seconden blijft kijken ziet
+ * nooit meer iets veranderen, dus helpt opnieuw proberen niet.
+ *
+ * Daarom gaat elke spec hierlangs naar binnen en niet via `page.goto` zelf.
+ * `waitForHydration` bestond al voor na een herlaadbeurt; dit is dezelfde val
+ * bij de eerste keer openen, en die kostte het meeste.
+ */
+export const openApp = async (page: Page, pad = '/') => {
+    await page.goto(pad);
+    await waitForHydration(page);
+};
+
+/**
  * Ensure a foldout section is open, idempotently.
  *
  * Decide on the <details open> attribute, never on whether a child is visible.
@@ -223,6 +243,65 @@ export const normalise = (text: string) => text.replace(/ /g, ' ');
 
 export const previewText = async (page: Page) =>
     normalise(await page.locator('.preview-wrapper .invoice-preview').innerText());
+
+/**
+ * Wat er op het document hoort te staan, en wat er niet mag staan.
+ *
+ * Twee soorten asserties die elk een andere behandeling nodig hebben, en het
+ * verschil is de reden dat dit een hulpmiddel is en geen handwerk per test.
+ *
+ * **Wat er wél staat, wordt afgewacht.** `expect(await previewText(page))` kijkt
+ * precies één keer: heeft React nog niet getekend, dan faalt hij, en geen
+ * timeout helpt want er wordt niets opnieuw geprobeerd. `toContainText` blijft
+ * het proberen.
+ *
+ * Dat was níet de oorzaak van het flakeren, hoe aannemelijk het ook klonk. Met
+ * alle 24 omgezet viel `document.spec.ts` onder `--workers=16` nog tien tot
+ * twaalf keer om, en wat er omviel waren juist de wachtende asserties: een veld
+ * dat na 24 pogingen nog steeds de beginwaarde gaf. Het typen zelf was
+ * weggegooid, en dat lost geen assertie op. Zie `openApp` hierboven. Dit blijft
+ * omdat een eenmalige lezing alsnog fout is, niet omdat het iets repareerde.
+ *
+ * **Wat er níet staat, wordt één keer gelezen.** Een herhalende "bevat niet"
+ * kan al slagen vóórdat de wijziging heeft plaatsgevonden, en meet dan niets.
+ *
+ * **En daarom eist dit minstens één `bevat`.** Een afwezigheid zegt alleen iets
+ * als vaststaat dat het voorbeeld bij is. Zonder anker slaagt "er staat geen
+ * BTW:" ook op een voorbeeld dat nog leeg is — een test die niet kán falen, en
+ * dat is erger dan een test die af en toe ten onrechte faalt. Vier van die
+ * gevallen stonden hier, en deze eis is wat voorkomt dat er een vijfde bij komt.
+ */
+export const verwachtVoorbeeld = async (
+    page: Page,
+    { bevat, bevatNiet = [] }: { bevat: (string | RegExp)[]; bevatNiet?: (string | RegExp)[] },
+) => {
+    if (bevat.length === 0) {
+        throw new Error(
+            'verwachtVoorbeeld heeft minstens één `bevat` nodig: zonder iets dat '
+            + 'moet verschijnen zegt "bevat niet" niets over een voorbeeld dat '
+            + 'misschien nog niet getekend is.',
+        );
+    }
+
+    const voorbeeld = page.locator('.preview-wrapper .invoice-preview');
+    // useInnerText, en dat moet: zonder die vlag kijkt toContainText naar
+    // textContent, en dat is de ruwe tekst uit de DOM. De kop boven de
+    // klantgegevens staat daar als "Factureren aan:" terwijl er op het scherm
+    // FACTUREREN AAN: staat, want dat doet CSS met text-transform. De
+    // `bevatNiet`-kant hieronder leest innerText, dus zonder deze vlag zouden de
+    // twee helften van deze functie naar verschillende tekst kijken.
+    for (const stuk of bevat) {
+        await expect(voorbeeld).toContainText(stuk, { useInnerText: true });
+    }
+
+    if (bevatNiet.length === 0) return;
+    // Pas hierna, en in één keer: nu staat vast dat het voorbeeld bij is.
+    const tekst = await previewText(page);
+    for (const stuk of bevatNiet) {
+        if (typeof stuk === 'string') expect(tekst, `"${stuk}" staat er wél`).not.toContain(stuk);
+        else expect(tekst, `${stuk} komt wél voor`).not.toMatch(stuk);
+    }
+};
 
 /** The preview's line-item table headers, e.g. ['Beschrijving', 'Aantal', ...]. */
 export const previewHeaders = (page: Page) =>

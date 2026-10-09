@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openApp } from './helpers';
 
 /**
  * Wat een zoekmachine en een deelknop van deze site zien.
@@ -57,7 +58,7 @@ test.describe('sitemap.xml', () => {
  */
 test.describe('het tabbladicoon', () => {
     test('de SVG is wat de pagina zelf aanwijst', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         const iconen = page.locator('link[rel="icon"]');
         await expect(iconen).toHaveCount(1);
         expect(await iconen.getAttribute('type')).toBe('image/svg+xml');
@@ -78,13 +79,13 @@ test.describe('het tabbladicoon', () => {
 
 test.describe('de eigen URL', () => {
     test('de hoofdpagina wijst naar zichzelf', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
         expect(canonical).toBe(DOMEIN);
     });
 
     test('en de voorwaarden naar hun eigen adres', async ({ page }) => {
-        await page.goto('/voorwaarden');
+        await openApp(page, '/voorwaarden');
         const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
         expect(canonical).toBe(`${DOMEIN}/voorwaarden`);
     });
@@ -95,7 +96,7 @@ test.describe('de eigen URL', () => {
      * keer in belandde.
      */
     test('og:url en de deelafbeelding zijn volledige adressen', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         const url = await page.locator('meta[property="og:url"]').getAttribute('content');
         const afbeelding = await page.locator('meta[property="og:image"]').getAttribute('content');
 
@@ -121,7 +122,7 @@ test.describe('gestructureerde gegevens', () => {
     };
 
     test('beschrijven een gratis webapplicatie', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         const d = await lees(page);
 
         expect(d['@type']).toBe('WebApplication');
@@ -136,7 +137,7 @@ test.describe('gestructureerde gegevens', () => {
 
     /** Geen naam van een maker, net als in LICENSE. Bewust, niet vergeten. */
     test('en noemen geen persoon of e-mailadres', async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
         const ruw = JSON.stringify(await lees(page));
 
         expect(ruw).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);

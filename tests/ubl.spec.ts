@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, openFoldout } from './helpers';
+import { ui, openFoldout, openApp } from './helpers';
 
 /**
  * De e-factuur (UBL / NLCIUS).
@@ -134,7 +134,7 @@ const ontleed = (page: import('@playwright/test').Page, xml: string) =>
     }, { xml, NS });
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openApp(page);
 });
 
 test('levert welvormde UBL met de Nederlandse inperking', async ({ page }) => {

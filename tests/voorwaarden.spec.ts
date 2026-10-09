@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { test, expect } from '@playwright/test';
-import { normalise } from './helpers';
+import { normalise, openApp } from './helpers';
 
 /**
  * De gebruiksvoorwaarden, en de verwijzing ernaar.
@@ -13,7 +13,7 @@ import { normalise } from './helpers';
  */
 test.describe('de verwijzing in de voettekst', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await openApp(page);
     });
 
     /**
@@ -40,7 +40,7 @@ test.describe('de verwijzing in de voettekst', () => {
 
 test.describe('de pagina zelf', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/voorwaarden');
+        await openApp(page, '/voorwaarden');
     });
 
     test('is rechtstreeks te openen', async ({ page }) => {
