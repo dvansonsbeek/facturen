@@ -151,6 +151,8 @@ export const ui = (page: Page) => ({
     archiveDialogClose: page.locator('dialog.archief-venster').getByRole('button', { name: 'Sluiten' }),
     /** Het voorbeeld binnen dat venster, los van het live voorbeeld ernaast. */
     archiveDialogPreview: page.locator('dialog.archief-venster .invoice-preview'),
+    /** Het archief als tabel, voor je boekhouder; zie lib/csv.ts. */
+    downloadCsv: page.getByRole('button', { name: 'Overzicht als CSV' }),
     /**
      * De melding onder het formulier (bewaren, dupliceren, e-factuur).
      *

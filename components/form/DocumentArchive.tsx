@@ -21,6 +21,14 @@ interface DocumentArchiveProps {
     onDownloadUbl: (bewaard: BewaardDocument) => void;
     /** Maakt een creditfactuur die deze factuur terugneemt. */
     onCredit: (bewaard: BewaardDocument) => void;
+    /**
+     * Het overzicht als CSV, voor je boekhouder. Krijgt wat er zichtbaar is.
+     *
+     * readonly, want de opslag geeft een bevroren lijst terug: readDocuments
+     * levert dezelfde referentie zolang er niets wijzigt, en die mag niemand
+     * onderweg aanpassen.
+     */
+    onDownloadCsv: (zichtbaar: readonly BewaardDocument[]) => void;
 }
 
 /**
@@ -60,7 +68,7 @@ const ZOEKVELD_VANAF = 6;
 
 export default function DocumentArchive({
     documenten, opslagWerkt, vergrendeld, open, onToggle,
-    onDuplicate, onDelete, onDownload, onDownloadUbl, onCredit,
+    onDuplicate, onDelete, onDownload, onDownloadUbl, onCredit, onDownloadCsv,
 }: DocumentArchiveProps) {
     const [bekeken, setBekeken] = useState<BewaardDocument | null>(null);
     const [zoek, setZoek] = useState('');
@@ -138,6 +146,25 @@ export default function DocumentArchive({
                                 )}
                             </div>
                         )}
+
+                        {/* Naast het zoekveld en boven de lijst, want het hoort bij
+                            wat je ziet: gefilterd krijg je de filtering mee. Niet
+                            zichtbaar bij een vergrendeld archief, want dan is er
+                            niets te lezen om weg te schrijven. */}
+                        <div style={{ marginBottom: '1rem' }}>
+                            <button
+                                className="premium-btn compact"
+                                onClick={() => onDownloadCsv(zichtbaar)}
+                                disabled={zichtbaar.length === 0}
+                            >
+                                <Download size={14} /> <span>Overzicht als CSV</span>
+                            </button>
+                            <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                Een tabel met nummer, datum, klant, btw en bedrag, om door te
+                                sturen naar je boekhouder. Opent in Excel of Numbers.
+                                {zoekterm !== '' && ' Je krijgt wat er nu in de lijst staat.'}
+                            </p>
+                        </div>
 
                         {zichtbaar.length === 0 ? (
                             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>

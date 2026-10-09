@@ -15,6 +15,7 @@ import { dataUrlBytes, downscaleImage } from "@/lib/image";
 import { stampPageNumbers } from "@/lib/page-numbers";
 import { buildUblInvoice, ontbrekendeVelden, ublFilename } from "@/lib/ubl";
 import { inspecteerBackup, vervangingsVraag } from "@/lib/backup";
+import { documentenAlsCsv, csvBestandsnaam } from "@/lib/csv";
 import {
     subscribeFoldouts, readFoldouts, readServerFoldouts, writeFoldout,
 } from "@/lib/foldouts";
@@ -551,6 +552,30 @@ export default function InvoiceForm() {
         metPdfMelding(downloadPdf(bewaard.document, bewaard.soort === 'offerte', bewaard.nummer));
 
     /**
+     * Het archief als tabel, voor je boekhouder.
+     *
+     * Export schrijft JSON en is een reservekopie: bedoeld om terug te zetten,
+     * niet om te lezen. Dit is het andere doel, en het enige antwoord dat deze
+     * app op "koppeling met de boekhouding" kan geven zonder een server en
+     * daarmee een verwerker te introduceren. Zie lib/csv.ts voor de opzet.
+     *
+     * Wat er in het bestand komt is wat je op het scherm ziet staan: heb je op
+     * een jaartal gezocht, dan krijg je dat jaar. Dat is bijna altijd wat je
+     * bedoelt, en het aantal staat al boven de lijst.
+     */
+    const handleDownloadCsv = (zichtbaar: readonly BewaardDocument[]) => {
+        const blob = new Blob([documentenAlsCsv(zichtbaar)], {
+            type: 'text/csv;charset=utf-8',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = csvBestandsnaam();
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    /**
      * Legt het document vast in het archief.
      *
      * Dit hoogt het nummer niet op. Bewaren en de reeks doorschuiven zijn twee
@@ -938,6 +963,7 @@ export default function InvoiceForm() {
                         onDownload={handleDownloadSaved}
                         onDownloadUbl={(bewaard) => handleDownloadUbl(bewaard.document as Invoice)}
                         onCredit={handleCreditDocument}
+                        onDownloadCsv={handleDownloadCsv}
                     />
 
                     <ClientDetails

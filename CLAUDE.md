@@ -72,6 +72,7 @@ lib/
   csp.ts             the Content-Security-Policy the page ships with
   analytics.ts       the GoatCounter visit pixel, off unless configured
   backup.ts          the Export/Import file format: builds it and vets it
+  csv.ts             the archive as a table for the bookkeeper
   utils.ts           formatting (currency, date, IBAN) + all VAT arithmetic
   vat-schemes.ts     the VAT regime: statement on paper + UBL category
   countries.ts       country names to ISO codes, and who is in the EU
@@ -497,6 +498,29 @@ and someone typing "2026" means both. It appears only from six documents: below 
 see everything and a search box is clutter. The "1 van 7 documenten" count is load-bearing —
 without it a filtered list reads like an archive something has vanished from, which is the
 wrong fright to give someone about their own invoices.
+
+**CSV is the only "bookkeeping link" this architecture can offer, and that is the point.**
+A real integration needs a server and therefore a verwerker — the one thing this app does
+not have. A file you forward yourself asks nobody's permission. Export already existed but
+is a *backup*: JSON meant to be restored, not read, while the terms page tells people to
+keep seven years and anyone who keeps seven years eventually gets asked for an overview.
+`lib/csv.ts` writes number, date, client, country, VAT treatment, subtotal, discount, VAT
+per rate and total.
+
+Three details decide whether it arrives readable, and none is cosmetic: **semicolons with
+comma decimals** (a comma-separated file with `.` decimals lands in one column in Dutch
+Excel, and `1234,56` would be split in half), a **UTF-8 BOM** (without it Excel reads
+Latin-1 and "Müller GmbH" becomes "MÃ¼ller GmbH"), and **quoting** any field containing the
+separator. All three are tested, because this is exactly the kind of thing that looks fine
+to the author and is unusable for the recipient.
+
+**A credit note is negative here, unlike on paper.** Not a contradiction but a different
+reader: on a document a person sees *Te crediteren* above the amount, in a column a
+spreadsheet sums. Without the sign the total is wrong, and summing is the only thing anyone
+does with this file. The Soort column still says what each row is.
+
+The button exports **what is on screen** — filtered if you searched — because filtering by
+year is the common case and the count is already shown above the list.
 
 Deletion *is* allowed, with a confirmation. Data you cannot get back out of your own
 browser is a worse outcome than data you can delete by accident; Export carries the
