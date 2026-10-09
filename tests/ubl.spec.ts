@@ -492,6 +492,50 @@ test.describe('landcodes', () => {
         expect(xml).toContain('<cbc:IdentificationCode>DE</cbc:IdentificationCode>');
     });
 
+    /**
+     * En dat geldt ook voor je eigen land, wat het lang niet deed.
+     *
+     * Alleen de klant werd nagekeken. Een tikfout in je eigen adres viel in
+     * `adres()` terug op NL en ging zo de deur uit — dezelfde fout als bij die
+     * Belgische klant hierboven, alleen aan de andere kant van het document en
+     * door niemand opgemerkt. Dat het meestal goed uitvalt omdat deze app een
+     * Nederlands btw-nummer eist, maakt het niet juist.
+     */
+    test('ook een onbekend eigen land wordt geweigerd, niet geraden', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await openFoldout(page, 'Mijn Bedrijfsgegevens');
+        await app.companyCountry.fill('Nederlnad');
+
+        await app.downloadUbl.click();
+        await expect(app.status.filter({ hasText: 'je eigen land' })).toBeVisible();
+    });
+
+    test('en een eigen land dat wél herkend wordt gaat gewoon mee', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await openFoldout(page, 'Mijn Bedrijfsgegevens');
+        // Vier schrijfwijzen die allemaal NL horen op te leveren; leeg ook,
+        // want het formulier zegt "alleen invullen bij buitenlandse klanten".
+        await app.companyCountry.fill('The Netherlands');
+
+        const { xml } = await haalUbl(page);
+        expect(xml).toContain('<cbc:IdentificationCode>NL</cbc:IdentificationCode>');
+    });
+
+    test('de BIC gaat mee als die is ingevuld', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await openFoldout(page, 'Mijn Betaalgegevens');
+        await app.bic.fill('ABNANL2A');
+
+        const { xml } = await haalUbl(page);
+        expect(xml).toContain('<cac:FinancialInstitutionBranch><cbc:ID>ABNANL2A</cbc:ID>');
+    });
+
+    test('en blijft weg als die er niet is, want een leeg element is geen gegeven', async ({ page }) => {
+        await vulVolledigeFactuur(page);
+        const { xml } = await haalUbl(page);
+        expect(xml).not.toContain('FinancialInstitutionBranch');
+    });
+
     test('een onbekend land wordt niet geraden maar geweigerd', async ({ page }) => {
         const app = await vulVolledigeFactuur(page);
         await app.clientCountry.fill('Verweggistan');

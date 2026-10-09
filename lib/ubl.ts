@@ -214,6 +214,22 @@ export const ontbrekendeVelden = (data: Invoice): string[] => {
 
     // Een land dat we niet kennen zou anders als NL de deur uit gaan, en dat is
     // een onwaarheid op een factuur. Liever weigeren dan gokken.
+    //
+    // Voor allebei de partijen, en dat ontbrak: alleen de klant werd nagekeken.
+    // Lib/countries.ts zei al dat EN 16931 de code "voor zowel de afzender als
+    // de ontvanger" verplicht stelt en dat deze functie het meldt, en de
+    // opmerking bij `adres()` hieronder beloofde dat de export dan tegengehouden
+    // zou worden. Voor je eigen adres was dat geen van beide waar: een tikfout
+    // in je eigen land ging stilletjes als NL de deur uit.
+    //
+    // Dat valt hier meestal goed uit, want deze app vraagt een KvK-nummer en een
+    // Nederlands btw-nummer, dus de afzender ís Nederlands. Maar goed uitvallen
+    // is iets anders dan kloppen, en dit is precies de fout die bij de klant wél
+    // is opgemerkt: elke Belgische klant kreeg ooit NL mee.
+    if (!landcode(data.sender.country)) {
+        ontbreekt.push(`een landcode voor je eigen land "${data.sender.country}" (twee letters, bijvoorbeeld NL)`);
+    }
+
     const land = landcode(data.client.country);
     if (!land) {
         ontbreekt.push(`een landcode voor "${data.client.country}" (twee letters, bijvoorbeeld DE)`);
@@ -254,7 +270,10 @@ const adres = (
     '<cac:Country>',
     // Onbekend land valt hier terug op NL om het bestand welvormd te houden;
     // `ontbrekendeVelden` houdt de export dan al tegen, zodat het nooit zover
-    // komt dat er een verzonnen code de deur uit gaat.
+    // komt dat er een verzonnen code de deur uit gaat. Die belofte gold lange
+    // tijd alleen voor de klant: het land van de afzender werd nergens
+    // nagekeken, en dit terugvallen was daar dus geen vangnet maar de enige
+    // uitkomst. Nu kijkt die functie naar allebei.
     tag('cbc:IdentificationCode', landcode(p.country) ?? 'NL'),
     '</cac:Country>',
     '</cac:PostalAddress>',

@@ -30,6 +30,8 @@ export const ui = (page: Page) => ({
     // Op de id: de klant heeft sinds kort dezelfde voorbeeldplaceholder, en een
     // selector op "12345678" wees daardoor naar twee velden tegelijk.
     companyKvk: page.locator('#bedrijf-kvk'),
+    /** Je eigen land. Gaat als landcode de e-factuur in, net als dat van de klant. */
+    companyCountry: page.locator('#bedrijf-land'),
     exportSettings: page.getByRole('button', { name: 'Export', exact: true }),
     clearSettings: page.getByRole('button', { name: 'Wissen', exact: true }),
 
@@ -87,6 +89,10 @@ export const ui = (page: Page) => ({
 
     // Betaalgegevens
     iban: page.locator('input[placeholder="NLxx XXXX XXXX XXXX XX"]'),
+    /** De BIC bij het rekeningnummer; komt op het document en in de e-factuur. */
+    bic: page.locator('#bic'),
+    /** De einddatum van een offerte. Alleen daar: een factuur heeft er geen. */
+    validUntil: page.locator('#geldig-tot'),
     /** De betaaltermijn als getal; hieruit komt de zin op het document. */
     paymentTermDays: page.locator('#betaaltermijn'),
     /** De eigen tekst die in plaats van die zin komt. */

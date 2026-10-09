@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ui, previewText } from './helpers';
+import { ui, previewText, openFoldout } from './helpers';
 
 test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -179,6 +179,41 @@ test('betalingsvoorwaarden zijn te wijzigen', async ({ page }) => {
     // de eigen tekst ernaast heeft zijn eigen tests in betaaltermijn.spec.ts.
     await app.paymentTermDays.fill('45');
     await expect(ui(page).preview).toContainText('Binnen 45 dagen na factuurdatum.');
+});
+
+/**
+ * Twee velden die nergens werden aangeraakt, gevonden door alle bedienings-
+ * elementen met een id naast de suite te leggen in plaats van te bedenken wat er
+ * gedekt zou zijn. Allebei komen ze op het document terecht, en de BIC gaat ook
+ * de e-factuur in; daar stond dus niets tussen de invoer en de klant.
+ */
+test('de BIC komt op de factuur te staan', async ({ page }) => {
+    const app = ui(page);
+    await openFoldout(page, 'Mijn Betaalgegevens');
+    await app.iban.fill('NL91ABNA0417164300');
+    await app.bic.fill('ABNANL2A');
+
+    await expect(app.preview).toContainText('BIC: ABNANL2A');
+});
+
+test('een offerte zonder BIC laat die regel gewoon weg', async ({ page }) => {
+    const app = ui(page);
+    await openFoldout(page, 'Mijn Betaalgegevens');
+    await app.bic.fill('ABNANL2A');
+
+    // Betaalgegevens horen niet op een offerte: er valt nog niets te betalen.
+    await app.tab('Offerte').click();
+    expect(await previewText(page)).not.toContain('BIC');
+});
+
+test('de geldigheidsdatum van een offerte is te wijzigen', async ({ page }) => {
+    const app = ui(page);
+    await app.tab('Offerte').click();
+    // De standaard is factuurdatum plus dertig dagen; dat wordt elders getoetst.
+    // Hier gaat het erom dat je hem ook zélf kunt zetten, want dat deed niets.
+    await app.validUntil.fill('2026-12-24');
+
+    await expect(app.preview).toContainText('Geldig tot: 24-12-2026');
 });
 
 test.describe('standaard documentnummer', () => {
