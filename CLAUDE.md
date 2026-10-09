@@ -894,10 +894,14 @@ exactly once: if React has not painted yet, it fails, and no timeout can help be
 retries. `await expect(app.preview).toContainText(x)` polls. The suite flaked for days on
 this and the cause was only found by deliberately oversubscribing — `--workers=16` on 16
 cores — where the error showed the preview still reading the value from *before* the input.
-The seventeen that read the preview straight after typing were converted; **roughly a hundred
-one-shot reads remain**, so if flakes return at normal worker counts, that is where to look.
-Negative assertions stay one-shot on purpose: a retrying *"does not contain"* can pass before
-the change has happened at all.
+The seventeen that read the preview straight after typing were converted. What is left is
+`await previewText(page)` into a variable that several `expect`s then read — **concentrated in
+`document.spec.ts`, `vat.spec.ts` and `items.spec.ts`**, which is where to look first if flakes
+return at normal worker counts. (This paragraph claimed "roughly a hundred" for a while; it was
+22 reads by the time anyone counted. Grep for the call rather than trusting a number here — the
+same reason the line count for `InvoiceForm` is deliberately rounded.) Negative assertions stay
+one-shot on purpose: a retrying *"does not contain"* can pass before the change has happened at
+all.
 
 Timeouts are set deliberately in `playwright.config.ts`: **60s per test, 10s per assertion**.
 Playwright's defaults are 30s and 5s, and ten assertions across three specs had already been

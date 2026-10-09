@@ -1,7 +1,11 @@
 import type { Discount } from "@/types";
 
+// nl-NL en niet nl-BE. Dat laatste stond er nog uit de Belgische oorsprong van
+// deze fork. Voor euro's levert het exact dezelfde tekst op — nagegaan op
+// 1234,56, 0, -50,50 en een miljoen — dus dit repareert geen fout maar haalt
+// een verkeerd land uit een app die verder helemaal op Nederland staat.
 export const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('nl-BE', {
+    return new Intl.NumberFormat('nl-NL', {
         style: 'currency',
         currency: 'EUR',
     }).format(amount);
