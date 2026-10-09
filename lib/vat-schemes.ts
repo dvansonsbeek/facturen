@@ -1,4 +1,5 @@
-import { Invoice, Quotation, VatScheme } from "@/types";
+import { Invoice, Quotation, Taal, VatScheme } from "@/types";
+import { teksten } from "@/lib/taal";
 
 /**
  * De btw-behandeling van een document.
@@ -60,8 +61,20 @@ export interface VatSchemeInfo {
      * Belastingdienst bij.
      */
     voorwaarde?: string;
-    /** De vermelding op het document. Leeg bij `normaal`. */
-    statement: string;
+    /**
+     * De vermelding op het document, per taal. Leeg bij `normaal`.
+     *
+     * Een Record en geen los Engels veld, zodat TypeScript weigert een regime
+     * toe te voegen zonder vertaling. Dit is de zin die de btw-behandeling
+     * juridisch draagt; die stilletjes in het Nederlands laten staan op een
+     * Engelstalige factuur is precies de fout die je niet wilt kunnen maken.
+     *
+     * Geen validator kijkt hiernaar — de Schematron ziet alleen de categorie,
+     * net zoals hij het verschil tussen E en Z niet ziet. Deze zinnen zijn dus
+     * even zorgvuldig gekozen als de Nederlandse, en even goed het nakijken
+     * waard door iemand met verstand van de Wet OB.
+     */
+    statement: Record<Taal, string>;
     /** De UBL-categorie (EN 16931). Null bij `normaal`: die volgt het tarief per regel. */
     ublCategory: 'E' | 'AE' | 'K' | 'G' | 'O' | 'Z' | null;
     /**
@@ -77,7 +90,7 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
     normaal: {
         label: 'Normaal — btw volgens het tarief per regel',
         hint: 'De gewone situatie: 21% of 9% per regel, of 0% als dat het juiste tarief is.',
-        statement: '',
+        statement: { nl: '', en: '' },
         ublCategory: null,
         requiresClientVat: false,
     },
@@ -90,15 +103,22 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
            steeds voor wie de afkorting niet kent. */
         label: 'KOR — vrijgesteld van btw (kleineondernemersregeling)',
         hint: 'Je bent aangemeld voor de KOR. Er mag dan geen btw op de factuur staan.',
-        statement:
-            'Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).',
+        statement: {
+            nl: 'Vrijgesteld van btw op grond van de kleineondernemersregeling (art. 25 Wet OB 1968).',
+            // Het wetsartikel blijft in het Nederlands staan: een vertaalde
+            // verwijzing is niet op te zoeken.
+            en: 'Exempt from VAT under the Dutch small businesses scheme (art. 25 Wet OB 1968).',
+        },
         ublCategory: 'E',
         requiresClientVat: false,
     },
     verlegd: {
         label: 'Btw verlegd naar de afnemer',
         hint: 'De verleggingsregeling, bijvoorbeeld bij onderaanneming in de bouw of bij uitlenen van personeel. Je klant draagt de btw af.',
-        statement: 'Btw verlegd naar de afnemer. Verleggingsregeling van toepassing.',
+        statement: {
+            nl: 'Btw verlegd naar de afnemer. Verleggingsregeling van toepassing.',
+            en: 'VAT reverse-charged to the customer. The reverse-charge mechanism applies.',
+        },
         ublCategory: 'AE',
         requiresClientVat: true,
     },
@@ -109,7 +129,10 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
             'Twee dingen moet je zelf doen: het btw-nummer van je klant controleren in '
             + 'VIES, en deze levering opnemen in je opgaaf ICP bij de Belastingdienst. '
             + 'Ontbreekt die opgaaf, dan kan het 0%-tarief alsnog worden geweigerd.',
-        statement: 'Intracommunautaire levering, 0% btw.',
+        statement: {
+            nl: 'Intracommunautaire levering, 0% btw.',
+            en: 'Intra-Community supply, 0% VAT.',
+        },
         ublCategory: 'K',
         requiresClientVat: true,
     },
@@ -120,7 +143,10 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
             'Dit gaat over goederen. Het 0%-tarief geldt alleen als je kunt aantonen dat '
             + 'ze de EU verlaten hebben: bewaar de douaneaangifte ten uitvoer en de '
             + 'vervoersdocumenten. Lever je een dienst, kies dan de regel hieronder.',
-        statement: 'Uitvoer buiten de EU, 0% btw.',
+        statement: {
+            nl: 'Uitvoer buiten de EU, 0% btw.',
+            en: 'Export outside the EU, 0% VAT.',
+        },
         ublCategory: 'G',
         requiresClientVat: false,
     },
@@ -152,7 +178,10 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
             'Dit is geen nultarief maar buiten de Nederlandse heffing: je geeft deze '
             + 'dienst niet op in je btw-aangifte, en een opgaaf ICP hoort er niet bij. '
             + 'Gaat het om goederen, kies dan de regel hierboven.',
-        statement: 'Dienst niet belast in Nederland; btw verschuldigd in het land van de afnemer.',
+        statement: {
+            nl: 'Dienst niet belast in Nederland; btw verschuldigd in het land van de afnemer.',
+            en: "Service not taxable in the Netherlands; VAT due in the customer's country.",
+        },
         ublCategory: 'O',
         requiresClientVat: false,
     },
@@ -175,7 +204,7 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
     nultarief: {
         label: 'Nultarief — 0% btw om een andere reden',
         hint: 'Niet meer te kiezen; gebruik het gewone regime met 0% per regel.',
-        statement: '0% btw.',
+        statement: { nl: '0% btw.', en: '0% VAT.' },
         ublCategory: 'Z',
         requiresClientVat: false,
     },
@@ -203,8 +232,8 @@ export const schemeOf = (data: Pick<Invoice | Quotation, 'vatScheme' | 'isVatExe
 export const chargesVat = (scheme: VatScheme): boolean => scheme === 'normaal';
 
 /** De vermelding die op het document hoort, of null als er geen nodig is. */
-export const statementFor = (scheme: VatScheme): string | null =>
-    VAT_SCHEMES[scheme].statement || null;
+export const statementFor = (scheme: VatScheme, taal: Taal = 'nl'): string | null =>
+    VAT_SCHEMES[scheme].statement[taal] || null;
 
 /**
  * De aanvulling met het btw-nummer van de afnemer.
@@ -214,7 +243,11 @@ export const statementFor = (scheme: VatScheme): string | null =>
  * hier niets te melden — verzinnen kan niet. Het formulier waarschuwt, en de
  * e-factuur weigert; zie `ontbrekendeVelden` in lib/ubl.ts.
  */
-export const clientVatStatement = (scheme: VatScheme, clientVat?: string): string | null =>
+export const clientVatStatement = (
+    scheme: VatScheme,
+    clientVat?: string,
+    taal: Taal = 'nl',
+): string | null =>
     VAT_SCHEMES[scheme].requiresClientVat && clientVat?.trim()
-        ? `Btw-nummer afnemer: ${clientVat.trim()}.`
+        ? teksten(taal).btwNummerAfnemer(clientVat.trim())
         : null;

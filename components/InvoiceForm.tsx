@@ -2,8 +2,9 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { Plus, Download, FileText, FileCode, Briefcase, Upload, Moon, Sun, Trash2, Save } from "lucide-react";
-import { Invoice, Quotation, LineItem, Sender, Client, VatScheme } from "@/types";
+import { Invoice, Quotation, LineItem, Sender, Client, Taal, VatScheme } from "@/types";
 import { chargesVat, schemeOf, VAT_SCHEMES, VAT_SCHEME_ORDER } from "@/lib/vat-schemes";
+import { TAAL_NAMEN, TAAL_ORDER } from "@/lib/taal";
 import { generateId } from "@/lib/utils";
 import { subscribeTheme, readTheme, readServerTheme, writeTheme } from "@/lib/theme";
 import {
@@ -136,6 +137,7 @@ export default function InvoiceForm() {
             // Expliciet en niet via het oude isVatExempt: dat veld is er alleen
             // nog om bewaarde documenten van vóór deze keuze te kunnen lezen.
             vatScheme: 'normaal',
+            taal: 'nl',
             notes: "",
         };
     });
@@ -149,6 +151,7 @@ export default function InvoiceForm() {
             client: emptyClient(),
             items: [defaultItem()],
             vatScheme: 'normaal',
+            taal: 'nl',
             notes: OFFERTE_STANDAARDTEKST,
         };
     });
@@ -265,6 +268,10 @@ export default function InvoiceForm() {
             // werk, geen vaste instelling; bleef hij staan, dan bracht je
             // volgende maand ongemerkt te weinig in rekening.
             discount: undefined,
+            // De taal blijft juist wél staan, en dat is net zo'n bewuste keuze.
+            // Deze knop laat de klant staan, en de taal hoort bij die klant:
+            // hem terugzetten op Nederlands zou de volgende factuur aan
+            // dezelfde Duitse opdrachtgever stilletjes onleesbaar maken.
         }));
     };
 
@@ -304,6 +311,11 @@ export default function InvoiceForm() {
             // Via schemeOf en niet rechtstreeks: anders valt een document met
             // een regime terug op "normaal" en staat er ineens btw op.
             vatScheme: schemeOf(source),
+            // Om dezelfde reden als het regime: de taal hoort bij de klant aan
+            // wie je schrijft, niet bij het soort document. Een offerte in het
+            // Engels die als Nederlandse factuur terugkomt, is een fout die je
+            // pas ziet als je klant hem niet begrijpt.
+            taal: source.taal ?? 'nl',
             notes: eigenNotitie || prev.notes,
             // Net als het regime hierboven: een korting hoort bij het document,
             // niet bij het soort. Bleef hij hier staan, dan verdween een
@@ -339,6 +351,9 @@ export default function InvoiceForm() {
             client: { ...quotation.client },
             items: quotation.items.map(item => ({ ...item })),
             vatScheme: schemeOf(quotation),
+            // De klant die de offerte accepteerde las hem in deze taal; de
+            // factuur erna hoort dezelfde te zijn.
+            taal: quotation.taal ?? 'nl',
             // Een omgezette offerte is een gewone factuur, ook als er net nog
             // een creditfactuur op dit tabblad stond.
             creditOf: undefined,
@@ -370,6 +385,13 @@ export default function InvoiceForm() {
     // Het tarief per regel blijft staan: het regime bepaalt alleen of er btw
     // berekend en vermeld wordt, zodat de tarieven terugkomen als je terugzet.
     const vatScheme = schemeOf(currentData);
+    // Afwezig is Nederlands, net als bij het regime: zo blijft een bewaard
+    // document van vóór deze keuze renderen zoals het is uitgereikt.
+    const documentTaal: Taal = currentData.taal ?? 'nl';
+    // Ingevuld én niet Nederland. Leeg betekent binnenland (zie het veld bij
+    // Klantgegevens), dus dan valt er niets te suggereren.
+    const land = currentData.client.country?.trim() ?? '';
+    const buitenlandseKlant = land !== '' && !/^(nederland|nl|the netherlands|netherlands)$/i.test(land);
 
     /**
      * Een logo wordt als data-URL in localStorage bewaard, en die opslag is
@@ -540,6 +562,9 @@ export default function InvoiceForm() {
             client: { ...bewaard.document.client },
             items: bewaard.document.items.map(item => ({ ...item, id: generateId() })),
             vatScheme: schemeOf(bewaard.document),
+            // Uit het bewaarde stuk: een duplicaat herhaalt het document dat je
+            // uitreikte, en dat was in deze taal.
+            taal: bewaard.document.taal ?? 'nl',
             // Een duplicaat van een creditfactuur crediteert dezelfde factuur;
             // zonder dit zou het een gewone factuur worden en zou het bedrag de
             // verkeerde kant op gaan.
@@ -583,6 +608,9 @@ export default function InvoiceForm() {
             // Hetzelfde btw-regime als het origineel: je neemt precies terug
             // wat je in rekening hebt gebracht, inclusief de behandeling ervan.
             vatScheme: schemeOf(origineel),
+            // Een creditfactuur hoort bij de factuur die hij terugneemt, dus
+            // ook in dezelfde taal: je klant legt de twee naast elkaar.
+            taal: origineel.taal ?? 'nl',
             creditOf: { number: bewaard.nummer, date: origineel.date },
             buyerReference: origineel.buyerReference,
             deliveryDate: undefined,
@@ -1025,6 +1053,43 @@ export default function InvoiceForm() {
                                     <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
                                         De e-factuur neemt de factuurdatum als leverdatum. Vul
                                         <strong> Datum levering/dienst</strong> in als dat niet klopt.
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* De taal van het document staat naast de btw-behandeling,
+                                want ze volgen allebei uit wie je klant is en waar hij
+                                zit. Alleen het document gaat mee: dit formulier blijft
+                                Nederlands, want jij bent dat. */}
+                            <div className="label-group">
+                                <label htmlFor="documenttaal">Taal van het document</label>
+                                <select
+                                    id="documenttaal"
+                                    value={documentTaal}
+                                    onChange={(e) => updateDocument({ taal: e.target.value as Taal })}
+                                    style={{ width: '100%' }}
+                                    aria-describedby="documenttaal-uitleg"
+                                >
+                                    {TAAL_ORDER.map((naam) => (
+                                        <option key={naam} value={naam}>{TAAL_NAMEN[naam]}</option>
+                                    ))}
+                                </select>
+                                <p id="documenttaal-uitleg" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                    Dit vertaalt de vaste tekst op het document: de koppen, de
+                                    kolommen, het betaalverzoek en de btw-vermelding. Wat je zelf
+                                    intypt blijft staan zoals je het schreef, dus je omschrijvingen,
+                                    je eenheden en je betalingsvoorwaarden zet je er zelf in het
+                                    Engels bij. Dit scherm blijft Nederlands, en de e-factuur
+                                    verandert niet: die draagt codes en geen woorden.
+                                </p>
+                                {/* Alleen aanbieden, niet opdringen: het land zegt niet
+                                    welke taal je klant leest. Een Duitse GmbH heeft vaak
+                                    een Engelstalige boekhouding, en andersom zit er in
+                                    Nederland genoeg buitenlands personeel. */}
+                                {documentTaal === 'nl' && buitenlandseKlant && (
+                                    <p role="status" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--secondary)' }}>
+                                        Je klant zit in {currentData.client.country}. Engels is
+                                        hier misschien handiger.
                                     </p>
                                 )}
                             </div>

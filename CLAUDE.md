@@ -87,6 +87,7 @@ lib/
   crypto.ts          AES-256-GCM + PBKDF2 primitives
   foldouts.ts        which sections the user collapsed, persisted
   image.ts           downscales an uploaded logo so it fits in localStorage
+  taal.ts            what the *document* says, per language; the app stays Dutch
   page-numbers.ts    stamps "pagina 1 van 2" onto the finished PDF
   payment-qr.ts      the EPC069-12 payment QR: payload + module matrix
   ubl.ts             the e-factuur: the same invoice as UBL/NLCIUS XML
@@ -372,6 +373,43 @@ and nothing else states it.
 **Other NL specifics:** VAT number format `NL123456789B01`; the KvK number is required
 on invoices by the Handelsregisterwet (independent of VAT law); Dutch IBANs are 18
 characters.
+
+## The document can be English; the app cannot
+
+`lib/taal.ts` holds every fixed string the document prints, per language. `Invoice.taal`
+picks one, per document, exactly like the VAT regime.
+
+**The app's interface stays Dutch, deliberately.** The user is a Dutch entrepreneur and
+reads the form fine; it is their *client* in Stuttgart or Chicago who could not read the
+output. Scoping it to the document rather than doing i18n of the app is what makes this a
+small feature instead of a rewrite.
+
+**It exists because the VAT work made it necessary.** Three of the six regimes — `icp`,
+`export`, `dienst-buiten-eu` — are *defined* by the client being abroad, and every one of
+them produced a sheet headed FACTUUR saying *"Wij verzoeken u vriendelijk…"*. Precision
+about that client's VAT treatment is worth little if they cannot read the page.
+
+**The e-factuur is untouched.** UBL carries category codes, not prose. Only
+`TaxExemptionReason` follows the document's language, so paper and file state the same
+sentence.
+
+- **The VAT statements are `Record<Taal, string>`**, so TypeScript refuses a regime without
+  a translation. These sentences carry the legal treatment, and **no validator checks
+  them** — the Schematron sees only the category, the same blind spot as `E` versus `Z`.
+  They deserve an accountant's eye alongside the `BR-O-02` question.
+- **Amounts and dates change notation, which is not cosmetic.** `€ 1.234,56` reads as a
+  thousand times too little to an anglophone, and `09-10-2026` reads as 10 September to an
+  American. English documents use `en-IE` (`€1,234.56`) and `9 Oct 2026`.
+- **Month names come from a fixed table, not `Intl`.** `en-GB` renders "Sept" and `en-US`
+  puts the month first, and which you get depends on the environment's ICU. `tests/pdf.spec.ts`
+  compares preview against PDF, so that variance would surface as a flake.
+- **`taal` travels all four copy paths** (see *Four paths, every time*), and the fourth is
+  the interesting one: *Volgende factuur* **keeps** it, unlike the discount. That button
+  keeps the client, and the language belongs to the client — resetting it would quietly
+  make the next invoice to the same German customer unreadable.
+- **Only fixed text is translated.** Payment conditions, units and line descriptions are
+  the user's own words and stay as typed; the field's help text says so, because otherwise
+  a Dutch payment term on an English invoice looks like a bug.
 
 ## The archive: issued means frozen
 

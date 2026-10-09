@@ -9,6 +9,18 @@
 export type VatScheme =
   | 'normaal' | 'kor' | 'verlegd' | 'icp' | 'export' | 'dienst-buiten-eu' | 'nultarief';
 
+/**
+ * De taal van het *document*, niet van de app.
+ *
+ * De interface blijft Nederlands: de gebruiker is dat. Dit bepaalt alleen wat
+ * er op de factuur of offerte komt te staan, en dat is nodig zodra de klant in
+ * het buitenland zit. Drie van de zes btw-behandelingen bestaan juist omdát de
+ * klant daar zit, en die kreeg tot nu toe een document met FACTUUR erboven.
+ *
+ * Wat dit niet raakt: de e-factuur. UBL draagt codes, geen proza.
+ */
+export type Taal = 'nl' | 'en';
+
 export interface Client {
   name: string;
   address: string;
@@ -78,6 +90,11 @@ export interface Invoice {
    * UBL-categorie de e-factuur krijgt.
    */
   vatScheme?: VatScheme;
+  /**
+   * De taal van dit document. Afwezig betekent Nederlands, zodat elk bewaard
+   * document van vóór deze keuze blijft renderen zoals het is uitgereikt.
+   */
+  taal?: Taal;
   /**
    * Alleen nog voor documenten van vóór `vatScheme`: waar betekende het KOR.
    *

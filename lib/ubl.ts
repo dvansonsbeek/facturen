@@ -1,4 +1,4 @@
-import { Invoice, LineItem, VatScheme, Discount } from "@/types";
+import { Invoice, LineItem, Taal, VatScheme, Discount } from "@/types";
 import { lineTotal, roundToCents, summariseDocument } from "@/lib/utils";
 import {
     chargesVat, clientVatStatement, schemeOf, statementFor, VAT_SCHEMES,
@@ -411,6 +411,9 @@ const btwTotalen = (
     scheme: VatScheme,
     clientVat?: string,
     discount?: Discount,
+    // De reden volgt de taal van het document, zodat papier en bestand dezelfde
+    // zin dragen. Verder is het bestand taalonafhankelijk: UBL draagt codes.
+    taal: Taal = 'nl',
 ): string => {
     const isVatExempt = !chargesVat(scheme);
     // De grondslag ná korting: wat hier staat moet overeenkomen met wat er
@@ -429,7 +432,7 @@ const btwTotalen = (
         // tarievenlus hieronder en krijgt daar nooit een reden mee.
         const reden = VAT_SCHEMES[scheme].ublCategory === 'Z'
             ? ''
-            : [statementFor(scheme), clientVatStatement(scheme, clientVat)]
+            : [statementFor(scheme, taal), clientVatStatement(scheme, clientVat, taal)]
                 .filter(Boolean).join(' ');
         return [
             '<cac:TaxTotal>',
@@ -602,7 +605,7 @@ export const buildUblInvoice = (data: Invoice): string => {
         betaling(data),
         // Vóór TaxTotal: UBL is een vaste reeks, dus de plek ligt vast.
         kortingen(data.items, scheme, data.discount),
-        btwTotalen(data.items, scheme, data.client.vatNumber, data.discount),
+        btwTotalen(data.items, scheme, data.client.vatNumber, data.discount, data.taal ?? 'nl'),
         '<cac:LegalMonetaryTotal>',
         // De som van de regels staat hier zónder korting (BR-CO-10); de korting
         // zit in AllowanceTotalAmount en gaat er bij TaxExclusiveAmount vanaf

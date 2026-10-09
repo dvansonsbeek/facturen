@@ -46,6 +46,12 @@ export const ui = (page: Page) => ({
      */
     vatScheme: page.locator('#btwRegime'),
 
+    /**
+     * De taal van het document, niet van de app. Staat naast de btw-behandeling,
+     * want ze volgen allebei uit wie de klant is; zie lib/taal.ts.
+     */
+    documentTaal: page.locator('#documenttaal'),
+
     // Klantgegevens
     clientName: page.locator('input[placeholder="Naam van de klant"]'),
     clientPicker: page.locator('select#klantKiezen'),

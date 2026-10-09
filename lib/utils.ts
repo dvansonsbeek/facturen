@@ -1,15 +1,15 @@
-import type { Discount } from "@/types";
+import type { Discount, Taal } from "@/types";
+import { bedragInTaal, datumInTaal, teksten } from "@/lib/taal";
 
-// nl-NL en niet nl-BE. Dat laatste stond er nog uit de Belgische oorsprong van
-// deze fork. Voor euro's levert het exact dezelfde tekst op — nagegaan op
-// 1234,56, 0, -50,50 en een miljoen — dus dit repareert geen fout maar haalt
-// een verkeerd land uit een app die verder helemaal op Nederland staat.
-export const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('nl-NL', {
-        style: 'currency',
-        currency: 'EUR',
-    }).format(amount);
-};
+/**
+ * Een bedrag voor het scherm, standaard in het Nederlands.
+ *
+ * De standaardwaarde is wat het archief en de rest van de app gebruiken: die
+ * blijven Nederlands, ook als het document dat niet is. Alleen de twee
+ * weergaven van het document geven hier een taal mee.
+ */
+export const formatCurrency = (amount: number, taal: Taal = 'nl'): string =>
+    bedragInTaal(amount, taal);
 
 /**
  * Rondt af op hele centen, een halve cent van nul af.
@@ -68,12 +68,8 @@ export const generateId = () => Math.random().toString(36).substr(2, 9);
  * formatteren dan de dag ervoor op. Een factuur met de verkeerde datum is
  * precies wat je niet wilt. Wat niet op een ISO-datum lijkt, blijft ongemoeid.
  */
-export const formatDate = (isoDate: string): string => {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-    if (!match) return isoDate;
-    const [, year, month, day] = match;
-    return `${day}-${month}-${year}`;
-};
+export const formatDate = (isoDate: string, taal: Taal = 'nl'): string =>
+    datumInTaal(isoDate, taal);
 
 /**
  * De datum van de levering of dienst, als die op het document hoort te staan.
@@ -104,9 +100,13 @@ export const supplyDateOnDocument = (
  */
 export const creditReference = (
     data: { creditOf?: { number: string; date: string } },
+    taal: Taal = 'nl',
 ): string | null =>
     data.creditOf
-        ? `Creditfactuur bij factuur ${data.creditOf.number} van ${formatDate(data.creditOf.date)}.`
+        ? teksten(taal).creditVerwijzing(
+            data.creditOf.number,
+            datumInTaal(data.creditOf.date, taal),
+        )
         : null;
 
 /** Voorbeeldnotatie van een Nederlandse IBAN: 18 tekens, in blokken van vier. */

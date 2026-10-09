@@ -207,4 +207,32 @@ test.describe('de PDF en het voorbeeld lopen niet uit elkaar', () => {
         expect(text).toContain('rekeningnummer NL91 ABNA 0417 1643 00 ten name van');
         expect(text).toContain('Betalingsvoorwaarden:');
     });
+
+    /**
+     * En in het Engels, want de PDF is een eigen weergave met eigen code.
+     *
+     * Het voorbeeld en de PDF kunnen hier uit elkaar lopen zonder dat iemand het
+     * merkt: ze delen de tekstentabel wel, maar niet de opbouw eromheen. Deze
+     * test leest de echte PDF terug en kijkt of er niets Nederlands is blijven
+     * staan — inclusief de bedragnotatie, want €1,234.56 en € 1.234,56 schelen
+     * voor een Engelstalige lezer een factor duizend.
+     */
+    test('en levert hetzelfde document in het Engels', async ({ page }) => {
+        const app = ui(page);
+        await app.clientCountry.fill('Duitsland');
+        await app.itemPrice().fill('1234.56');
+        await app.documentTaal.selectOption('en');
+
+        const { text } = await downloadPdf(page);
+        expect(text).toContain('INVOICE');
+        expect(text).toContain('BILL TO:');
+        expect(text).toContain('Description');
+        expect(text).toContain('Please transfer the total invoice amount');
+        expect(text).toContain('1,234.56');
+
+        expect(text).not.toContain('FACTUREREN AAN');
+        expect(text).not.toContain('Beschrijving');
+        expect(text).not.toContain('Wij verzoeken u');
+        expect(text).not.toContain('1.234,56');
+    });
 });

@@ -2,6 +2,7 @@ import { Document, Page, View, Text, Image, StyleSheet, Svg, Path, Rect } from "
 import { Invoice, Quotation } from "@/types";
 import { creditReference, formatCurrency, formatDate, formatIban, lineTotal, summariseDocument, supplyDateOnDocument, IBAN_PLACEHOLDER } from "@/lib/utils";
 import { chargesVat, clientVatStatement, schemeOf, statementFor } from "@/lib/vat-schemes";
+import { teksten } from "@/lib/taal";
 import { paymentQrMatrix } from "@/lib/payment-qr";
 import { qrPath } from "./QrCode";
 
@@ -153,10 +154,15 @@ interface InvoiceDocumentProps {
 export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentProps) {
     const scheme = schemeOf(data);
     const isVatExempt = !chargesVat(scheme);
-    const statement = statementFor(scheme);
-    const clientVatLine = clientVatStatement(scheme, data.client.vatNumber);
+    // Zelfde bron als het voorbeeld: zie InvoicePreview.tsx en lib/taal.ts. De
+    // twee weergaven moeten letterlijk hetzelfde zeggen, en tests/pdf.spec.ts
+    // legt ze naast elkaar.
+    const taal = data.taal ?? 'nl';
+    const t = teksten(taal);
+    const statement = statementFor(scheme, taal);
+    const clientVatLine = clientVatStatement(scheme, data.client.vatNumber, taal);
     const supplyDate = supplyDateOnDocument(data);
-    const creditRef = creditReference(data);
+    const creditRef = creditReference(data, taal);
     const qr = isQuotation ? null : paymentQrMatrix(data as Invoice);
     // Zelfde stille marge als op het scherm; zonder die rand vinden veel
     // scanners de code niet terug.
@@ -184,19 +190,19 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                         {/* eslint-disable-next-line jsx-a11y/alt-text */}
                         {data.sender.logoUrl && <Image src={data.sender.logoUrl} style={styles.logo} />}
                         <Text style={styles.title}>
-                            {isQuotation ? 'OFFERTE' : creditRef ? 'CREDITFACTUUR' : 'FACTUUR'}
+                            {isQuotation ? t.offerte : creditRef ? t.creditfactuur : t.factuur}
                         </Text>
                         <Text style={styles.label}>
                             # {isQuotation ? quotation.quotationNumber : invoice.invoiceNumber}
                         </Text>
-                        <Text>Datum: {formatDate(data.date)}</Text>
+                        <Text>{t.datum}: {formatDate(data.date, taal)}</Text>
                         {/* Alleen als hij afwijkt: dan is hij verplicht (art. 35a lid 1
                             Wet OB 1968), en gelijk aan de factuurdatum is hij ruis. */}
                         {supplyDate && (
-                            <Text>Datum levering/dienst: {formatDate(supplyDate)}</Text>
+                            <Text>{t.leverdatum}: {formatDate(supplyDate, taal)}</Text>
                         )}
                         {isQuotation && (
-                            <Text>Geldig tot: {formatDate(quotation.validUntil)}</Text>
+                            <Text>{t.geldigTot}: {formatDate(quotation.validUntil, taal)}</Text>
                         )}
                         {creditRef && <Text style={styles.label}>{creditRef}</Text>}
                     </View>
@@ -206,15 +212,15 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                         <Text>{data.sender.address}</Text>
                         <Text>{data.sender.zip} {data.sender.city}</Text>
                         <Text>{data.sender.country}</Text>
-                        {!!data.sender.vatNumber && <Text>BTW: {data.sender.vatNumber}</Text>}
-                        {!!data.sender.kvkNumber && <Text>KvK: {data.sender.kvkNumber}</Text>}
-                        <Text>E-mail: {data.sender.email}</Text>
+                        {!!data.sender.vatNumber && <Text>{t.btw}: {data.sender.vatNumber}</Text>}
+                        {!!data.sender.kvkNumber && <Text>{t.kvk}: {data.sender.kvkNumber}</Text>}
+                        <Text>{t.email}: {data.sender.email}</Text>
                     </View>
                 </View>
 
                 <View style={styles.clientBlock}>
                     <Text style={styles.sectionHeading}>
-                        {isQuotation ? 'OFFERTE VOOR:' : 'FACTUREREN AAN:'}
+                        {(isQuotation ? t.offerteVoor : t.facturerenAan).toUpperCase()}
                     </Text>
                     <Text style={styles.clientName}>{data.client.name}</Text>
                     {!!data.client.address && <Text>{data.client.address}</Text>}
@@ -222,22 +228,22 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                         <Text>{data.client.zip} {data.client.city}</Text>
                     )}
                     {!!data.client.country && <Text>{data.client.country}</Text>}
-                    {!!data.client.vatNumber && <Text>BTW: {data.client.vatNumber}</Text>}
+                    {!!data.client.vatNumber && <Text>{t.btw}: {data.client.vatNumber}</Text>}
                 </View>
 
                 <View style={styles.table}>
                     <View style={styles.tableHeader} fixed>
-                        <Text style={styles.colDescription}>Beschrijving</Text>
-                        <Text style={styles.colQuantity}>Aantal</Text>
-                        <Text style={styles.colPrice}>Prijs</Text>
-                        {!isVatExempt && <Text style={styles.colVat}>BTW</Text>}
-                        <Text style={styles.colTotal}>Totaal</Text>
+                        <Text style={styles.colDescription}>{t.kolomBeschrijving}</Text>
+                        <Text style={styles.colQuantity}>{t.kolomAantal}</Text>
+                        <Text style={styles.colPrice}>{t.kolomPrijs}</Text>
+                        {!isVatExempt && <Text style={styles.colVat}>{t.kolomBtw}</Text>}
+                        <Text style={styles.colTotal}>{t.kolomTotaal}</Text>
                     </View>
 
                     {data.items.map((item) => (
                         <View key={item.id} style={styles.tableRow} wrap={false}>
                             <View style={styles.colDescription}>
-                                <Text style={styles.itemName}>{item.name || 'Geen naam'}</Text>
+                                <Text style={styles.itemName}>{item.name || t.geenNaam}</Text>
                                 {!!item.description && (
                                     <Text style={styles.itemDescription}>{item.description}</Text>
                                 )}
@@ -245,9 +251,9 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                             <Text style={styles.colQuantity}>
                                 {item.quantity}{item.unit ? ` ${item.unit}` : ''}
                             </Text>
-                            <Text style={styles.colPrice}>{formatCurrency(item.unitPrice)}</Text>
+                            <Text style={styles.colPrice}>{formatCurrency(item.unitPrice, taal)}</Text>
                             {!isVatExempt && <Text style={styles.colVat}>{item.vatRate}%</Text>}
-                            <Text style={styles.colTotal}>{formatCurrency(lineTotal(item))}</Text>
+                            <Text style={styles.colTotal}>{formatCurrency(lineTotal(item), taal)}</Text>
                         </View>
                     ))}
                 </View>
@@ -258,25 +264,25 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                             zodra het iets toevoegt — met btw, of met korting. */}
                         {(!isVatExempt || discount > 0) && (
                             <View style={styles.totalsLine}>
-                                <Text>Subtotaal:</Text>
-                                <Text>{formatCurrency(subtotal)}</Text>
+                                <Text>{t.subtotaal}:</Text>
+                                <Text>{formatCurrency(subtotal, taal)}</Text>
                             </View>
                         )}
                         {discount > 0 && (
                             <View style={styles.totalsLine}>
-                                <Text>Korting:</Text>
-                                <Text>−{formatCurrency(discount)}</Text>
+                                <Text>{t.korting}:</Text>
+                                <Text>−{formatCurrency(discount, taal)}</Text>
                             </View>
                         )}
                         {Object.entries(vatTotals).map(([rate, amount]) => (
                             <View key={rate} style={styles.totalsVatLine}>
-                                <Text>BTW ({rate}%):</Text>
-                                <Text>{formatCurrency(amount)}</Text>
+                                <Text>{t.btwRegel(rate)}:</Text>
+                                <Text>{formatCurrency(amount, taal)}</Text>
                             </View>
                         ))}
                         <View style={styles.grandTotal}>
-                            <Text>{creditRef ? 'Te crediteren:' : 'Totaal:'}</Text>
-                            <Text>{formatCurrency(total)}</Text>
+                            <Text>{creditRef ? t.teCrediteren : t.totaal}:</Text>
+                            <Text>{formatCurrency(total, taal)}</Text>
                         </View>
                     </View>
                 </View>
@@ -298,8 +304,7 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                             <Path d={qrPath(qr)} fill="#000000" />
                         </Svg>
                         <Text style={styles.qrBijschrift}>
-                            Scan met uw bankapp om de overschrijving ingevuld te krijgen. Werkt
-                            niet bij elke bank; de gegevens onderaan kunt u altijd overnemen.
+                            {t.qrBijschrift.pdf}
                         </Text>
                     </View>
                 )}
@@ -308,13 +313,13 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                     <View style={styles.footer}>
                         {!!data.notes && (
                             <Text style={styles.footerLine}>
-                                <Text style={styles.label}>Opmerkingen: </Text>
+                                <Text style={styles.label}>{t.opmerkingen}: </Text>
                                 {data.notes}
                             </Text>
                         )}
                         {!isQuotation && !!data.paymentConditions && (
                             <Text style={styles.footerLine}>
-                                <Text style={styles.label}>Betalingsvoorwaarden: </Text>
+                                <Text style={styles.label}>{t.betalingsvoorwaarden}: </Text>
                                 {data.paymentConditions}
                             </Text>
                         )}
@@ -331,18 +336,16 @@ export default function InvoiceDocument({ data, isQuotation }: InvoiceDocumentPr
                     <View style={styles.pageFooter} fixed>
                         {/* Op een creditfactuur gaat het geld de andere kant op. */}
                         {creditRef ? (
-                            <Text>
-                                Dit bedrag wordt met u verrekend of aan u terugbetaald. Er hoeft naar
-                                aanleiding van deze creditfactuur niets te worden overgemaakt.
-                            </Text>
+                            <Text>{t.creditFooter}</Text>
                         ) : (
                             <Text>
-                                Wij verzoeken u vriendelijk het totale factuurbedrag over te maken naar
-                                rekeningnummer <Text style={styles.label}>{bankAccountDisplay}</Text>
-                                {' '}ten name van <Text style={styles.label}>{data.sender.name}</Text>.
-                                {' '}Vermeld hierbij a.u.b. het factuurnummer:{' '}
+                                {t.betaling.verzoek}{' '}
+                                <Text style={styles.label}>{bankAccountDisplay}</Text>
+                                {' '}{t.betaling.tenNameVan}{' '}
+                                <Text style={styles.label}>{data.sender.name}</Text>.
+                                {' '}{t.betaling.vermeld}{' '}
                                 <Text style={styles.label}>{invoice.invoiceNumber}</Text>.
-                                {' '}Hartelijk dank voor uw vertrouwen!
+                                {' '}{t.betaling.dank}
                             </Text>
                         )}
                         {!creditRef && !!invoice.bic && <Text>BIC: {invoice.bic}</Text>}
