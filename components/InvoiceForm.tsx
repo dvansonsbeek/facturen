@@ -997,6 +997,17 @@ export default function InvoiceForm() {
                                 <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
                                     {VAT_SCHEMES[vatScheme].hint}
                                 </p>
+                                {/* De voorwaarde apart en niet in de hint: de hint zegt
+                                    wanneer je dit kiest, dit zegt wat je daarna zelf nog
+                                    moet doen. Bij een intracommunautaire levering is dat
+                                    een verplichting die deze app aanmaakt maar niet kan
+                                    uitvoeren — zonder deze regel kom je daar pas bij een
+                                    controle achter. */}
+                                {VAT_SCHEMES[vatScheme].voorwaarde && (
+                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--secondary)' }}>
+                                        {VAT_SCHEMES[vatScheme].voorwaarde}
+                                    </p>
+                                )}
                                 {/* Zonder dat nummer kan je klant de btw niet aangeven,
                                     dus dan is de factuur niet af. */}
                                 {VAT_SCHEMES[vatScheme].requiresClientVat

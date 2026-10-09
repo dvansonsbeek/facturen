@@ -45,6 +45,21 @@ export interface VatSchemeInfo {
     label: string;
     /** Korte toelichting onder de keuze, zodat je weet wanneer je dit kiest. */
     hint: string;
+    /**
+     * Wat je zelf nog moet doen of kunnen aantonen om dit tarief te mogen
+     * voeren. Alleen gevuld waar de voorwaarde buiten deze app ligt.
+     *
+     * Dit staat er omdat een hint die alleen het voordeel noemt ("0% btw") en de
+     * voorwaarde weglaat erger is dan geen hint: het document ziet er compleet
+     * uit en de verplichting valt pas op bij een controle, jaren later. Bij een
+     * intracommunautaire levering maakt de app zelfs ongemerkt een verplichting
+     * aan — de opgaaf ICP — die je nergens in deze app terugziet.
+     *
+     * Geen belastingadvies: dit noemt een voorwaarde uit de wet, het beoordeelt
+     * jouw situatie niet. Daarvoor staat er een verwijzing naar de
+     * Belastingdienst bij.
+     */
+    voorwaarde?: string;
     /** De vermelding op het document. Leeg bij `normaal`. */
     statement: string;
     /** De UBL-categorie (EN 16931). Null bij `normaal`: die volgt het tarief per regel. */
@@ -90,6 +105,10 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
     icp: {
         label: 'Intracommunautaire levering — 0% btw',
         hint: 'Levering aan een ondernemer in een ander EU-land met een geldig btw-nummer. Je klant geeft de btw in zijn eigen land aan.',
+        voorwaarde:
+            'Twee dingen moet je zelf doen: het btw-nummer van je klant controleren in '
+            + 'VIES, en deze levering opnemen in je opgaaf ICP bij de Belastingdienst. '
+            + 'Ontbreekt die opgaaf, dan kan het 0%-tarief alsnog worden geweigerd.',
         statement: 'Intracommunautaire levering, 0% btw.',
         ublCategory: 'K',
         requiresClientVat: true,
@@ -97,6 +116,10 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
     export: {
         label: 'Uitvoer buiten de EU — 0% btw',
         hint: 'Levering aan een klant buiten de Europese Unie.',
+        voorwaarde:
+            'Verkoop je goederen, dan geldt het 0%-tarief alleen als je kunt aantonen dat '
+            + 'ze de EU verlaten hebben: bewaar de douaneaangifte ten uitvoer en de '
+            + 'vervoersdocumenten.',
         statement: 'Uitvoer buiten de EU, 0% btw.',
         ublCategory: 'G',
         requiresClientVat: false,
