@@ -225,6 +225,61 @@ test('de hele reis: twee klanten factureren, opruimen en versleutelen', async ({
         await expect(app.preview).toContainText('€ 2.420,00');
     });
 
+    /*
+     * Crediteren bestaat alleen in deze volgorde, en daarom hoort het hier.
+     *
+     * Je kunt geen creditfactuur uit het niets schrijven: hij komt uit het
+     * archief, bij een factuur die je al hebt uitgereikt. De losse tests in
+     * tests/creditnota.spec.ts dekken het gedrag; wat hier bewezen wordt is dat
+     * het ook werkt op een echte site, na alles wat eraan voorafging, en dat
+     * het resultaat de versleuteling hierna gewoon meemaakt.
+     */
+    await test.step('een creditfactuur bij factuur B', async () => {
+        /*
+         * Eerst het nummer doorschuiven, en dat is geen opsmuk.
+         *
+         * Bewaren hoogt de teller niet op; dat is een losse handeling. Crediteer
+         * je meteen na het bewaren, dan pakt de creditfactuur de stand van de
+         * reeks en dat is nog steeds het nummer van de factuur die je crediteert.
+         * De app vangt dat bij het bewaren af met een bevestiging ("staat al in
+         * je archief"), maar de weg ernaartoe loopt er wel doorheen.
+         */
+        page.once('dialog', (d) => d.accept());
+        await app.nextDocument.click();
+
+        await openFoldout(page, 'Bewaarde documenten');
+        await app.archiveRowFor(nummerB).view.click();
+        await app.archiveDialog.getByRole('button', { name: 'Crediteren' }).click();
+        await expect(app.archiveDialog).not.toBeVisible();
+
+        const tekst = normalise(await app.preview.innerText());
+        expect(tekst).toContain('CREDITFACTUUR');
+        // Nummer én datum, anders is bij een controle niet na te gaan wát er
+        // teruggenomen wordt.
+        expect(tekst).toContain(`Creditfactuur bij factuur ${nummerB} van`);
+        // Het geld gaat de andere kant op: geen betaalverzoek, en de bedragen
+        // blijven positief omdat het document zelf al zegt welke kant het op gaat.
+        expect(tekst).toContain('Te crediteren:');
+        expect(tekst).not.toContain('over te maken naar');
+        expect(tekst).toContain('verrekend of aan u terugbetaald');
+        expect(tekst).not.toContain('€ -');
+
+        // Een eigen nummer uit de factuurreeks; hetzelfde nummer twee keer
+        // gebruiken is de fout die art. 35a juist uitsluit.
+        expect(await app.documentNumber.inputValue()).not.toBe(nummerB);
+
+        // En de bestandsnaam zegt wat het is: een creditfactuur die
+        // "Factuur_..." heet, raakt zoek in een map met facturen.
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            app.downloadPdf.click(),
+        ]);
+        expect(download.suggestedFilename()).toContain('creditfactuur');
+
+        await app.saveDocument.click();
+        await expect(app.status.filter({ hasText: 'is bewaard' })).toBeVisible();
+    });
+
     await test.step('alles versleutelen met een wachtwoordzin', async () => {
         await openFoldout(page, 'Beveiliging en privacy');
         await app.newPassphrase.fill(ZIN);
@@ -283,7 +338,9 @@ test('de hele reis: twee klanten factureren, opruimen en versleutelen', async ({
         await app.unlockArchive.click();
 
         await openFoldout(page, 'Bewaarde documenten');
-        await expect(app.archiveRows).toHaveCount(2, { timeout: 60_000 });
+        // Drie: factuur B, de offerte voor klant A, en de creditfactuur. Ook die
+        // laatste hoort de versleuteling gewoon te overleven.
+        await expect(app.archiveRows).toHaveCount(3, { timeout: 60_000 });
         await expect(app.clientPicker.locator('option', { hasText: KLANT_A })).toHaveCount(1);
         await expect(app.clientPicker.locator('option', { hasText: KLANT_B })).toHaveCount(1);
     });
