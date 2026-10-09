@@ -309,13 +309,16 @@ test.describe('0% heeft een reden, en elke reden een eigen categorie', () => {
         { regime: 'verlegd', categorie: 'AE', zin: 'Btw verlegd' },
         { regime: 'icp', categorie: 'K', zin: 'Intracommunautaire levering' },
         { regime: 'export', categorie: 'G', zin: 'Uitvoer buiten de EU' },
+        { regime: 'dienst-buiten-eu', categorie: 'O', zin: 'niet belast in Nederland' },
     ] as const;
 
     for (const { regime, categorie, zin } of GEVALLEN) {
         test(`${regime} wordt categorie ${categorie}`, async ({ page }) => {
             const app = await vulVolledigeFactuur(page);
             if (regime === 'icp') await app.clientCountry.fill('Duitsland');
-            if (regime === 'export') await app.clientCountry.fill('Zwitserland');
+            if (regime === 'export' || regime === 'dienst-buiten-eu') {
+                await app.clientCountry.fill('Zwitserland');
+            }
             // Verlegging en icp kunnen niet zonder het btw-nummer van de klant.
             if (regime === 'verlegd' || regime === 'icp') {
                 await app.clientVat.fill('NL987654321B01');
@@ -335,6 +338,52 @@ test.describe('0% heeft een reden, en elke reden een eigen categorie', () => {
             expect(uit.teBetalen).toBe(uit.exclusief);
         });
     }
+
+    /**
+     * Categorie O draagt géén btw-nummer, van niemand.
+     *
+     * BR-O-02 verbiedt in zo'n bestand het nummer van de leverancier (BT-31),
+     * dat van zijn fiscaal vertegenwoordiger (BT-63) én dat van de klant
+     * (BT-48). Dat is ruimer dan het klinkt: de eerste poging liet alleen dat
+     * van de leverancier weg en werd nog steeds afgekeurd.
+     *
+     * De Schematron in check:efactuur bewaakt dit ook, maar die draait alleen
+     * tegen een gebouwde app en met een JRE erbij. Deze test houdt het verband
+     * vast in de gewone suite, inclusief het stuk dat geen schema kan zien:
+     * op het papieren document hoort het nummer er juist wél op te staan,
+     * want art. 35a eist het daar.
+     */
+    test('een dienst buiten de EU draagt geen enkel btw-nummer in het bestand', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('Zwitserland');
+        await app.clientVat.fill('NL987654321B01');
+        await app.vatScheme.selectOption('dienst-buiten-eu');
+
+        const { xml } = await haalUbl(page);
+        expect(xml).not.toContain('PartyTaxScheme');
+        expect(xml).not.toContain('NL123456789B01');
+        expect(xml).not.toContain('NL987654321B01');
+        // BR-O-05: geen tarief, ook geen 0.00.
+        expect(xml).not.toContain('cbc:Percent');
+        // Maar de leverancier blijft herkenbaar, anders valt BR-NL-1 om.
+        expect(xml).toContain('schemeID="0106"');
+
+        // En op papier staat het btw-nummer er gewoon op.
+        await expect(app.preview).toContainText('NL123456789B01');
+    });
+
+    /**
+     * Het spiegelbeeld van de icp-controle, en net zo min door een schema te
+     * zien: een dienst "buiten de EU" aan een klant binnen de EU bestaat niet.
+     */
+    test('een dienst buiten de EU weigert een klant binnen de EU', async ({ page }) => {
+        const app = await vulVolledigeFactuur(page);
+        await app.clientCountry.fill('Duitsland');
+        await app.vatScheme.selectOption('dienst-buiten-eu');
+
+        await app.downloadUbl.click();
+        await expect(page.getByText(/klant buiten de EU/)).toBeVisible();
+    });
 
     /**
      * Een nultarief is géén regime meer.

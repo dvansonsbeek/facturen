@@ -115,6 +115,27 @@ const GEVALLEN = {
         await page.locator('#klant-land').fill('Zwitserland');
         await page.locator('#btwRegime').selectOption('export');
     },
+    /**
+     * Een dienst buiten de EU: UBL-categorie O, en die loopt heel anders door
+     * lib/ubl.ts dan de rest.
+     *
+     * Dit geval staat er om twee regels die geen enkele andere factuur raakt, en
+     * die allebei stuk gingen voordat de code klopte:
+     *
+     * - BR-O-05 verbiedt een tarief op zo'n regel, ook 0.00.
+     * - BR-O-02 verbiedt élk btw-identificatienummer in het bestand: dat van de
+     *   leverancier én dat van de klant. De vorige standaardklant heeft er een,
+     *   dus die moet hier weg om te toetsen wat de app werkelijk doet.
+     *
+     * Blijft BR-NL-1 hierbij overeind? Ja, en dat is precies wat dit geval
+     * bewaakt: de leverancier is herkenbaar aan zijn KvK-nummer. Ging dat niet
+     * op, dan was categorie O voor deze app onbruikbaar.
+     */
+    'dienst-buiten-eu': async (page) => {
+        await page.locator('#klant-land').fill('Zwitserland');
+        await page.locator('#klant-btw').fill('');
+        await page.locator('#btwRegime').selectOption('dienst-buiten-eu');
+    },
     // Het nultarief is geen eigen regime: het gewone regime met een regel op 0%
     // levert categorie Z. BR-Z-* hoort dus langs dít pad getoetst te worden.
     nultarief: (page) => page.locator('.item-row select').first().selectOption('0'),

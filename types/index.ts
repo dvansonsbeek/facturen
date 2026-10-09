@@ -6,7 +6,8 @@
  * `nultarief` is niet meer te kiezen, maar staat er nog: zie VAT_SCHEMES. Een
  * bewaard document met die waarde moet blijven renderen zoals het is uitgereikt.
  */
-export type VatScheme = 'normaal' | 'kor' | 'verlegd' | 'icp' | 'export' | 'nultarief';
+export type VatScheme =
+  | 'normaal' | 'kor' | 'verlegd' | 'icp' | 'export' | 'dienst-buiten-eu' | 'nultarief';
 
 export interface Client {
   name: string;

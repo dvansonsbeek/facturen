@@ -63,7 +63,7 @@ export interface VatSchemeInfo {
     /** De vermelding op het document. Leeg bij `normaal`. */
     statement: string;
     /** De UBL-categorie (EN 16931). Null bij `normaal`: die volgt het tarief per regel. */
-    ublCategory: 'E' | 'AE' | 'K' | 'G' | 'Z' | null;
+    ublCategory: 'E' | 'AE' | 'K' | 'G' | 'O' | 'Z' | null;
     /**
      * Of het btw-nummer van de klant verplicht is. Bij een verlegde factuur en
      * een intracommunautaire levering wel — zowel de wet als de e-factuurregels
@@ -117,11 +117,43 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
         label: 'Uitvoer buiten de EU — 0% btw',
         hint: 'Levering aan een klant buiten de Europese Unie.',
         voorwaarde:
-            'Verkoop je goederen, dan geldt het 0%-tarief alleen als je kunt aantonen dat '
+            'Dit gaat over goederen. Het 0%-tarief geldt alleen als je kunt aantonen dat '
             + 'ze de EU verlaten hebben: bewaar de douaneaangifte ten uitvoer en de '
-            + 'vervoersdocumenten.',
+            + 'vervoersdocumenten. Lever je een dienst, kies dan de regel hieronder.',
         statement: 'Uitvoer buiten de EU, 0% btw.',
         ublCategory: 'G',
+        requiresClientVat: false,
+    },
+    /**
+     * Een dienst aan een zakelijke klant buiten de EU, en dat is iets ánders dan
+     * uitvoer.
+     *
+     * "Uitvoer" gaat over goederen. Bij een dienst aan een ondernemer buiten de
+     * EU verschuift de plaats van dienst naar het land van de afnemer: er is dan
+     * geen Nederlandse btw verschuldigd en de dienst hoort ook níet in je
+     * Nederlandse btw-aangifte. Dat is geen nultarief maar buiten het bereik van
+     * de Nederlandse heffing.
+     *
+     * Het verschil is niet alleen een woord op papier. Zet je zo'n dienst weg als
+     * 0% uitvoer, dan belandt het bedrag in rubriek 3a van je aangifte, en daar
+     * hoort een dienst niet thuis. Ondernemersplein zegt het met zoveel woorden:
+     * "u zet geen btw op de factuur" en "u geeft deze dienst niet aan in uw
+     * Nederlandse btw-aangifte". Een ICP-opgaaf hoort er evenmin bij; die is
+     * alleen voor de EU.
+     *
+     * In UBL is dit categorie O, "services outside scope of tax". Die categorie
+     * heeft één harde voorwaarde die uit de Schematron kwam en niet uit redeneren
+     * — zie de opmerking bij `zonderBtwNummers` in lib/ubl.ts.
+     */
+    'dienst-buiten-eu': {
+        label: 'Dienst buiten de EU — niet belast in Nederland',
+        hint: 'Dienst aan een ondernemer buiten de Europese Unie. De btw is verschuldigd in zijn land, niet hier.',
+        voorwaarde:
+            'Dit is geen nultarief maar buiten de Nederlandse heffing: je geeft deze '
+            + 'dienst niet op in je btw-aangifte, en een opgaaf ICP hoort er niet bij. '
+            + 'Gaat het om goederen, kies dan de regel hierboven.',
+        statement: 'Dienst niet belast in Nederland; btw verschuldigd in het land van de afnemer.',
+        ublCategory: 'O',
         requiresClientVat: false,
     },
     /**
@@ -150,7 +182,8 @@ export const VAT_SCHEMES: Record<VatScheme, VatSchemeInfo> = {
 };
 
 /** Wat er in de keuzelijst staat, in deze volgorde. */
-export const VAT_SCHEME_ORDER: VatScheme[] = ['normaal', 'kor', 'verlegd', 'icp', 'export'];
+export const VAT_SCHEME_ORDER: VatScheme[] =
+    ['normaal', 'kor', 'verlegd', 'icp', 'export', 'dienst-buiten-eu'];
 
 /**
  * Het regime van een document, ook als het van vóór deze keuze is.

@@ -181,7 +181,17 @@ different UBL category:
 | `kor` | KOR exemption, art. 25 Wet OB | `E` | no |
 | `verlegd` | btw verlegd, verleggingsregeling | `AE` | **yes** |
 | `icp` | intracommunautaire levering | `K` | **yes** |
-| `export` | uitvoer buiten de EU | `G` | no |
+| `export` | uitvoer buiten de EU (**goods**) | `G` | no |
+| `dienst-buiten-eu` | not taxed in NL, taxed where the customer is | `O` | no |
+
+**`export` and `dienst-buiten-eu` are not the same transaction, and conflating them
+misfiles the user's VAT return.** "Uitvoer" is a goods concept. For a *service* to a
+business outside the EU the place of supply moves to the customer: no Dutch VAT, and
+Ondernemersplein is explicit that you *"geeft deze dienst niet aan in uw Nederlandse
+btw-aangifte"* — it is out of scope, not zero-rated. Booked as 0% export it lands in
+**rubriek 3a**, which is for goods. Jortt warns its own users about exactly this. Most of
+this app's users sell services, so the goods-only regime was the more likely pick and the
+wrong one.
 
 **A plain zero rate is not a regime** — it is `normaal` with lines at 0%, which already
 shows `BTW (0%): € 0,00` and already produces UBL category `Z` via the per-rate path.
@@ -248,6 +258,22 @@ Three traps found by the official validator, not by reasoning:
 - **`BR-IC-11` and `BR-IC-12`** require an actual delivery date and a deliver-to country
   for `icp`, hence `cac:Delivery`. `Invoice.deliveryDate` is more general than that,
   though — see below.
+- **`BR-O-02` forbids *every* VAT identifier on a category `O` invoice** — the seller's
+  (BT-31), the tax representative's (BT-63) **and the buyer's** (BT-48). That breadth is
+  the trap: the first attempt dropped only the seller's and was still rejected, because
+  the client's was still there. `BR-O-05` additionally forbids any `cbc:Percent`, not even
+  `0.00`. Both are handled by `buitenBereik()` / `zonderBtwNummers()` in `lib/ubl.ts`.
+
+  Two things survive, and both were measured rather than assumed. **`BR-NL-1` still
+  passes**, because the supplier stays identifiable by KvK through `PartyLegalEntity` and
+  `EndpointID` — had it not, category `O` would have been unusable here. And
+  **`BR-O-11`/`BR-O-12`**, which forbid mixing `O` with another category on one document,
+  cannot fire: the regime is per document, never per line.
+
+  **Paper and XML deliberately disagree here.** Art. 35a lid 1 Wet OB wants your
+  btw-identificatienummer on the invoice; `BR-O-02` forbids it in the file. So it prints
+  on the PDF and is absent from the e-factuur. That asymmetry is intentional, and is the
+  one point in this regime worth putting to an accountant.
 - **`cac:Delivery` must sit between `AccountingCustomerParty` and `PaymentMeans`.** UBL is
   a fixed sequence and **Schematron does not check order** — that is the XSD's job, and
   there is no XSD validator here. `check:efactuur` therefore pulls the element sequence
@@ -673,7 +699,7 @@ the real meaning.
 
 **The official Schematron runs too, and it is not the same thing as our own tests.**
 `npm run check:efactuur` (`scripts/controleer-efactuur.mjs`) drives the built app,
-downloads **nine** documents — one per VAT regime, plus one carrying a delivery date, one
+downloads **ten** documents — one per VAT regime, plus one carrying a delivery date, one
 with a discount over two VAT rates, and one credit note, since those take different paths
 through `lib/ubl.ts` — and puts each through the
 Nederlandse Peppolautoriteit's compiled SI-UBL 2.0 stylesheet with Saxon-HE. It fires

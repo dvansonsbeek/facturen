@@ -162,8 +162,23 @@ const tag =(naam: string, waarde: string, attrs = ''): string =>
 export const taxCategory = (
     vatRate: number,
     scheme: VatScheme,
-): 'E' | 'S' | 'Z' | 'AE' | 'K' | 'G' =>
+): 'E' | 'S' | 'Z' | 'AE' | 'K' | 'G' | 'O' =>
     VAT_SCHEMES[scheme].ublCategory ?? (vatRate > 0 ? 'S' : 'Z');
+
+/**
+ * Of dit document buiten het bereik van de heffing valt: UBL-categorie O.
+ *
+ * Die categorie heeft twee eisen die de rest niet heeft, en allebei komen ze uit
+ * de officiële Schematron en niet uit redeneren:
+ *
+ * - **BR-O-05**: een regel met categorie O mag géén tarief dragen. Niet 0.00,
+ *   maar helemaal geen `cbc:Percent`. Bij elk ander regime staat er wel een.
+ * - **BR-O-02**: zo'n factuur mag géén btw-identificatienummer bevatten. Niet dat
+ *   van de leverancier (BT-31), niet dat van zijn fiscaal vertegenwoordiger
+ *   (BT-63) en ook niet dat van de klant (BT-48). Zie `zonderBtwNummers`.
+ */
+export const buitenBereik = (scheme: VatScheme): boolean =>
+    VAT_SCHEMES[scheme].ublCategory === 'O';
 
 /**
  * Wat er nog ontbreekt voor een geldige e-factuur.
@@ -215,6 +230,17 @@ export const ontbrekendeVelden = (data: Invoice): string[] => {
             ontbreekt.push(`een EU-land bij je klant: ${land} zit niet in de EU, dus dit is uitvoer en geen intracommunautaire levering`);
         }
     }
+
+    // Spiegelbeeld daarvan, en net zo min door een schema te zien: een dienst
+    // "buiten de EU" aan een klant binnen de EU bestaat niet. Binnen de EU is
+    // het verlegging, in Nederland gewoon btw.
+    if (scheme === 'dienst-buiten-eu' && land && isEuLand(land)) {
+        ontbreekt.push(
+            land === 'NL'
+                ? 'een klant buiten de EU: naar een Nederlandse klant is dit een gewone binnenlandse dienst'
+                : `een klant buiten de EU: ${land} zit in de EU, dus hier hoort btw verlegd bij`,
+        );
+    }
     return ontbreekt;
 };
 
@@ -264,6 +290,34 @@ const levering = (data: Invoice, scheme: VatScheme): string => {
     ].filter(Boolean).join('');
 };
 
+/**
+ * Of er in dit bestand géén enkel btw-identificatienummer mag staan.
+ *
+ * Dit is **BR-O-02**, en de reikwijdte ervan is ruimer dan hij klinkt: een
+ * factuur met categorie O mag het nummer van de leverancier (BT-31), dat van
+ * zijn fiscaal vertegenwoordiger (BT-63) *en* dat van de klant (BT-48) geen van
+ * drieën bevatten.
+ *
+ * Opgemeten en niet beredeneerd. De eerste poging liet alleen dat van de
+ * leverancier weg en werd nog steeds afgekeurd, omdat het nummer van de klant er
+ * ook nog stond.
+ *
+ * Twee dingen die hierbij overeind blijven, allebei gecontroleerd met diezelfde
+ * Schematron:
+ *
+ * - **BR-NL-1 blijft voldaan.** De leverancier is hier herkenbaar aan zijn
+ *   KvK-nummer in `cac:PartyLegalEntity` en `cbc:EndpointID`, en dat is wat
+ *   NLCIUS vraagt. Zonder die uitkomst was categorie O onbruikbaar geweest.
+ * - **BR-O-11/12 kunnen hier niet afgaan.** Die verbieden categorie O naast een
+ *   andere categorie op hetzelfde document, en het regime is per document en
+ *   nooit per regel. Dat is dus al door de opzet gedekt.
+ *
+ * Hier wijken papier en bestand bewust van elkaar af: art. 35a lid 1 Wet OB wil
+ * je btw-identificatienummer op de factuur, EN 16931 verbiedt het in de XML bij
+ * deze categorie. Het staat dus wel op de PDF en niet in het e-factuurbestand.
+ */
+const zonderBtwNummers = (data: Invoice): boolean => buitenBereik(schemeOf(data));
+
 const afzender = (data: Invoice): string => {
     const kvk = (data.sender.kvkNumber ?? '').trim();
     return [
@@ -272,10 +326,14 @@ const afzender = (data: Invoice): string => {
         `<cac:PartyIdentification>${tag('cbc:ID', kvk, ` schemeID="${KVK_SCHEME_ID}"`)}</cac:PartyIdentification>`,
         `<cac:PartyName>${tag('cbc:Name', data.sender.name)}</cac:PartyName>`,
         adres(data.sender),
-        '<cac:PartyTaxScheme>',
-        tag('cbc:CompanyID', (data.sender.vatNumber ?? '').replace(/\s+/g, '')),
-        `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
-        '</cac:PartyTaxScheme>',
+        // Weg bij categorie O; zie zonderBtwNummers hieronder. Op het papieren
+        // document blijft het nummer wél staan, want art. 35a eist het daar.
+        zonderBtwNummers(data)
+            ? ''
+            : '<cac:PartyTaxScheme>'
+              + tag('cbc:CompanyID', (data.sender.vatNumber ?? '').replace(/\s+/g, ''))
+              + `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`
+              + '</cac:PartyTaxScheme>',
         '<cac:PartyLegalEntity>',
         tag('cbc:RegistrationName', data.sender.name),
         tag('cbc:CompanyID', kvk, ` schemeID="${KVK_SCHEME_ID}"`),
@@ -302,7 +360,7 @@ const ontvanger = (data: Invoice): string => {
             : '',
         `<cac:PartyName>${tag('cbc:Name', data.client.name)}</cac:PartyName>`,
         adres(data.client),
-        btw
+        btw && !zonderBtwNummers(data)
             ? '<cac:PartyTaxScheme>'
               + tag('cbc:CompanyID', btw)
               + `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`
@@ -381,7 +439,9 @@ const btwTotalen = (
             tag('cbc:TaxAmount', bedrag(0), ' currencyID="EUR"'),
             '<cac:TaxCategory>',
             tag('cbc:ID', taxCategory(0, scheme)),
-            tag('cbc:Percent', '0.00'),
+            // BR-O-05: bij categorie O mag er helemaal geen tarief staan, ook
+            // geen 0.00. Bij elk ander vrijgesteld regime juist wel.
+            buitenBereik(scheme) ? '' : tag('cbc:Percent', '0.00'),
             reden ? tag('cbc:TaxExemptionReason', reden) : '',
             `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
             '</cac:TaxCategory>',
@@ -459,7 +519,7 @@ const kortingen = (items: LineItem[], scheme: VatScheme, discount?: Discount): s
                 tag('cbc:Amount', bedrag(deel), ' currencyID="EUR"'),
                 '<cac:TaxCategory>',
                 tag('cbc:ID', taxCategory(tarief, scheme)),
-                tag('cbc:Percent', isVatExempt ? '0.00' : tarief.toFixed(2)),
+                buitenBereik(scheme) ? '' : tag('cbc:Percent', isVatExempt ? '0.00' : tarief.toFixed(2)),
                 `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
                 '</cac:TaxCategory>',
                 '</cac:AllowanceCharge>',
@@ -486,7 +546,7 @@ const regels = (items: LineItem[], scheme: VatScheme, vorm: Documentvorm): strin
                 : '',
             '<cac:ClassifiedTaxCategory>',
             tag('cbc:ID', taxCategory(item.vatRate, scheme)),
-            tag('cbc:Percent', isVatExempt ? '0.00' : item.vatRate.toFixed(2)),
+            buitenBereik(scheme) ? '' : tag('cbc:Percent', isVatExempt ? '0.00' : item.vatRate.toFixed(2)),
             `<cac:TaxScheme>${tag('cbc:ID', 'VAT')}</cac:TaxScheme>`,
             '</cac:ClassifiedTaxCategory>',
             '</cac:Item>',
