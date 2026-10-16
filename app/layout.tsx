@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { beleidVoorOmgeving } from "@/lib/csp";
-import { HERKOMST, SITE_URL, NAAM } from "@/lib/site";
+import { HERKOMST, SITE_URL, NAAM, MAKER, CONTACT, BRONCODE } from "@/lib/site";
 import VisitCounter from "@/components/VisitCounter";
 import ServiceWorker from "@/components/ServiceWorker";
 import ThemeApplier from "@/components/ThemeApplier";
@@ -82,8 +82,18 @@ export const metadata: Metadata = {
  * het opneemt tegen betaalde pakketten is dat het verschil tussen "staat ergens
  * in de tekst" en "is een eigenschap van dit product".
  *
- * Geen naam van een maker erin, net als in LICENSE: dat is een bewuste keuze en
- * geen omissie. De verwijzing naar de broncode doet hetzelfde werk.
+ * Hier stond dat er met opzet geen maker in genoemd werd, en dat de verwijzing
+ * naar de broncode hetzelfde werk deed. Dat eerste is omgedraaid: de broncode
+ * zegt een zoekmachine wel iets, maar een bedrijfsfilter dat deze pagina
+ * beoordeelt vraagt een andere vraag, namelijk of er iemand aanspreekbaar is.
+ * Zonder antwoord daarop is een nieuw domein met een formulier dat om een IBAN
+ * vraagt niet van phishing te onderscheiden. Zie lib/site.ts voor waarom dat
+ * geen hypothese is.
+ *
+ * `author` en `publisher` zijn allebei nodig en zeggen niet hetzelfde: de een is
+ * wie het gemaakt heeft, de ander wie het uitgeeft. Voor een eenmansproject is
+ * dat dezelfde persoon, en juist dan is het weglaten van een van de twee een gat
+ * waar zo'n beoordelaar op afgaat.
  */
 const gestructureerdeGegevens = {
   '@context': 'https://schema.org',
@@ -97,7 +107,9 @@ const gestructureerdeGegevens = {
   isAccessibleForFree: true,
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
   license: 'https://opensource.org/licenses/MIT',
-  codeRepository: 'https://github.com/dvansonsbeek/facturen',
+  codeRepository: BRONCODE,
+  author: { '@type': 'Person', name: MAKER, email: CONTACT, url: BRONCODE },
+  publisher: { '@type': 'Person', name: MAKER, email: CONTACT },
   featureList: [
     'Facturen en offertes volgens de Nederlandse btw-tarieven (21%, 9%, 0%)',
     'Kleineondernemersregeling (KOR)',

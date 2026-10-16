@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 /** Zie app/page.tsx: gewone verwijzingen, want het strikte beleid blokkeert de
  *  fetch waarmee next/link navigeert. Het basispad dus zelf ervoor. */
-import { NAAM, BASISPAD } from "@/lib/site";
+import { NAAM, BASISPAD, MAKER, CONTACT, BRONCODE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: `Gebruiksvoorwaarden en privacy — ${NAAM}`,
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
  * dat niet. tests/voorwaarden.spec.ts houdt een vingerafdruk van de tekst bij en
  * gaat rood zodra die verandert, juist om deze regel niet te laten vergeten.
  */
-const BIJGEWERKT = '9 oktober 2026';
+const BIJGEWERKT = '16 oktober 2026';
 
 const STIJL_KOP = { fontSize: '1.1rem', marginTop: '2rem', marginBottom: '0.5rem' };
 /** globals.css zet alle marges op nul, dus alinea's hebben hier hun eigen ruimte
@@ -162,9 +162,9 @@ export default function Voorwaarden() {
         <h2 style={STIJL_KOP}>Wijzigingen, en waar de code staat</h2>
         <p style={STIJL_P}>
           Deze voorwaarden kunnen veranderen; bovenaan staat wanneer ze voor het laatst zijn
-          bijgewerkt. De app is open source en de volledige broncode, inclusief de geschiedenis
-          van elke wijziging, staat op{' '}
-          <a href="https://github.com/dvansonsbeek/facturen">GitHub</a>.
+          bijgewerkt. {NAAM} wordt gemaakt door {MAKER}. De app is open source en de volledige
+          broncode, inclusief de geschiedenis van elke wijziging, staat op{' '}
+          <a href={BRONCODE}>GitHub</a>.
         </p>
         {/* Naar /issues/new en niet naar /issues: dat tweede is de lijst, en met
             een leeg project is dat een kale pagina waar je niets kunt melden —
@@ -172,14 +172,22 @@ export default function Voorwaarden() {
 
             En de eis erbij, want hij is echt: /issues/new stuurt je zonder
             account door naar de inlogpagina van GitHub. De meeste zzp'ers hebben
-            er geen. Dat is een bewuste beperking — er komt geen e-mailadres op
-            deze pagina — maar dan hoort het er wel bij te staan in plaats van
-            iemand op een inlogmuur te laten lopen. */}
+            er geen.
+
+            Hier stond dat er met opzet geen e-mailadres op deze pagina kwam, en
+            dat dan maar bij die inlogmuur hoorde te staan. Dat is omgedraaid. De
+            eerste reden is de inlogmuur zelf: wie geen account heeft kon niets
+            melden, en dat is een rare uitkomst voor een pagina die om vertrouwen
+            vraagt. De tweede weegt zwaarder: zonder naam en zonder contactweg is
+            dit domein voor een bedrijfsfilter niet van phishing te
+            onderscheiden, en dat is niet hypothetisch gebleken. Zie lib/site.ts. */}
         <p style={STIJL_P}>
           Zit er een fout in? Meld hem{' '}
-          <a href="https://github.com/dvansonsbeek/facturen/issues/new">op GitHub</a>; daarvoor
-          heb je wel een GitHub-account nodig. Er staat met opzet geen e-mailadres op deze
-          pagina.
+          <a href={`${BRONCODE}/issues/new`}>op GitHub</a>; daarvoor heb je wel een
+          GitHub-account nodig. Heb je dat niet, mail dan{' '}
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. Datzelfde adres staat in{' '}
+          <a href={`${BASISPAD}/.well-known/security.txt`}>security.txt</a>, voor wie een
+          beveiligingsprobleem wil melden.
         </p>
 
         <p style={{ marginTop: '2.5rem', fontSize: '0.9rem' }}>

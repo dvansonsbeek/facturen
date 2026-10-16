@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openApp } from './helpers';
+import { MAKER, CONTACT, BRONCODE } from '../lib/site';
 
 /**
  * Wat een zoekmachine en een deelknop van deze site zien.
@@ -135,12 +136,87 @@ test.describe('gestructureerde gegevens', () => {
         expect(d.offers.priceCurrency).toBe('EUR');
     });
 
-    /** Geen naam van een maker, net als in LICENSE. Bewust, niet vergeten. */
-    test('en noemen geen persoon of e-mailadres', async ({ page }) => {
+    /**
+     * Deze test stond precies omgekeerd: hij eiste dat er géén persoon en geen
+     * e-mailadres in stond, "bewust, niet vergeten".
+     *
+     * Dat is omgedraaid toen een bedrijfsfilter de app als phishing blokkeerde.
+     * Een domein van een paar weken oud met een formulier dat om IBAN, KvK- en
+     * btw-nummer vraagt en dat niemand noemt, is van een valse pagina niet te
+     * onderscheiden — het filter kan niet zien dat de gegevens de browser nooit
+     * verlaten, het ziet de veldnamen. Aanspreekbaar zijn is het signaal dat
+     * ontbrak, en dit is de plek waar een machine het leest.
+     *
+     * De test blijft bestaan omdat de richting ervan ertoe doet: hij ging eerder
+     * rood als iemand een adres toevoegde, en gaat nu rood als iemand het weer
+     * weghaalt.
+     */
+    test('noemen wie de app maakt en waar je die bereikt', async ({ page }) => {
         await openApp(page);
-        const ruw = JSON.stringify(await lees(page));
+        const d = await lees(page);
 
-        expect(ruw).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
-        expect(ruw).not.toContain('author');
+        expect(d.author?.name).toBe(MAKER);
+        expect(d.author?.email).toBe(CONTACT);
+        expect(d.publisher?.name).toBe(MAKER);
+        // De broncode is zelf een signaal: openbaar en controleerbaar is wat een
+        // valse pagina nooit is.
+        expect(d.codeRepository).toBe(BRONCODE);
+    });
+});
+
+/**
+ * security.txt (RFC 9116).
+ *
+ * Twee dingen die zonder test stil omvallen. Het bestand staat in
+ * `public/.well-known/`, en dat is een map die met een punt begint: precies het
+ * soort bestand dat ergens in de keten wordt overgeslagen. `upload-pages-artifact`
+ * liet dotbestanden vanaf v4 weg, en daarom staat `include-hidden-files: true`
+ * in de workflow. Deze test is wat merkt dat het er niet meer is.
+ *
+ * En `Expires` is een verplicht veld dat verloopt. Een verlopen security.txt is
+ * ongeldig, dus de test gaat rood vóórdat dat gebeurt en niet erna.
+ */
+test.describe('security.txt', () => {
+    /** Zo lang vooraf wil je het weten: ruim tijd om de datum bij te werken. */
+    const WAARSCHUWTERMIJN_DAGEN = 60;
+
+    const lees = async (page: import('@playwright/test').Page) => {
+        const antwoord = await page.request.get('/.well-known/security.txt');
+        expect(antwoord.status()).toBe(200);
+        // Als text/plain, want een browser die het als download aanbiedt of als
+        // HTML probeert te tekenen, voldoet niet aan RFC 9116.
+        expect(antwoord.headers()['content-type']).toContain('text/plain');
+        return antwoord.text();
+    };
+
+    const veld = (tekst: string, naam: string) =>
+        tekst.split('\n').find((regel) => regel.startsWith(`${naam}:`))?.slice(naam.length + 1).trim();
+
+    test('wijst naar hetzelfde adres als de rest van de site', async ({ page }) => {
+        const tekst = await lees(page);
+
+        // Eén adres op vier plaatsen, en dit bestand is de enige die lib/site.ts
+        // niet kan importeren. Daarom legt deze test de twee tegen elkaar.
+        expect(veld(tekst, 'Contact')).toBe(`mailto:${CONTACT}`);
+        expect(veld(tekst, 'Canonical')).toBe(`${DOMEIN}/.well-known/security.txt`);
+        expect(veld(tekst, 'Policy')).toBe(`${DOMEIN}/voorwaarden`);
+        expect(tekst).toContain(BRONCODE);
+    });
+
+    test('is nog geldig, en zegt het ruim voordat hij verloopt', async ({ page }) => {
+        const tekst = await lees(page);
+        const rauw = veld(tekst, 'Expires');
+
+        // Verplicht veld in RFC 9116: zonder is het bestand ongeldig.
+        expect(rauw, 'Expires ontbreekt').toBeTruthy();
+        const verloopt = new Date(rauw as string);
+        expect(Number.isNaN(verloopt.getTime()), `Expires is geen datum: ${rauw}`).toBe(false);
+
+        const dagenTeGaan = (verloopt.getTime() - Date.now()) / 86_400_000;
+        expect(
+            dagenTeGaan,
+            `security.txt verloopt over ${Math.floor(dagenTeGaan)} dagen `
+            + `(${rauw}). Werk Expires bij in public/.well-known/security.txt.`,
+        ).toBeGreaterThan(WAARSCHUWTERMIJN_DAGEN);
     });
 });

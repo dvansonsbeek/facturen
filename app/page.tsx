@@ -1,7 +1,7 @@
 import InvoiceForm from "@/components/InvoiceForm";
 import VersieMelding from "@/components/VersieMelding";
 import { ReceiptEuro } from "lucide-react";
-import { NAAM, BASISPAD } from "@/lib/site";
+import { NAAM, BASISPAD, MAKER, CONTACT, BRONCODE } from "@/lib/site";
 
 /**
  * Een gewone <a> en geen next/link, met het basispad er zelf voor.
@@ -89,6 +89,20 @@ export default function Home() {
         <p style={{ marginTop: '0.5rem' }}>
           Geen boekhoudpakket en geen belastingadvies. Door deze app te gebruiken ga je akkoord
           met de <a href={`${BASISPAD}/voorwaarden`}>gebruiksvoorwaarden</a>.
+        </p>
+        {/* Wie dit maakt, staat er sinds een werkplekfilter de app als phishing
+            blokkeerde. Niet als verdediging achteraf: dit is wat zo'n filter
+            mist. Een formulier dat om een IBAN vraagt op een domein van een paar
+            weken oud, zonder naam en zonder adres, is van een valse pagina niet
+            te onderscheiden. Zie lib/site.ts.
+
+            De broncode staat er ook om die reden, en niet alleen voor de
+            liefhebber: openbaar en controleerbaar is precies wat een valse
+            pagina nooit is. */}
+        <p style={{ marginTop: '0.5rem' }}>
+          Gemaakt door {MAKER}. De <a href={BRONCODE}>broncode is openbaar</a>, en een fout
+          of beveiligingsprobleem melden kan op{' '}
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
         </p>
         {KOFFIE && (
           <p style={{ marginTop: '0.5rem' }}>

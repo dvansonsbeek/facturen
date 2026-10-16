@@ -610,6 +610,37 @@ the supplier, because that supplier has already changed once (Ko-fi → Buy Me a
 October 2026) and renaming it again would mean touching the workflow, the repo variable
 and the tests for no reason.
 
+**Being identifiable is a feature, and three "no name" decisions were reversed to get
+it.** The app was blocked as phishing by an employer's web filter in its second week. That
+is what a filter is built to catch: a form asking for IBAN, KvK and btw-nummer, on a domain
+a few weeks old, on free hosting, naming nobody. It cannot see that the data never leaves
+the browser, it sees the field names. So `lib/site.ts` now carries `MAKER`, `CONTACT` and
+`BRONCODE`, the footer and the terms page say who makes this and how to reach them, the
+JSON-LD carries `author` and `publisher`, and `public/.well-known/security.txt` exists.
+
+Each of those three places previously said *"met opzet geen e-mailadres"* or *"geen naam van
+een maker"*, and each had a test pinning the absence. **The tests were inverted, not
+deleted** — `tests/page.spec.ts` and `tests/voorwaarden.spec.ts` used to go red when someone
+added an address and now go red when someone removes it, and
+`tests/vindbaarheid.spec.ts` the same for the structured data. What those tests were
+*originally* about is preserved separately: the footer still carries **no copyright line and
+no year**, because a year in a footer ages into a lie.
+
+Two things that did **not** change, and should not be assumed to have: `LICENSE` still
+carries names only, because the reason there was Eray's student address and not reticence in
+general; and the README's *"Geen account. Geen e-mailadres"* is about what the **user** has
+to hand over, which is still nothing.
+
+`security.txt` has two failure modes worth knowing. It lives in `public/.well-known/`, a
+**dot-directory** — `next build` copies it, but `upload-pages-artifact` drops dotfiles from
+v4 onward, which is why `include-hidden-files: true` is set in the workflow and must stay.
+`check:publicatie` therefore fetches it from the served `out/`, where the dev server's habit
+of reading `public/` straight through cannot hide a build that lost it; that check was
+validated by deleting the file and watching it name the 404. And **`Expires` is a required
+field that expires**, making the file invalid when it lapses, so
+`tests/vindbaarheid.spec.ts` goes red 60 days *before* the date rather than after it, naming
+the file to edit.
+
 **The terms page carries a hand-maintained date, deliberately.** Deriving `BIJGEWERKT`
 from the build would shift it on every unrelated publish, so the page would claim the
 terms changed when they had not — a date that lies is worse than one that is old, the

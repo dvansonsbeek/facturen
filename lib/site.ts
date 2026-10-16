@@ -27,6 +27,32 @@
  */
 export const NAAM = 'Factuurr';
 
+/**
+ * Wie de app maakt, en waar je hem bereikt.
+ *
+ * Dit stond er met opzet níet, en die keuze is omgedraaid met een reden. De app
+ * is een formulier dat om IBAN, KvK- en btw-nummer vraagt, op een domein van een
+ * paar weken oud, zonder naam en zonder contactweg. Voor een bedrijfsfilter is
+ * dat het profiel van een phishingpagina, en dat is niet theoretisch: de app is
+ * op een werkplek meteen geblokkeerd. Een filter kan niet zien dat de gegevens de
+ * browser nooit verlaten; het ziet de veldnamen. Wat het wél kan zien is wie
+ * erachter zit, dat de broncode openbaar is en dat er een adres is om iets te
+ * melden. Dat is wat deze twee regels toevoegen.
+ *
+ * "Dennis" en niet meer, net als in LICENSE. De naam staat op drie plaatsen
+ * (voettekst, voorwaarden, gestructureerde gegevens) en het adres op vier, want
+ * `public/.well-known/security.txt` hoort er ook bij. Dat laatste bestand is
+ * statisch en kan hier niet bij, dus tests/vindbaarheid.spec.ts legt de twee
+ * tegen elkaar.
+ */
+export const MAKER = 'Dennis';
+
+/** Het adres waarop je een fout of een beveiligingsprobleem kunt melden. */
+export const CONTACT = 'dennis@sonsbeek.com';
+
+/** Waar de broncode staat. Zelf een signaal: openbaar en controleerbaar. */
+export const BRONCODE = 'https://github.com/dvansonsbeek/facturen';
+
 /** Leeg zolang de app op de root van zijn eigen domein staat. */
 export const BASISPAD = process.env.PAGES_BASE_PATH ?? '';
 

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { normalise, openApp } from './helpers';
+import { CONTACT } from '../lib/site';
 
 /**
  * De gebruiksvoorwaarden, en de verwijzing ernaar.
@@ -104,14 +105,19 @@ test.describe('de pagina zelf', () => {
 
     /**
      * En de eis staat erbij. /issues/new stuurt je zonder account door naar de
-     * inlogpagina van GitHub, en de meeste zzp'ers hebben er geen. Dat mag een
-     * beperking zijn — er komt geen e-mailadres op deze pagina — maar dan moet
-     * je het wel wéten voordat je klikt.
+     * inlogpagina van GitHub, en de meeste zzp'ers hebben er geen.
+     *
+     * Dat was eerder een doodlopende weg: deze test eiste juist dát er geen
+     * e-mailadres op de pagina stond, dus wie geen account had kon niets melden.
+     * Een pagina die om vertrouwen vraagt en dan geen enkele manier biedt om
+     * iets te zeggen, werkt tegen zichzelf. Nu moet de uitweg er zijn, en de
+     * waarschuwing vóór de klik ook nog.
      */
-    test('en zegt erbij dat je daar een account voor nodig hebt', async ({ page }) => {
+    test('en zegt erbij dat je daar een account voor nodig hebt, met een uitweg', async ({ page }) => {
         const tekst = normalise(await page.locator('article').innerText());
         expect(tekst).toContain('GitHub-account nodig');
-        expect(tekst).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
+        expect(tekst).toContain(CONTACT);
+        await expect(page.locator(`a[href="mailto:${CONTACT}"]`)).toBeVisible();
     });
 
     /**
@@ -149,7 +155,12 @@ test.describe('de pagina zelf', () => {
         // Daarna kwam de bewaartermijn van zeven jaar erbij, en dát is wél
         // inhoudelijk: er staat nu een plicht genoemd die er eerst niet stond.
         // Toen is de datum dus wel mee opgeschoven.
-        ).toBe('0eecdedc98620e5c');
+        //
+        // 16 oktober 2026: de maker staat er met naam bij en er is een adres om
+        // iets te melden, naast de meldweg via GitHub die een account vereist.
+        // Ook inhoudelijk, want wie geen account had kon tot nu toe niets melden,
+        // dus is de datum weer mee opgeschoven.
+        ).toBe('dbd19434e6fc7447');
     });
 
     test('is weer terug te verlaten', async ({ page }) => {

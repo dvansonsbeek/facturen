@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ui, openApp } from './helpers';
-import { NAAM } from '../lib/site';
+import { NAAM, MAKER, CONTACT, BRONCODE, BASISPAD } from '../lib/site';
 
 /** De pagina zelf: titel, tagline en footer. */
 
@@ -229,15 +229,32 @@ test('noemt in de tagline wat het kost, voor wie het is, en wat er niet gebeurt'
  *
  * Hier stond eerst dat de footer *alleen* de privacybelofte droeg en geen enkele
  * verwijzing. Dat is losgelaten voor de gebruiksvoorwaarden: die moeten ergens
- * te vinden zijn, en de voettekst is waar iemand ernaar zoekt. Waar die test om
- * begonnen was verandert niet — geen auteursrecht, geen naam, geen jaartal dat
- * veroudert — en de eis op verwijzingen is nu strakker dan ruimer: precies één,
- * en wel die ene.
+ * te vinden zijn, en de voettekst is waar iemand ernaar zoekt.
+ *
+ * En daarna nog een keer, voor de naam van de maker en een adres. Die stonden er
+ * met opzet niet, tot een bedrijfsfilter de app als phishing blokkeerde: een
+ * formulier dat om een IBAN vraagt op een nieuw domein dat niemand noemt, is van
+ * een valse pagina niet te onderscheiden. Zie lib/site.ts.
+ *
+ * Wat nog steeds geldt, is het deel dat nooit over de naam ging: **geen
+ * auteursrechtregel en geen jaartal**, want een jaartal in een voettekst
+ * veroudert en gaat dan liegen. Dat is wat deze test nu bewaakt, samen met welke
+ * drie verwijzingen er horen te staan.
  */
-test('toont de privacybelofte en de voorwaarden, en geen auteursrechtregel', async ({ page }) => {
+test('toont de privacybelofte, de voorwaarden en wie de app maakt', async ({ page }) => {
     const footer = page.locator('footer');
     await expect(footer).toContainText('Geen opslag op servers, alles in jouw browser.');
+    await expect(footer).toContainText(MAKER);
+    await expect(footer).toContainText(CONTACT);
+
+    // Geen auteursrecht en geen jaartal: dat laatste zou verouderen.
     await expect(footer).not.toContainText('©');
-    await expect(footer.locator('a')).toHaveCount(1);
-    await expect(footer.locator('a')).toHaveAttribute('href', /\/voorwaarden/);
+    expect(await footer.innerText()).not.toMatch(/\b(19|20)\d{2}\b/);
+
+    // De drie die er horen te staan, elk op zijn eigen href en niet op een
+    // telling: zodra NEXT_PUBLIC_KOFFIE gezet is komt er een vierde bij, en
+    // daarover gaat deze test niet.
+    for (const href of [`${BASISPAD}/voorwaarden`, BRONCODE, `mailto:${CONTACT}`]) {
+        await expect(footer.locator(`a[href="${href}"]`)).toBeVisible();
+    }
 });

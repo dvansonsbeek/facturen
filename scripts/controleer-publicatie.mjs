@@ -143,6 +143,22 @@ if (!/Gebruiksvoorwaarden/i.test(kop)) {
     problemen.push(`de voorwaardenpagina laadde niet; de kop was "${kop.slice(0, 60)}"`);
 }
 
+// security.txt, en die hoort hier en niet alleen in de gewone suite. Het bestand
+// staat in public/.well-known/, een map die met een punt begint, en dat is
+// precies wat ergens in de keten stil wordt overgeslagen: upload-pages-artifact
+// laat dotbestanden vanaf v4 weg, en daarvoor staat include-hidden-files in de
+// workflow. Op de ontwikkelserver valt dat nooit op, want die leest public/
+// rechtstreeks. Hier wordt out/ geserveerd, dus komt een build die het bestand
+// kwijtraakt wél boven water.
+const sec = await page.request.get(
+    `http://localhost:${POORT}${VOORVOEGSEL}/.well-known/security.txt`,
+);
+if (!sec.ok()) {
+    problemen.push(`security.txt is niet bereikbaar (status ${sec.status()})`);
+} else if (!(await sec.text()).includes('Contact:')) {
+    problemen.push('security.txt staat er wel, maar zonder Contact-regel');
+}
+
 await browser.close();
 server.close();
 
@@ -151,4 +167,7 @@ if (problemen.length) {
     for (const p of problemen) console.error(`  - ${p}`);
     process.exit(1);
 }
-console.log('  geen verzoeken naar buiten, niets geblokkeerd, PDF werkt, voorwaarden bereikbaar.');
+console.log(
+    '  geen verzoeken naar buiten, niets geblokkeerd, PDF werkt, voorwaarden'
+    + ' bereikbaar, security.txt staat er.',
+);

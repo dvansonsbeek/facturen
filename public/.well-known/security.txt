@@ -1,0 +1,24 @@
+# Factuurr - https://factuurr.nl
+#
+# Deze app heeft geen server en geen database. Alles wat je invult blijft in je
+# eigen browser staan, dus er is geen backend om binnen te dringen en nergens
+# een verzameling klantgegevens die kan uitlekken. Wat er te melden valt zit
+# dus in de pagina zelf of in de uitlevering via GitHub Pages.
+#
+# De broncode is openbaar: https://github.com/dvansonsbeek/facturen
+#
+# Dit bestand staat er ook om een tweede reden. Een domein van een paar weken
+# oud met een formulier dat om IBAN, KvK- en btw-nummer vraagt, lijkt voor een
+# bedrijfsfilter op een phishingpagina: er is geen naam, geen contactweg en
+# niets dat te verifieren is. Dat is precies wat hier wel staat.
+#
+# Let op: Canonical hieronder gaat uit van de root van het domein. Zou de app
+# ooit onder een submap komen te staan (PAGES_BASE_PATH), dan klopt dat adres
+# niet meer. Een statisch bestand kan dat pad niet zelf invullen, dus dan moet
+# het hier met de hand mee.
+
+Contact: mailto:dennis@sonsbeek.com
+Expires: 2027-10-01T00:00:00.000Z
+Preferred-Languages: nl, en
+Canonical: https://factuurr.nl/.well-known/security.txt
+Policy: https://factuurr.nl/voorwaarden
