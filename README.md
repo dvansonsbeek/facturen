@@ -159,6 +159,24 @@ Zonder de omgevingsvariabele `NEXT_PUBLIC_GOATCOUNTER` gebeurt er helemaal
 niets: geen pixel, en het beveiligingsbeleid blijft onveranderd. Zo draaien de
 ontwikkelserver en de tests zonder teller.
 
+## 👤 Wie dit maakt
+
+Factuurr wordt gemaakt en onderhouden door Dennis van Sonsbeek.
+
+Zit er een fout in, of wil je iets kwijt over de beveiliging? Mail
+[dennis@sonsbeek.com](mailto:dennis@sonsbeek.com). Een melding op
+[GitHub](https://github.com/dvansonsbeek/facturen/issues/new) mag ook, maar daar heb je
+een account voor nodig. Hetzelfde adres staat in
+[security.txt](https://factuurr.nl/.well-known/security.txt), waar een
+beveiligingsonderzoeker het verwacht.
+
+Dat dit er staat, heeft een reden die verder gaat dan netjes zijn. Deze app is een
+formulier dat om je IBAN, je KvK-nummer en je btw-nummer vraagt. Dat je die gegevens
+alleen aan je eigen browser geeft, kun je hier nalezen en in de broncode nakijken, maar
+je moet het wel kúnnen nakijken: wie erachter zit, waar de code staat en hoe je iemand
+bereikt. Een pagina die om dit soort gegevens vraagt en geen van die drie beantwoordt,
+verdient je vertrouwen ook niet.
+
 ## 📄 Licentie
 
 Dit project is beschikbaar onder de MIT-licentie. Zie [LICENSE](LICENSE) voor de volledige tekst.

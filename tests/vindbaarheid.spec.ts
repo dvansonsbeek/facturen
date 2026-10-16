@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { openApp } from './helpers';
 import { MAKER, CONTACT, BRONCODE } from '../lib/site';
 
@@ -201,6 +203,26 @@ test.describe('security.txt', () => {
         expect(veld(tekst, 'Canonical')).toBe(`${DOMEIN}/.well-known/security.txt`);
         expect(veld(tekst, 'Policy')).toBe(`${DOMEIN}/voorwaarden`);
         expect(tekst).toContain(BRONCODE);
+    });
+
+    /**
+     * De twee bestanden die lib/site.ts niet kunnen importeren.
+     *
+     * security.txt en de README zijn platte tekst, dus daar staat de naam en het
+     * adres uitgeschreven. Dat zijn twee kansen om ze te laten verlopen zodra de
+     * constante verandert, en bij deze twee valt dat nergens op: een README die
+     * de verkeerde naam noemt leest niemand na, en juist bij deze twee is
+     * aanspreekbaar zijn het hele punt.
+     */
+    test('en de README noemen dezelfde maker en hetzelfde adres', async () => {
+        // process.cwd() en niet import.meta.url: Playwright zet specs om naar
+        // CommonJS, en daar bestaat import.meta niet. Playwright draait vanuit de
+        // projectmap, dus dit is de wortel.
+        for (const bestand of ['README.md', 'public/.well-known/security.txt']) {
+            const tekst = await readFile(join(process.cwd(), bestand), 'utf8');
+            expect(tekst, `${bestand} noemt de maker niet`).toContain(MAKER);
+            expect(tekst, `${bestand} noemt het adres niet`).toContain(CONTACT);
+        }
     });
 
     test('is nog geldig, en zegt het ruim voordat hij verloopt', async ({ page }) => {
