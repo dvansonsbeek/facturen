@@ -1,4 +1,5 @@
 # Factuurr - https://factuurr.nl
+# Gemaakt en onderhouden door Dennis van Sonsbeek.
 #
 # Deze app heeft geen server en geen database. Alles wat je invult blijft in je
 # eigen browser staan, dus er is geen backend om binnen te dringen en nergens

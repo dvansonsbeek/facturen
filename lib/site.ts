@@ -39,13 +39,15 @@ export const NAAM = 'Factuurr';
  * erachter zit, dat de broncode openbaar is en dat er een adres is om iets te
  * melden. Dat is wat deze twee regels toevoegen.
  *
- * "Dennis" en niet meer, net als in LICENSE. De naam staat op drie plaatsen
+ * De volledige naam, en niet alleen de voornaam zoals in LICENSE. Juist dat is
+ * hier het signaal: een beoordelaar die wil weten of er een echt persoon achter
+ * deze pagina zit, heeft aan "Dennis" niets. De naam staat op drie plaatsen
  * (voettekst, voorwaarden, gestructureerde gegevens) en het adres op vier, want
  * `public/.well-known/security.txt` hoort er ook bij. Dat laatste bestand is
  * statisch en kan hier niet bij, dus tests/vindbaarheid.spec.ts legt de twee
  * tegen elkaar.
  */
-export const MAKER = 'Dennis';
+export const MAKER = 'Dennis van Sonsbeek';
 
 /** Het adres waarop je een fout of een beveiligingsprobleem kunt melden. */
 export const CONTACT = 'dennis@sonsbeek.com';

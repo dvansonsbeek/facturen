@@ -160,7 +160,11 @@ test.describe('de pagina zelf', () => {
         // iets te melden, naast de meldweg via GitHub die een account vereist.
         // Ook inhoudelijk, want wie geen account had kon tot nu toe niets melden,
         // dus is de datum weer mee opgeschoven.
-        ).toBe('dbd19434e6fc7447');
+        //
+        // Diezelfde dag werd "Dennis" "Dennis van Sonsbeek". Dat verzette de
+        // datum niet: het is dezelfde dag, en het is ook hetzelfde feit
+        // nauwkeuriger opgeschreven in plaats van een andere afspraak.
+        ).toBe('af47586721d737dc');
     });
 
     test('is weer terug te verlaten', async ({ page }) => {
